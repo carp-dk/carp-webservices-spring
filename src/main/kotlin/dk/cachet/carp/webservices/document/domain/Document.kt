@@ -71,7 +71,9 @@ class DocumentListener : InitializingBean {
     fun deleteImageResource(document: Document) {
         if (document.data == null) return
 
-        val url = document.data!!.get("image")?.toString()?.removeSurrounding("\"")
+        if (!document.data!!.hasNonNull("image")) return
+
+        val url: String? = document.data!!.get("image").textValue()
 
         if (url.isNullOrEmpty()) return
 
