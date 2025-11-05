@@ -4,7 +4,7 @@ USER root
 WORKDIR /src
 RUN gradle clean bootJar -x test
 
-FROM openjdk:17
+FROM amazoncorretto:17-alpine
 WORKDIR /app
 COPY --from=builder /src/build/libs/carp-platform.jar .
 
@@ -13,10 +13,11 @@ USER root
 
 ENTRYPOINT ["java","-jar","carp-platform.jar"]
 
+# -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap > lets the JVM respect CPU and RAM limits inside a Docker container
+# -XX:+ExitOnOutOfMemoryError > JVM exits on the first occurrence of an out-of-memory error
+
 CMD ["java", \
-     # -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap > lets the JVM respect CPU and RAM limits inside a Docker container
      "-XX:+UnlockExperimentalVMOptions", "-XX:+UseCGroupMemoryLimitForHeap", "-XshowSettings:vm", \
-     # -XX:+ExitOnOutOfMemoryError > JVM exits on the first occurrence of an out-of-memory error
      "-XX:+ExitOnOutOfMemoryError","-XX:+HeapDumpOnOutOfMemoryError", "-XX:HeapDumpPath=/tmp","-XX:ErrorFile=/tmp/jdk.error", \
      "-XX:TieredStopAtLevel=1", \
      "-Djava.security.egd=file:/dev/./urandom", \
