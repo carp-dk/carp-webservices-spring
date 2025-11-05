@@ -43,33 +43,6 @@ while getopts ":r" opt; do
 done
 shift $((OPTIND -1))
 
-remove_container_and_untag_image() {
-  local NAME=$1
-  local IMAGE=$2
-
-  echo "Removing the container $NAME (if it exists)..."
-  docker container stop $NAME >/dev/null 2>&1
-  docker container rm $NAME >/dev/null 2>&1
-  echo "Untagging the image $IMAGE..."
-  docker image rm $IMAGE >/dev/null 2>&1
-}
-
-# Check if the -r flag is provided
-REMOVE=false
-
-while getopts ":r" opt; do
-    case ${opt} in
-        r)
-            REMOVE=true
-            ;;
-        \?)
-            echo "Invalid option: $OPTARG" 1>&2
-            exit 1
-            ;;
-    esac
-done
-shift $((OPTIND -1))
-
 # Create volumes used by the profile
 # https://stackoverflow.com/a/45674488/13179591
 VOLUMES=("rabbitmq" "postgres" "keycloak" "prometheus")

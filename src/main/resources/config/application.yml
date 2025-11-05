@@ -24,7 +24,7 @@ spring:
       enabled: always
 
   datasource:
-    name: carp_local
+    name: "carp_${PROFILE}"
     url: "jdbc:postgresql://${PG_HOST}:${PG_PORT}/carp?serverTimezone=UTC&characterEncoding=utf-8"
     username: "${ADMIN_USER}"
     password: "${ADMIN_PASSWORD}"

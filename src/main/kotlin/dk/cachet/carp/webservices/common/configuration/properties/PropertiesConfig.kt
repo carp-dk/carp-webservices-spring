@@ -5,7 +5,7 @@ import org.springframework.context.support.PropertySourcesPlaceholderConfigurer
 
 @Configuration
 @ComponentScan(basePackages = ["dk.cachet.carp.webservices"])
-@PropertySources(PropertySource(value = ["classpath:config/application-\${spring.profiles.active}.yml"]))
+@PropertySources(PropertySource(value = ["classpath:config/application.yml"]))
 class PropertiesConfig {
     @Bean
     fun propertySourcesPlaceholderConfigurer(): PropertySourcesPlaceholderConfigurer? {

@@ -11,7 +11,7 @@ import org.springframework.mail.javamail.JavaMailSenderImpl
  */
 @Configuration
 @ComponentScan(basePackages = ["dk.cachet.carp.webservices"])
-@PropertySources(PropertySource(value = ["classpath:config/application-\${spring.profiles.active}.yml"]))
+@PropertySources(PropertySource(value = ["classpath:config/application.yml"]))
 class EmailConfig(
     @Value("\${spring.mail.host}") private val host: String,
     @Value("\${spring.mail.address}") private val emailAddress: String,

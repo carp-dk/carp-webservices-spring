@@ -11,7 +11,7 @@ import javax.sql.DataSource
 
 @Configuration
 @ComponentScan(basePackages = ["dk.cachet.carp.webservices"])
-@PropertySources(PropertySource(value = ["classpath:config/application-\${spring.profiles.active}.yml"]))
+@PropertySources(PropertySource(value = ["classpath:config/application.yml"]))
 @ConfigurationProperties(prefix = "spring.datasource")
 @Suppress("LongParameterList")
 class DataSourceConfiguration(

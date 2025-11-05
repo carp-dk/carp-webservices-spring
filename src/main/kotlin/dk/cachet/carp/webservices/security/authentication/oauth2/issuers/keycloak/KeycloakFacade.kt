@@ -30,7 +30,7 @@ import org.springframework.web.util.UriBuilder
 
 // https://www.keycloak.org/docs-api/21.1.1/rest-api/
 @Service
-@PropertySources(PropertySource(value = ["classpath:config/application-\${spring.profiles.active}.yml"]))
+@PropertySources(PropertySource(value = ["classpath:config/application.yml"]))
 @Suppress("TooManyFunctions")
 class KeycloakFacade(
     @Value("\${keycloak.auth-server-url}") private val authServerUrl: String,
