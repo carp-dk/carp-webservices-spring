@@ -32,15 +32,13 @@ x-keycloak-prod-commands: &keycloak-prod-commands
 services:
   carp-ws:
     <<: *carp-base-config
-    build:
-      dockerfile: Dockerfile
     container_name: "carp-ws-${PROFILE}"
     environment:
       - "SPRING_PROFILES_ACTIVE=${PROFILE}"
       - "JAVA_OPTS=-Xmx1g -Xms1g -XX:MaxPermSize=512m"
     env_file:
       - .env
-    image: "carp-ws:${PROFILE}"
+    image: registry.carp.dk/carp/carp-ws:${PROFILE}
     ports:
       - "${CAWS_PORT}:${CAWS_PORT}"
     profiles:
