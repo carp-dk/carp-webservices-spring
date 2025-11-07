@@ -83,7 +83,7 @@ Follow these steps to deploy CAWS:
 
 1. Edit the [.env file](.env). Choose a profile from the list of [Profiles](#profiles).
    - Ignore the properties starting with KC_ for now
-2. Copy over the contents of the [template configuration file](src/main/resources/config/application-local.yml) to the environment specific [configuration file](src/main/resources/config) 
+2. Copy over the contents of the [template configuration file](src/main/resources/config/application.yml) to the environment specific [configuration file](src/main/resources/config) 
    - ignore the `keycloak` section for now
 3. Run `bash deployment.sh`
 4. Configure keycloak
@@ -99,7 +99,7 @@ Follow these steps to deploy CAWS:
        - `view-clients`
      - Note: this client is used by Spring to communicate with keycloak for managing accounts; if your application relies on a client that authorizes via the Keycloak service, you will need to create it depending on your application's requirements
    - Under `Users` add a new Admin user and assign the `system-admin` role to it. This user will be used to invite the first researcher. Can be deactivated afterward.
-   - Under `Realm settings` -> `Email` configure the email settings. This is used to send out invitations to researchers/researcher_assistants/participants. The same email server can be used as the one specified in the [configuration file](src/main/resources/config/application-local.yml).
+   - Under `Realm settings` -> `Email` configure the email settings. This is used to send out invitations to researchers/researcher_assistants/participants. The same email server can be used as the one specified in the [configuration file](src/main/resources/config/application.yml).
    - Under `Realm settings` -> `Themes` configure the theme settings.
    - Update the [environment file](.env) to match the newly created client.
 5. Rebuild the carp-ws image and restart the stack.
