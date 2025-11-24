@@ -14,7 +14,8 @@ x-keycloak-dev-commands: &keycloak-dev-commands
     - "--import-realm"
     - "--hostname=${KC_URL}"
     - "--hostname-admin=${KC_URL}"
-    - "--proxy=edge"
+    - "--proxy-headers=xforwarded"
+    - "--http-enabled=true"
 
 x-keycloak-prod-commands: &keycloak-prod-commands
   command:
@@ -27,13 +28,8 @@ x-keycloak-prod-commands: &keycloak-prod-commands
     - "--import-realm"
     - "--hostname=${KC_URL}"
     - "--hostname-admin=${KC_URL}"
-    - "--proxy=edge"
-   
-# Apply the following configuration if hosting behind a reverse proxy
-#    - "--hostname=${KC_URL}"
-#    - "--hostname-admin=${KC_URL}"
-#    - "--proxy-headers xforwarded"
-#    - "--http-enabled true"
+    - "--proxy-headers=xforwarded"
+    - "--http-enabled=true"
 
 services:
   carp-ws:
