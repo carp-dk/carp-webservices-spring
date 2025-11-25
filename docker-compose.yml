@@ -12,6 +12,10 @@ x-keycloak-dev-commands: &keycloak-dev-commands
     - "--db-username=${ADMIN_USER}"
     - "--db-password=${ADMIN_PASSWORD}"
     - "--import-realm"
+    - "--hostname=${KC_URL}"
+    - "--hostname-admin=${KC_URL}"
+    - "--proxy-headers=xforwarded"
+    - "--http-enabled=true"
 
 x-keycloak-prod-commands: &keycloak-prod-commands
   command:
@@ -22,12 +26,10 @@ x-keycloak-prod-commands: &keycloak-prod-commands
     - "--db-username=${ADMIN_USER}"
     - "--db-password=${ADMIN_PASSWORD}"
     - "--import-realm"
-
-# Apply the following configuration if hosting behind a reverse proxy
-#    - "--hostname=${KC_URL}"
-#    - "--hostname-admin=${KC_URL}"
-#    - "--proxy-headers xforwarded"
-#    - "--http-enabled true"
+    - "--hostname=${KC_URL}"
+    - "--hostname-admin=${KC_URL}"
+    - "--proxy-headers=xforwarded"
+    - "--http-enabled=true"
 
 services:
   carp-ws:
@@ -37,7 +39,7 @@ services:
       - "SPRING_PROFILES_ACTIVE=${PROFILE}"
       - "JAVA_OPTS=-Xmx1g -Xms1g -XX:MaxPermSize=512m"
     env_file:
-      - .env
+      - stack.env
     image: registry.carp.dk/carp/carp-ws:${PROFILE}
     ports:
       - "${CAWS_PORT}:${CAWS_PORT}"
@@ -61,7 +63,6 @@ services:
       - production
       - staging
       - testing
-      - development
     volumes:
       - rabbitmq:/var/lib/rabbitmq/data
       - ./deployment/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
@@ -75,6 +76,7 @@ services:
       - "15692:15692"
     profiles:
       - local
+      - development
 
   postgres: &postgres
     <<: *carp-base-config
@@ -89,7 +91,6 @@ services:
       - production
       - staging
       - testing
-      - development
     volumes:
       - postgres:/var/lib/postgresql/data
       - ./deployment/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -100,6 +101,7 @@ services:
       - "5432:5432"
     profiles:
       - local
+      - development
 
   keycloak: &keycloak
     <<: [*carp-base-config]

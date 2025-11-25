@@ -13,8 +13,8 @@ if [[ ! -S /var/run/docker.sock ]] ; then
       exit 1
 fi
 
-ENV=".env"
-source ".env"
+ENV="stack.env"
+source "stack.env"
 
 remove_container_and_untag_image() {
   local NAME=$1
