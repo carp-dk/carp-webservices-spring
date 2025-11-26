@@ -37,7 +37,7 @@ jobs:
           if [[ "$BRANCH" == "develop" ]]; then
             echo "TAG=development" >> $GITHUB_OUTPUT
           elif [[ "$BRANCH" == "testing" ]]; then
-            echo "TAG=test" >> $GITHUB_OUTPUT
+            echo "TAG=testing" >> $GITHUB_OUTPUT
           elif [[ "$BRANCH" == "master" ]]; then
             echo "TAG=production" >> $GITHUB_OUTPUT
           else
