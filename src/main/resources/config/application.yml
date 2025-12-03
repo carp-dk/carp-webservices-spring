@@ -80,10 +80,10 @@ spring:
     password: "${MAIL_PASSWORD}"
     from: "${MAIL_FROM} <${spring.mail.address}>"
     properties:
-      mail.smtp.starttls.enable: true
-      mail.smtp.starttls.required: true
+      mail.smtp.auth: ${MAIL_SMTP_AUTH:true}
+      mail.smtp.starttls.enable: ${MAIL_SMTP_STARTTLS_ENABLE:true}
+      mail.smtp.starttls.required: ${MAIL_SMTP_STARTTLS_REQUIRED:true}
       mail.transport.protocol: smtp
-      mail.smtp.auth: true
       mail.smtp.connectiontimeout: 60000
       mail.smtp.timeout: 60000
       mail.smtp.writetimeout: 60000
