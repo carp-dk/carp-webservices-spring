@@ -14,32 +14,29 @@ import org.springframework.mail.javamail.JavaMailSenderImpl
 @PropertySources(PropertySource(value = ["classpath:config/application.yml"]))
 class EmailConfig(
     @Value("\${spring.mail.host}") private val host: String,
-    @Value("\${spring.mail.address}") private val emailAddress: String,
-    @Value("\${spring.mail.password}") private val password: String,
     @Value("\${spring.mail.port}") private val port: Int,
+    @Value("\${spring.mail.username:}") private val username: String?,
+    @Value("\${spring.mail.password:}") private val password: String?,
+    @Value("\${spring.mail.properties.mail.smtp.auth:false}") private val smtpAuth: Boolean,
+    @Value("\${spring.mail.properties.mail.smtp.starttls.enable:false}") private val startTls: Boolean,
+    @Value("\${spring.mail.properties.mail.transport.protocol:smtp}") private val protocol: String,
 ) {
-    companion object {
-        const val MAIL_SMTP_AUTH = "true"
-        const val MAIL_TRANSPORT_PROTOCOL = "smtp"
-        const val MAIL_SMTP_STARTTLS_ENABLE = "true"
-    }
 
-    /**
-     * The function [mailConfig] sets a configuration for connecting to [SMTP] server.
-     * @return A new instance of [JavaMailSender].
-     */
     @Bean
     fun mailConfig(): JavaMailSender {
         val mailSender = JavaMailSenderImpl()
         mailSender.host = host
         mailSender.port = port
-        mailSender.username = emailAddress
-        mailSender.password = password
+
+        if (!username.isNullOrBlank()) {
+            mailSender.username = username
+            mailSender.password = password
+        }
 
         val props = mailSender.javaMailProperties
-        props["mail.smtp.auth"] = MAIL_SMTP_AUTH
-        props["mail.transport.protocol"] = MAIL_TRANSPORT_PROTOCOL
-        props["mail.smtp.starttls.enable"] = MAIL_SMTP_STARTTLS_ENABLE
+        props["mail.smtp.auth"] = smtpAuth
+        props["mail.smtp.starttls.enable"] = startTls
+        props["mail.transport.protocol"] = protocol
 
         return mailSender
     }

@@ -76,9 +76,9 @@ spring:
   mail:
     host: "${MAIL_HOST}"
     port: "${MAIL_PORT}"
-    address: "${MAIL_USERNAME}"
+    username: "${MAIL_USERNAME}"
     password: "${MAIL_PASSWORD}"
-    from: "${MAIL_FROM} <${spring.mail.address}>"
+    from: "${MAIL_FROM} <${MAIL_FROM_ADDRESS}>"
     properties:
       mail.smtp.auth: ${MAIL_SMTP_AUTH:true}
       mail.smtp.starttls.enable: ${MAIL_SMTP_STARTTLS_ENABLE:true}
