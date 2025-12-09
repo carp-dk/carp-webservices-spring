@@ -12,6 +12,7 @@ import org.springframework.mail.javamail.JavaMailSenderImpl
 @Configuration
 @ComponentScan(basePackages = ["dk.cachet.carp.webservices"])
 @PropertySources(PropertySource(value = ["classpath:config/application.yml"]))
+@Suppress("LongParameterList")
 class EmailConfig(
     @Value("\${spring.mail.host}") private val host: String,
     @Value("\${spring.mail.port}") private val port: Int,
