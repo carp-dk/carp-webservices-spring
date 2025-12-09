@@ -218,7 +218,14 @@ class FileServiceImpl(
                     it.fileName,
                     Path.of("studies", studyId.stringRepresentation, "deployments", it.deploymentId ?: "unknown"),
                 )
-            val copyPath = target.resolve(it.originalName)
+            val baseName = it.originalName.substringBeforeLast(".")
+            val extension = it.originalName.substringAfterLast(".", "")
+            var counter = 1
+            var copyPath = target.resolve(it.originalName)
+            while (!Files.notExists(copyPath)) {
+                copyPath = target.resolve("$baseName ($counter).$extension")
+                counter++
+            }
             Files.copy(resource.file.toPath(), copyPath)
         }
     }
