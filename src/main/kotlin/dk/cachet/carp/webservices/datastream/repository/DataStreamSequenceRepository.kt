@@ -71,35 +71,25 @@ interface DataStreamSequenceRepository : JpaRepository<DataStreamSequence, Int> 
         nativeQuery = true,
         value =
             """
-                select t1.day::timestamp as date, COALESCE(t2.task_title, t1.task_name), t1.cnt as quantity from (
-                       SELECT 
-                            (measurement->'data'->>'completedAt')::date AS day,
-                            measurement->'data'->>'taskName' AS task_name,
-                            COUNT(*) AS cnt
-                        FROM public.data_stream_sequence ds,
-                             LATERAL jsonb_array_elements(ds.snapshot->'measurements') AS measurement
-                        WHERE ds.data_stream_id IN (:dataStreamIds)
-                        AND measurement->'data'->>'__type' = 'dk.cachet.carp.completedapptask'
-                        AND measurement->'data'->>'taskType' = :taskType
-                        AND (measurement->'data'->>'completedAt')::timestamp > :from
-                        AND (measurement->'data'->>'completedAt')::timestamp < :to
-                        GROUP BY day, task_name
-                        ORDER BY day, cnt DESC
-                ) as t1 left join (
-                        SELECT 
-                            t->>'name' AS task_name,
-                            t->>'title' AS task_title
-                        FROM public.studies,
-                             LATERAL jsonb_array_elements(snapshot->'protocolSnapshot'->'tasks') AS t
-                        WHERE snapshot->>'id' = :studyId
-                )  as t2 on t1.task_name = t2.task_name
+                SELECT 
+                    (measurement->'data'->>'completedAt')::date AS date,
+                    measurement->'data'->>'taskName' AS task_name,
+                    COUNT(*) AS quantity
+                FROM public.data_stream_sequence ds,
+                     LATERAL jsonb_array_elements(ds.snapshot->'measurements') AS measurement
+                WHERE ds.data_stream_id IN (:dataStreamIds)
+                    AND measurement->'data'->>'__type' = 'dk.cachet.carp.completedapptask'
+                    AND measurement->'data'->>'taskType' = :taskType
+                    AND (measurement->'data'->>'completedAt')::timestamp > :from
+                    AND (measurement->'data'->>'completedAt')::timestamp < :to
+                GROUP BY date, task_name
+                ORDER BY date DESC 
             """,
     )
     fun getDayKeyQuantityListByDataStreamIdsAndOtherParameters(
         dataStreamIds: List<Int>,
         from: Instant,
         to: Instant,
-        studyId: String,
         taskType: String,
     ): List<DateTaskQuantityTripleDb>
 }
