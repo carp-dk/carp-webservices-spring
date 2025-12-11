@@ -20,6 +20,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
@@ -216,7 +217,7 @@ class DataStreamServiceTest {
                             scope = "invalidType",
                             type = "survey",
                             from = Instant.fromEpochMilliseconds(0),
-                            to = Instant.fromEpochMilliseconds(0),
+                            to = Instant.fromEpochMilliseconds(1),
                         )
                     }
 
@@ -236,7 +237,7 @@ class DataStreamServiceTest {
                             scope = "deployment",
                             type = "survey",
                             from = Instant.fromEpochMilliseconds(0),
-                            to = Instant.fromEpochMilliseconds(0),
+                            to = Instant.fromEpochMilliseconds(1),
                         )
                     }
 
@@ -293,7 +294,6 @@ class DataStreamServiceTest {
                         dataStreamIds = mockListOfDataStreamIds.map { it.id },
                         from = from.toJavaInstant(),
                         to = to.toJavaInstant(),
-                        studyId = studyId.toString(),
                         taskType = taskType,
                     )
                 } returns mockListOfDateTaskQuantityTripleDbs
@@ -378,7 +378,6 @@ class DataStreamServiceTest {
                         dataStreamIds = listOf(1, 2, 3),
                         from = from.toJavaInstant(),
                         to = to.toJavaInstant(),
-                        studyId = studyId.toString(),
                         taskType = taskType,
                     )
                 } returns mockListOfDateTaskQuantityTripleDbs
@@ -417,7 +416,7 @@ class DataStreamServiceTest {
                             scope = "participant",
                             type = "survey",
                             from = Instant.fromEpochMilliseconds(0),
-                            to = Instant.fromEpochMilliseconds(0),
+                            to = Instant.fromEpochMilliseconds(1),
                         )
                     }
 
@@ -439,12 +438,70 @@ class DataStreamServiceTest {
                             scope = "participant",
                             type = "survey",
                             from = Instant.fromEpochMilliseconds(0),
-                            to = Instant.fromEpochMilliseconds(0),
+                            to = Instant.fromEpochMilliseconds(1),
                         )
                     }
 
                 assertTrue {
                     e.message?.contains("Deployment ID must be provided when scope is 'participant'") == true
+                }
+            }
+        }
+
+        @Test
+        fun `throws if from is not before to`() {
+            runTest {
+                val e =
+                    assertThrows<IllegalArgumentException> {
+                        sut.getDataStreamsSummary(
+                            studyId = UUID.randomUUID(),
+                            deploymentId = UUID.randomUUID(),
+                            participantId = null,
+                            scope = "deployment",
+                            type = "survey",
+                            from = Instant.fromEpochMilliseconds(1000),
+                            to = Instant.fromEpochMilliseconds(0),
+                        )
+                    }
+
+                assertTrue { e.message?.contains("'from' must be before 'to'.") == true }
+            }
+        }
+
+        @Test
+        fun `returns empty summary when no data streams exist`() {
+            runTest {
+                val deploymentId = UUID.randomUUID()
+                val studyId = UUID.randomUUID()
+                val from = Instant.fromEpochMilliseconds(0)
+                val to = Instant.fromEpochMilliseconds(1000)
+                val taskType = "survey"
+
+                every {
+                    dataStreamIdRepository.getAllByDeploymentId(
+                        deploymentId.toString(),
+                    )
+                } returns emptyList()
+
+                val result =
+                    sut.getDataStreamsSummary(
+                        studyId = studyId,
+                        deploymentId = deploymentId,
+                        participantId = null,
+                        scope = "deployment",
+                        type = taskType,
+                        from = from,
+                        to = to,
+                    )
+
+                assertTrue(result.data.isEmpty())
+                verify(exactly = 0) {
+                    dataStreamSequenceRepository.getDayKeyQuantityListByDataStreamIdsAndOtherParameters(
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                    )
                 }
             }
         }
@@ -521,7 +578,6 @@ class DataStreamServiceTest {
                         dataStreamIds = mockListOfDataStreamIds.map { it.id },
                         from = from.toJavaInstant(),
                         to = to.toJavaInstant(),
-                        studyId = studyId.toString(),
                         taskType = taskType,
                     )
                 } returns mockListOfDateTaskQuantityTripleDbs

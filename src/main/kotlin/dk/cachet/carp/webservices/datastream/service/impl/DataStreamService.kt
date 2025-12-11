@@ -94,20 +94,31 @@ class DataStreamService(
         to: Instant,
     ): DataStreamsSummaryDto {
         require(type in validTypes) { "Invalid type: $type. Allowed values: $validTypes" }
+        require(from < to) { "'from' must be before 'to'." }
 
-        val dateTaskQuantityTriplesDb =
-            withContext(Dispatchers.IO) {
-                dataStreamSequenceRepository.getDayKeyQuantityListByDataStreamIdsAndOtherParameters(
-                    dataStreamIds = getDataStreamIds(scope, studyId, deploymentId, participantId),
-                    from = from.toJavaInstant(),
-                    to = to.toJavaInstant(),
-                    studyId = studyId.toString(),
-                    taskType = type,
-                )
-            }
+        val dataStreamIds = getDataStreamIds(scope, studyId, deploymentId, participantId)
+        if (dataStreamIds.isEmpty()) {
+            return DataStreamsSummaryDto(
+                data = emptyList(),
+                studyId = studyId.toString(),
+                deploymentId = deploymentId?.toString(),
+                participantId = participantId?.toString(),
+                scope = scope,
+                type = type,
+                from = from,
+                to = to,
+            )
+        }
 
         val dateTaskQuantityTriples =
-            dateTaskQuantityTriplesDb.map {
+            withContext(Dispatchers.IO) {
+                dataStreamSequenceRepository.getDayKeyQuantityListByDataStreamIdsAndOtherParameters(
+                    dataStreamIds = dataStreamIds,
+                    from = from.toJavaInstant(),
+                    to = to.toJavaInstant(),
+                    taskType = type,
+                )
+            }.map {
                 DateTaskQuantityTriple(
                     date = Instant.fromEpochMilliseconds(it.date.time),
                     task = it.task,
@@ -180,7 +191,7 @@ class DataStreamService(
 
         val sequenceIds = dataStreamSequenceRepository.findSequenceIdsByStreamId(dataStreamIds)
 
-        sequenceIds.map { sequenceId ->
+        sequenceIds.forEach { sequenceId ->
             try {
                 // Return empty if no sequences found
                 val sequence = dataStreamSequenceRepository.findById(sequenceId).orElse(null)
@@ -245,15 +256,18 @@ class DataStreamService(
         participantId: UUID?,
     ): List<Int> {
         require(scope in validScopes) { "Invalid scope: $scope. Allowed values: $validScopes" }
-        if (scope == "deployment") {
-            requireNotNull(deploymentId) { "Deployment ID must be provided when scope is 'deployment'." }
-            return getDataStreamIdsForDeployment(deploymentId)
-        } else if (scope == "study") {
-            return getDataStreamIdsForStudy(studyId)
-        } else {
-            requireNotNull(participantId) { "Participant ID must be provided when scope is 'participant'." }
-            requireNotNull(deploymentId) { "Deployment ID must be provided when scope is 'participant'." }
-            return getDataStreamIdsForParticipant(participantId, deploymentId)
+        return when (scope) {
+            "deployment" -> {
+                requireNotNull(deploymentId) { "Deployment ID must be provided when scope is 'deployment'." }
+                getDataStreamIdsForDeployment(deploymentId)
+            }
+            "study" -> getDataStreamIdsForStudy(studyId)
+            "participant" -> {
+                requireNotNull(participantId) { "Participant ID must be provided when scope is 'participant'." }
+                requireNotNull(deploymentId) { "Deployment ID must be provided when scope is 'participant'." }
+                getDataStreamIdsForParticipant(participantId, deploymentId)
+            }
+            else -> emptyList() // already guarded, keeps exhaustive when
         }
     }
 
@@ -262,21 +276,29 @@ class DataStreamService(
     }
 
     private suspend fun getDataStreamIdsForStudy(studyId: UUID): List<Int> {
-        val deploymentIds = participantRepository.getRecruitment(studyId)?.participantGroups?.keys?.toSet()
+        val deploymentIds =
+            requireNotNull(
+                participantRepository.getRecruitment(studyId)?.participantGroups?.keys?.toSet(),
+            ) { "Recruitment not found for study $studyId" }
 
-        return deploymentIds!!.flatMap { findDataStreamIdsByDeploymentId(it) }.toSet().toList()
+        return deploymentIds.flatMap { findDataStreamIdsByDeploymentId(it) }.toSet().toList()
     }
 
     private suspend fun getDataStreamIdsForParticipant(
         participantId: UUID,
         deploymentId: UUID,
     ): List<Int> {
-        val participantGroup = participationService.getParticipantGroup(deploymentId)
+        val participantGroup =
+            requireNotNull(
+                participationService.getParticipantGroup(deploymentId),
+            ) { "Participant group not found for deployment $deploymentId" }
 
         val participationHavingParticipantId =
-            participantGroup!!.participations.find { it.participation.participantId == participantId }
+            requireNotNull(
+                participantGroup.participations.find { it.participation.participantId == participantId },
+            ) { "Participant $participantId not assigned to deployment $deploymentId" }
 
-        val assignedPrimaryDeviceRoleNames = participationHavingParticipantId!!.assignedPrimaryDeviceRoleNames
+        val assignedPrimaryDeviceRoleNames = participationHavingParticipantId.assignedPrimaryDeviceRoleNames
         return findDataStreamIdsByDeploymentIdAndDeviceRoleNames(
             deploymentId,
             assignedPrimaryDeviceRoleNames.toList(),
