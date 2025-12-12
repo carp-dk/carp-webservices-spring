@@ -41,6 +41,7 @@ object WSInputDataTypes : InputDataTypeList() {
     internal const val FULL_NAME_TYPE_NAME = "$WS_NAMESPACE.full_name"
     internal const val ADDRESS_TYPE_NAME = "$WS_NAMESPACE.address"
     internal const val DIAGNOSIS_TYPE_NAME = "$WS_NAMESPACE.diagnosis"
+    internal const val HANDED_OUT_DEVICE_TYPE_NAME = "$WS_NAMESPACE.handed_out_device"
 
     /**
      * Phone name of a participant.
@@ -112,5 +113,17 @@ object WSInputDataTypes : InputDataTypeList() {
             dataClass = Diagnosis::class,
             inputToData = { WS_JSON.decodeFromString(Diagnosis.serializer(), it) },
             dataToInput = { WS_JSON.encodeToString(Diagnosis.serializer(), it) },
+        )
+
+    /**
+     * Device handed out to a participant.
+     */
+    val HANDED_OUT_DEVICE =
+        add(
+            inputDataType = InputDataType.fromString(HANDED_OUT_DEVICE_TYPE_NAME),
+            inputElement = Text("Handed Out Device"),
+            dataClass = HandedOutDevice::class,
+            inputToData = { WS_JSON.decodeFromString(HandedOutDevice.serializer(), it) },
+            dataToInput = { WS_JSON.encodeToString(HandedOutDevice.serializer(), it) },
         )
 }

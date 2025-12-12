@@ -6,6 +6,7 @@
 - Supported Input Data Types
   * [Address](#address)
   * [Diagnosis](#diagnosis)
+  * [HandedOutDevice](#handedoutdevice)
   * [FullName](#fullname)
   * [InformedConsent](#informedconsent)
   * [PhoneNumber](#phonenumber)
@@ -155,6 +156,34 @@ val diagnosis = Diagnosis(
     diagnosis = "Chronic obstructive pulmonary disease",
     icd11Code = "CA40",
     conclusion = "Patient needs regular follow-ups"
+)
+```
+
+## HandedOutDevice
+
+Represents a device handed out to a participant for the study.
+
+### Data Type Name
+
+`dk.carp.webservices.input.handed_out_device`
+
+### Fields
+
+- `deviceId: String` - Identifier or serial/asset tag of the handed out device.
+- `deviceModel: String?` - Optional model or description to help inventory tracking.
+- `handedOutAt: Instant?` - When the device was handed out to the participant. Defaults to now if omitted.
+- `notes: String?` - Free-form notes about accessories, condition, or anything noteworthy.
+
+### Example
+
+Here is an example of how to create an instance of the `HandedOutDevice` class:
+
+```kotlin
+val handedOutDevice = HandedOutDevice(
+    deviceId = "Device-123",
+    deviceModel = "Polar watch 2024",
+    handedOutAt = Instant.parse("2024-08-01T09:00:00Z"),
+    notes = "Includes charging dock and spare strap"
 )
 ```
 
