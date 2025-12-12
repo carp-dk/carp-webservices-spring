@@ -20,6 +20,7 @@ private val WS_MODULE =
             subclass(FullName::class)
             subclass(Address::class)
             subclass(Diagnosis::class)
+            subclass(HandedOutDevice::class)
         }
     }
 
