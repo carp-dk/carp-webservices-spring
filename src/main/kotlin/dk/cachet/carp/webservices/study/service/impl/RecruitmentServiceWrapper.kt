@@ -176,21 +176,34 @@ class RecruitmentServiceWrapper(
     override suspend fun getParticipantGroupsStatus(studyId: UUID): ParticipantGroupsStatus =
         withContext(Dispatchers.IO + SecurityCoroutineContext()) {
             val participantGroupStatusList = core.getParticipantGroupStatusList(studyId)
+            val lastUploadByDeployment = mutableMapOf<UUID, Instant?>()
 
             val participantGroupInfoList =
                 participantGroupStatusList
                     .filterIsInstance<ParticipantGroupStatus.InDeployment>()
-                    .map {
+                    .map { groupStatus ->
+                        val accountsByParticipant =
+                            groupStatus.participants.associateWith { participant ->
+                                accountService.findByAccountIdentity(participant.accountIdentity)
+                            }
+
+                        val lastDataUpload =
+                            if (accountsByParticipant.values.any { it != null }) {
+                                lastUploadByDeployment.getOrPut(groupStatus.studyDeploymentStatus.studyDeploymentId) {
+                                    dataStreamService.getLatestUpdatedAt(
+                                        groupStatus.studyDeploymentStatus.studyDeploymentId,
+                                    )
+                                }
+                            } else {
+                                null
+                            }
+
                         val participantAccounts =
-                            it.participants.map { participant ->
+                            groupStatus.participants.map { participant ->
                                 val participantAccount = ParticipantAccount.fromParticipant(participant)
-                                val account = accountService.findByAccountIdentity(participant.accountIdentity)
+                                val account = accountsByParticipant[participant]
 
                                 if (account != null) {
-                                    val lastDataUpload =
-                                        dataStreamService.getLatestUpdatedAt(
-                                            it.studyDeploymentStatus.studyDeploymentId,
-                                        )
                                     participantAccount.lateInitFrom(account)
 
                                     // TODO: we cannot track this for participants, only for deployments
@@ -200,7 +213,7 @@ class RecruitmentServiceWrapper(
                                 participantAccount
                             }
 
-                        ParticipantGroupInfo(it.id, it.studyDeploymentStatus, participantAccounts)
+                        ParticipantGroupInfo(groupStatus.id, groupStatus.studyDeploymentStatus, participantAccounts)
                     }
 
             ParticipantGroupsStatus(participantGroupInfoList, participantGroupStatusList)
