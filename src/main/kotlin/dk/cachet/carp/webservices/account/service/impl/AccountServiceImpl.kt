@@ -156,7 +156,12 @@ class AccountServiceImpl(
             clientId,
             redirectUri,
             expirationSeconds,
-        ).replace("://", "://$subdomain.")
+        ).let {
+            if (subdomain != null) {
+                it.replace("://", "://$subdomain.")
+            }
+            it
+        }
 
         return Pair(
             identity,
