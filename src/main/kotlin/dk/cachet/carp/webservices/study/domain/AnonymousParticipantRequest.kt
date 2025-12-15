@@ -15,4 +15,5 @@ data class AnonymousParticipantRequest(
     val redirectUri: String,
     @field:NotBlank
     val participantRoleName: String,
+    val subdomain: String?,
 )

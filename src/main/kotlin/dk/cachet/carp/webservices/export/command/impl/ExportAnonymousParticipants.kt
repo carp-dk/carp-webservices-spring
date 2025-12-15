@@ -83,6 +83,7 @@ class ExportAnonymousParticipants(
                     payload.expirationSeconds,
                     payload.clientId,
                     payload.redirectUri,
+                    payload.subdomain,
                 )
             anonymousParticipants.add(createAnonymousParticipant(identity, link))
         }

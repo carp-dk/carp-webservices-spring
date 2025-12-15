@@ -146,19 +146,21 @@ class AccountServiceImpl(
         expirationSeconds: Long?,
         clientId: String,
         redirectUri: String?,
+        subdomain: String?,
     ): Pair<UsernameAccountIdentity, String> {
         val username = UUID.randomUUID()
         val identity = UsernameAccountIdentity(username.toString())
         val account = issuerFacade.createAccount(Account.fromAccountIdentity(identity))
+        val uri = issuerFacade.recoverAccount(
+            account,
+            clientId,
+            redirectUri,
+            expirationSeconds,
+        ).replace("://", "://$subdomain.")
 
         return Pair(
             identity,
-            issuerFacade.recoverAccount(
-                account,
-                clientId,
-                redirectUri,
-                expirationSeconds,
-            ),
+            uri,
         )
     }
 
