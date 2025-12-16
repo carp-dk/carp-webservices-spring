@@ -9,6 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class WSInputDataTypesSerializationTest {
+    @Suppress("LongMethod")
     @Test
     fun `all input data types serialize and deserialize with WS_JSON`() {
         val fixedInstant = Instant.parse("2024-08-01T09:00:00Z")
@@ -55,6 +56,17 @@ class WSInputDataTypesSerializationTest {
                                 notes = "Charger missing",
                             ),
                         ),
+                ),
+                ParticipantNote(note = "Requires wheelchair access"),
+                EducationalDegree(
+                    level = EducationalDegree.IscedLevel.ISCED_6,
+                    details = "Bachelor of Science in Computer Science",
+                ),
+                OnboardingResearcher(researcherId = "researcher-1", researcherName = "Dr. Smith"),
+                PreferredLanguage(languageCode = "da", region = "DK", displayName = "Danish"),
+                Occupation(
+                    roles = listOf("Engineer", "Researcher"),
+                    other = "Part-time lecturer",
                 ),
             )
 
