@@ -41,10 +41,20 @@ class WSInputDataTypesSerializationTest {
                     conclusion = "Patient needs regular follow-ups",
                 ),
                 HandedOutDevice(
-                    deviceId = "Device-123",
-                    deviceModel = "Polar watch 2024",
-                    handedOutAt = fixedInstant,
-                    notes = "Includes charging dock and spare strap",
+                    devices =
+                        listOf(
+                            HandedOutDevice.Device(
+                                deviceId = "Device-123",
+                                deviceModel = "Polar watch 2024",
+                                handedOutAt = fixedInstant,
+                                notes = "Includes charging dock and spare strap",
+                            ),
+                            HandedOutDevice.Device(
+                                deviceId = "Device-456",
+                                handedOutAt = fixedInstant,
+                                notes = "Charger missing",
+                            ),
+                        ),
                 ),
             )
 
