@@ -72,7 +72,7 @@ interface DataStreamSequenceRepository : JpaRepository<DataStreamSequence, Int> 
         value =
             """
                 SELECT 
-                    (measurement->'data'->>'completedAt')::date AS date,
+                    (measurement->'data'->>'completedAt')::timestamp AS date,
                     measurement->'data'->>'taskName' AS task_name,
                     COUNT(*) AS quantity
                 FROM public.data_stream_sequence ds,
