@@ -470,7 +470,7 @@ class AccountServiceImplTest {
                 coEvery { issuerFacade.recoverAccount(account, clientId, redirectUri, expirationSeconds) } returns "foo"
                 val sut = AccountServiceImpl(issuerFacade)
 
-                val result = sut.generateAnonymousAccount(expirationSeconds, clientId, redirectUri)
+                val result = sut.generateAnonymousAccount(expirationSeconds, clientId, redirectUri, null)
 
                 coVerify(exactly = 1) { issuerFacade.createAccount(any()) }
                 assertTrue { result.first.username.toString().length == UUID.randomUUID().stringRepresentation.length }
