@@ -161,7 +161,7 @@ val diagnosis = Diagnosis(
 
 ## HandedOutDevice
 
-Represents a device handed out to a participant for the study.
+Represents devices handed out to a participant for the study.
 
 ### Data Type Name
 
@@ -169,10 +169,11 @@ Represents a device handed out to a participant for the study.
 
 ### Fields
 
-- `deviceId: String` - Identifier or serial/asset tag of the handed out device.
-- `deviceModel: String?` - Optional model or description to help inventory tracking.
-- `handedOutAt: Instant?` - When the device was handed out to the participant. Defaults to now if omitted.
-- `notes: String?` - Free-form notes about accessories, condition, or anything noteworthy.
+  - `devices: List<Device>` - Devices handed out to the participant, each containing:
+  - `deviceId: String` - Identifier or serial/asset tag of the handed out device.
+  - `deviceModel: String?` - Optional model or description to help inventory tracking.
+  - `handedOutAt: Instant?` - When the device was handed out to the participant. Defaults to now if omitted.
+  - `notes: String?` - Free-form notes about accessories, condition, or anything noteworthy.
 
 ### Example
 
@@ -180,10 +181,19 @@ Here is an example of how to create an instance of the `HandedOutDevice` class:
 
 ```kotlin
 val handedOutDevice = HandedOutDevice(
-    deviceId = "Device-123",
-    deviceModel = "Polar watch 2024",
-    handedOutAt = Instant.parse("2024-08-01T09:00:00Z"),
-    notes = "Includes charging dock and spare strap"
+    devices = listOf(
+        HandedOutDevice.Device(
+            deviceId = "Device-123",
+            deviceModel = "Polar watch 2024",
+            handedOutAt = Instant.parse("2024-08-01T09:00:00Z"),
+            notes = "Includes charging dock and spare strap"
+        ),
+        HandedOutDevice.Device(
+            deviceId = "Device-456",
+            deviceModel = "Garmin chest strap",
+            notes = "No spare batteries"
+        )
+    )
 )
 ```
 
