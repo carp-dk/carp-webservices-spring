@@ -42,6 +42,11 @@ object WSInputDataTypes : InputDataTypeList() {
     internal const val ADDRESS_TYPE_NAME = "$WS_NAMESPACE.address"
     internal const val DIAGNOSIS_TYPE_NAME = "$WS_NAMESPACE.diagnosis"
     internal const val HANDED_OUT_DEVICE_TYPE_NAME = "$WS_NAMESPACE.handed_out_device"
+    internal const val NOTE_TYPE_NAME = "$WS_NAMESPACE.note"
+    internal const val EDUCATIONAL_DEGREE_TYPE_NAME = "$WS_NAMESPACE.educational_degree"
+    internal const val ONBOARDING_RESEARCHER_TYPE_NAME = "$WS_NAMESPACE.onboarding_researcher"
+    internal const val LANGUAGE_TYPE_NAME = "$WS_NAMESPACE.language"
+    internal const val OCCUPATION_TYPE_NAME = "$WS_NAMESPACE.occupation"
 
     /**
      * Phone name of a participant.
@@ -125,5 +130,65 @@ object WSInputDataTypes : InputDataTypeList() {
             dataClass = HandedOutDevice::class,
             inputToData = { WS_JSON.decodeFromString(HandedOutDevice.serializer(), it) },
             dataToInput = { WS_JSON.encodeToString(HandedOutDevice.serializer(), it) },
+        )
+
+    /**
+     * General participant note.
+     */
+    val NOTE =
+        add(
+            inputDataType = InputDataType.fromString(NOTE_TYPE_NAME),
+            inputElement = Text("Note"),
+            dataClass = ParticipantNote::class,
+            inputToData = { WS_JSON.decodeFromString(ParticipantNote.serializer(), it) },
+            dataToInput = { WS_JSON.encodeToString(ParticipantNote.serializer(), it) },
+        )
+
+    /**
+     * Highest educational degree based on ISCED.
+     */
+    val EDUCATIONAL_DEGREE =
+        add(
+            inputDataType = InputDataType.fromString(EDUCATIONAL_DEGREE_TYPE_NAME),
+            inputElement = Text("Educational Degree"),
+            dataClass = EducationalDegree::class,
+            inputToData = { WS_JSON.decodeFromString(EducationalDegree.serializer(), it) },
+            dataToInput = { WS_JSON.encodeToString(EducationalDegree.serializer(), it) },
+        )
+
+    /**
+     * Onboarding researcher details.
+     */
+    val ONBOARDING_RESEARCHER =
+        add(
+            inputDataType = InputDataType.fromString(ONBOARDING_RESEARCHER_TYPE_NAME),
+            inputElement = Text("Onboarding Researcher"),
+            dataClass = OnboardingResearcher::class,
+            inputToData = { WS_JSON.decodeFromString(OnboardingResearcher.serializer(), it) },
+            dataToInput = { WS_JSON.encodeToString(OnboardingResearcher.serializer(), it) },
+        )
+
+    /**
+     * Preferred language of the participant.
+     */
+    val LANGUAGE =
+        add(
+            inputDataType = InputDataType.fromString(LANGUAGE_TYPE_NAME),
+            inputElement = Text("Language"),
+            dataClass = PreferredLanguage::class,
+            inputToData = { WS_JSON.decodeFromString(PreferredLanguage.serializer(), it) },
+            dataToInput = { WS_JSON.encodeToString(PreferredLanguage.serializer(), it) },
+        )
+
+    /**
+     * Participant occupation (multiple choice friendly).
+     */
+    val OCCUPATION =
+        add(
+            inputDataType = InputDataType.fromString(OCCUPATION_TYPE_NAME),
+            inputElement = Text("Occupation"),
+            dataClass = Occupation::class,
+            inputToData = { WS_JSON.decodeFromString(Occupation.serializer(), it) },
+            dataToInput = { WS_JSON.encodeToString(Occupation.serializer(), it) },
         )
 }
