@@ -11,6 +11,7 @@ interface ResourceExporterService {
         deploymentIds: Set<UUID>?,
         targetDir: Path,
         log: ExportLog,
+        activeDeploymentsOnly: Boolean?,
     )
 
     /**

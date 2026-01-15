@@ -48,8 +48,10 @@ class ExportCommandFactory(
     suspend fun createExportSummary(
         studyId: UUID,
         deploymentIds: Set<UUID>?,
+        activeDeploymentsOnly: Boolean?,
     ): ExportCommand {
-        // This hash will prohibit the creation of new exports for the same study and deployments within the same hour.
+        // This hash will prohibit the creation of new exports
+        // for the same study and deployments within the same second.
         // TODO: better rate limiting
         val id =
             createHash(
@@ -82,7 +84,7 @@ class ExportCommandFactory(
                 relativePath = relativePath.toString(),
             )
 
-        return ExportSummary(entry, deploymentIds, resourceExporter, fileUtil)
+        return ExportSummary(entry, deploymentIds, resourceExporter, fileUtil, activeDeploymentsOnly)
     }
 
     suspend fun createExportAnonymousParticipants(

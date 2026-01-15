@@ -2,6 +2,7 @@ package dk.cachet.carp.webservices.export.service.impl
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import dk.cachet.carp.common.application.UUID
+import dk.cachet.carp.deployments.domain.DeploymentRepository
 import dk.cachet.carp.webservices.datastream.service.impl.DataStreamService
 import dk.cachet.carp.webservices.export.domain.ExportLog
 import dk.cachet.carp.webservices.export.service.ResourceExporter
@@ -18,6 +19,7 @@ import java.nio.file.Path
 class ResourceExporterServiceImpl(
     private val objectMapper: ObjectMapper,
     private val studyRepository: CoreStudyRepository,
+    private val deploymentRepository: DeploymentRepository,
     beanFactory: ListableBeanFactory,
     private val dataStreamService: DataStreamService,
 ) : ResourceExporterService {
@@ -28,8 +30,17 @@ class ResourceExporterServiceImpl(
         deploymentIds: Set<UUID>?,
         targetDir: Path,
         log: ExportLog,
+        activeDeploymentsOnly: Boolean?,
     ) {
-        val studyDeploymentIds = deploymentIds ?: studyRepository.getDeploymentIdsOrThrow(studyId)
+        var studyDeploymentIds =
+            deploymentIds
+                ?: studyRepository.getDeploymentIdsOrThrow(studyId)
+
+        if (activeDeploymentsOnly == true) {
+            studyDeploymentIds = studyDeploymentIds.filter {
+                deploymentRepository.getStudyDeploymentBy(it)?.startedOn != null
+            }.toSet()
+        }
 
         exporters.forEach {
             val exportResult = runCatching { it.exportDataOrThrow(studyId, studyDeploymentIds, targetDir) }
