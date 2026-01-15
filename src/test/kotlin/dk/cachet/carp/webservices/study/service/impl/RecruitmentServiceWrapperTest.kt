@@ -796,6 +796,50 @@ class RecruitmentServiceWrapperTest {
         }
 
         @Test
+        fun `getParticipantGroupsStatuses fetches last upload once per deployment`() {
+            runTest {
+                val mockStudyId = UUID.randomUUID()
+                val mockDeploymentId = UUID.randomUUID()
+
+                val eai1 = EmailAccountIdentity("1@gmail.com")
+                val eai2 = EmailAccountIdentity("2@gmail.com")
+                val p1 = Participant(eai1)
+                val p2 = Participant(eai2)
+                val pgs1 =
+                    ParticipantGroupStatus.InDeployment.fromDeploymentStatus(
+                        setOf(p1, p2),
+                        mockk<StudyDeploymentStatus.Invited>().apply {
+                            every { studyDeploymentId } returns mockDeploymentId
+                            every { createdOn } returns Instant.fromEpochSeconds(0)
+                            every { startedOn } returns Instant.fromEpochSeconds(0)
+                        },
+                    )
+
+                coEvery { accountService.findByAccountIdentity(eai1) } returns
+                    Account(email = eai1.emailAddress.address)
+                coEvery { accountService.findByAccountIdentity(eai2) } returns
+                    Account(email = eai2.emailAddress.address)
+                coEvery {
+                    services.recruitmentService.getParticipantGroupStatusList(mockStudyId)
+                } returns listOf(pgs1)
+                coEvery { dataStreamService.getLatestUpdatedAt(mockDeploymentId) } returns Instant.fromEpochSeconds(0)
+
+                val sut =
+                    RecruitmentServiceWrapper(
+                        accountService,
+                        dataStreamService,
+                        recruitmentRepository,
+                        objectMapper,
+                        services,
+                    )
+
+                sut.getParticipantGroupsStatus(mockStudyId)
+
+                coVerify(exactly = 1) { dataStreamService.getLatestUpdatedAt(mockDeploymentId) }
+            }
+        }
+
+        @Test
         fun `getsParticipantGroupsStatuses account not found`() {
             runTest {
                 val mockStudyId = UUID.randomUUID()

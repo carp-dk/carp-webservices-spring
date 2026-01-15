@@ -45,6 +45,7 @@ interface AccountService {
         expirationSeconds: Long?,
         clientId: String,
         redirectUri: String?,
+        subdomain: String?,
     ): Pair<UsernameAccountIdentity, String>
 
     suspend fun getRedirectUris(): Map<String, List<String>>

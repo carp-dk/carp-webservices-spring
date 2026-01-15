@@ -6,10 +6,16 @@
 - Supported Input Data Types
   * [Address](#address)
   * [Diagnosis](#diagnosis)
+  * [HandedOutDevice](#handedoutdevice)
   * [FullName](#fullname)
   * [InformedConsent](#informedconsent)
   * [PhoneNumber](#phonenumber)
   * [SocialSecurityNumber](#socialsecuritynumber)
+  * [ParticipantNote](#participantnote)
+  * [EducationalDegree](#educationaldegree)
+  * [OnboardingResearcher](#onboardingresearcher)
+  * [PreferredLanguage](#preferredlanguage)
+  * [Occupation](#occupation)
 - Supported CARP.CORE Input Data Types
   * [Sex](#sex)
 
@@ -158,6 +164,44 @@ val diagnosis = Diagnosis(
 )
 ```
 
+## HandedOutDevice
+
+Represents devices handed out to a participant for the study.
+
+### Data Type Name
+
+`dk.carp.webservices.input.handed_out_device`
+
+### Fields
+
+  - `devices: List<Device>` - Devices handed out to the participant, each containing:
+  - `deviceId: String` - Identifier or serial/asset tag of the handed out device.
+  - `deviceModel: String?` - Optional model or description to help inventory tracking.
+  - `handedOutAt: Instant?` - When the device was handed out to the participant. Defaults to now if omitted.
+  - `notes: String?` - Free-form notes about accessories, condition, or anything noteworthy.
+
+### Example
+
+Here is an example of how to create an instance of the `HandedOutDevice` class:
+
+```kotlin
+val handedOutDevice = HandedOutDevice(
+    devices = listOf(
+        HandedOutDevice.Device(
+            deviceId = "Device-123",
+            deviceModel = "Polar watch 2024",
+            handedOutAt = Instant.parse("2024-08-01T09:00:00Z"),
+            notes = "Includes charging dock and spare strap"
+        ),
+        HandedOutDevice.Device(
+            deviceId = "Device-456",
+            deviceModel = "Garmin chest strap",
+            notes = "No spare batteries"
+        )
+    )
+)
+```
+
 ## FullName
 
 Represents a full name of a participant.
@@ -261,6 +305,125 @@ Here is an example of how to create an instance of the `SocialSecurityNumber` cl
 val ssn = SocialSecurityNumber(
     socialSecurityNumber = "123-45-6789",
     country = "USA"
+)
+```
+
+## ParticipantNote
+
+A general note about the participant.
+
+### Data Type Name
+
+`dk.carp.webservices.input.note`
+
+### Fields
+
+- `note: String` - Free-text note tied to the participant.
+
+### Example
+
+```kotlin
+val note = ParticipantNote(note = "Requires wheelchair access")
+```
+
+## EducationalDegree
+
+Highest completed educational degree, mapped to the ISCED framework for cross-country comparability.
+
+### Data Type Name
+
+`dk.carp.webservices.input.educational_degree`
+
+### Fields
+
+- `level: EducationalDegree.IscedLevel` - ISCED level of the degree.
+- `details: String?` - Optional free-text details (e.g., subject, institution).
+
+#### ISCED Levels
+
+- `ISCED_0_1`: Primary
+- `ISCED_2`: Lower secondary
+- `ISCED_3`: Upper secondary
+- `ISCED_4`: Post-secondary non-tertiary
+- `ISCED_5`: Short-cycle tertiary
+- `ISCED_6`: Bachelor level
+- `ISCED_7`: Master level
+- `ISCED_8`: Doctoral level
+
+### Example
+
+```kotlin
+val education = EducationalDegree(
+    level = EducationalDegree.IscedLevel.ISCED_6,
+    details = "Bachelor of Science in Computer Science"
+)
+```
+
+## OnboardingResearcher
+
+Information about the researcher who onboarded the participant.
+
+### Data Type Name
+
+`dk.carp.webservices.input.onboarding_researcher`
+
+### Fields
+
+- `researcherId: String` - Identifier for the onboarding researcher.
+- `researcherName: String` - Name of the onboarding researcher.
+
+### Example
+
+```kotlin
+val researcher = OnboardingResearcher(
+    researcherId = "researcher-1",
+    researcherName = "Dr. Smith"
+)
+```
+
+## PreferredLanguage
+
+Preferred language of the participant.
+
+### Data Type Name
+
+`dk.carp.webservices.input.language`
+
+### Fields
+
+- `languageCode: String` - ISO 639-1 or 639-3 code (e.g., "en", "da").
+- `region: String?` - Optional locale/region qualifier (e.g., "US", "DK").
+- `displayName: String?` - Human-readable language name, if needed.
+
+### Example
+
+```kotlin
+val language = PreferredLanguage(
+    languageCode = "da",
+    region = "DK",
+    displayName = "Danish"
+)
+```
+
+## Occupation
+
+Occupation details of a participant (supports multiple selections).
+
+### Data Type Name
+
+`dk.carp.webservices.input.occupation`
+
+### Fields
+
+- `roles: List<String>` - Selected occupations/roles.
+- `other: String?` - Free-text occupation if none of the predefined roles fit.
+
+### Example
+
+```kotlin
+val occupation = Occupation(
+    roles = listOf("Engineer", "Researcher"),
+    other = "Part-time lecturer"
 )
 ```
 

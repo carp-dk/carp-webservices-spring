@@ -29,6 +29,7 @@ class ExportAnonymousParticipantsTest {
             clientId = "id",
             redirectUri = "uri",
             participantRoleName = "role",
+            subdomain = null,
         )
 
     @Nested
