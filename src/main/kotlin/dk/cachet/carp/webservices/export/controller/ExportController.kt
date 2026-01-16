@@ -54,7 +54,12 @@ class ExportController(
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, e.message, e)
         }
 
-        val command = exportCommandFactory.createExportSummary(studyId, request.deploymentIds)
+        val command =
+            exportCommandFactory.createExportSummary(
+                studyId,
+                request.deploymentIds,
+                request.activeDeploymentsOnly,
+            )
 
         return exportService.createExport(command)
     }

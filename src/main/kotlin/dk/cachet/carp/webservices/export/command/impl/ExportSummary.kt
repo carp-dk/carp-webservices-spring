@@ -17,6 +17,7 @@ class ExportSummary(
     private val deploymentIds: Set<UUID>?,
     private val resourceExporter: ResourceExporterService,
     private val fileUtil: FileUtil,
+    private val activeDeploymentsOnly: Boolean?,
 ) : ExportCommand(entry) {
     companion object {
         private val LOGGER = LogManager.getLogger()
@@ -33,7 +34,7 @@ class ExportSummary(
                 Path.of(entry.relativePath),
             )
 
-        resourceExporter.exportStudyData(UUID(entry.studyId), deploymentIds, workingDir, logger)
+        resourceExporter.exportStudyData(UUID(entry.studyId), deploymentIds, workingDir, logger, activeDeploymentsOnly)
 
         try {
             fileUtil.zipDirectory(workingDir, zipPath)

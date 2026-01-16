@@ -30,9 +30,9 @@ class ExportSummaryTest {
                 every { fileUtil.resolveFileStoragePathForFilenameAndRelativePath(any(), any()) } returns mockk()
                 every { fileUtil.zipDirectory(any(), any()) } throws FileStorageException("Failed to zip.")
                 every { fileUtil.deleteFile(any()) } answers { nothing }
-                coEvery { resourceExporter.exportStudyData(any(), any(), any(), any()) } answers { nothing }
+                coEvery { resourceExporter.exportStudyData(any(), any(), any(), any(), any()) } answers { nothing }
 
-                val command = ExportSummary(entry, null, resourceExporter, fileUtil)
+                val command = ExportSummary(entry, null, resourceExporter, fileUtil, null)
 
                 assertFailsWith<FileStorageException> { command.execute() }
             }
@@ -49,9 +49,9 @@ class ExportSummaryTest {
                 every { fileUtil.resolveFileStoragePathForFilenameAndRelativePath(any(), any()) } returns mockk()
                 every { fileUtil.zipDirectory(any(), any()) } answers { nothing }
                 every { fileUtil.deleteFile(any()) } answers { nothing }
-                coEvery { resourceExporter.exportStudyData(any(), any(), any(), any()) } answers { nothing }
+                coEvery { resourceExporter.exportStudyData(any(), any(), any(), any(), any()) } answers { nothing }
 
-                val command = ExportSummary(entry, null, resourceExporter, fileUtil)
+                val command = ExportSummary(entry, null, resourceExporter, fileUtil, null)
                 command.execute()
 
                 verify { fileUtil.zipDirectory(any(), any()) }
