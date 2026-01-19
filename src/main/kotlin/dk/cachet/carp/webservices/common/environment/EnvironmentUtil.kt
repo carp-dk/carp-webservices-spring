@@ -7,6 +7,8 @@ import org.springframework.stereotype.Component
 class EnvironmentUtil(
     @Value("\${environment.url}") val url: String,
     @Value("\${environment.portalUrl}") val portalUrl: String,
+    @Value("\${environment.keycloak-url}") val keycloakUrl: String,
+    @Value("\${environment.keycloak-realm}") val realm: String,
     @Value("\${spring.profiles.active}") private val activeProfile: String,
 ) {
     val profile: EnvironmentProfile by lazy {
