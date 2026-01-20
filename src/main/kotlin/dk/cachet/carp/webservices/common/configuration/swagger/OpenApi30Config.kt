@@ -8,6 +8,8 @@ import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.Operation
 import io.swagger.v3.oas.models.info.Info
 import io.swagger.v3.oas.models.media.Schema
+import io.swagger.v3.oas.models.security.OAuthFlow
+import io.swagger.v3.oas.models.security.OAuthFlows
 import io.swagger.v3.oas.models.security.SecurityRequirement
 import io.swagger.v3.oas.models.security.SecurityScheme
 import io.swagger.v3.oas.models.servers.Server
@@ -39,8 +41,8 @@ class OpenApi30Config(
     companion object {
         const val SCHEME = "bearer"
         const val FORMAT = "JWT"
-        const val BEARER_DESCRIPTION =
-            "Provide the bearer token. A Bearer token can be acquired from the POST /oauth/token endpoint."
+        const val DESCRIPTION =
+            "Provide the username and password of the user"
         const val OPENAPI_FOLDER = "/openapi"
     }
 
@@ -56,12 +58,45 @@ class OpenApi30Config(
                     .addSecuritySchemes(
                         SCHEME,
                         SecurityScheme()
-                            .name(SCHEME)
-                            .type(SecurityScheme.Type.HTTP)
+                            .type(SecurityScheme.Type.OAUTH2)
                             .scheme(SCHEME)
-                            .description(BEARER_DESCRIPTION)
-                            .bearerFormat(FORMAT),
-                    ),
+                            .bearerFormat(FORMAT)
+                            .description(DESCRIPTION)
+                            .flows(
+                                OAuthFlows().password(
+                                    OAuthFlow()
+                                        .tokenUrl(
+                                            environmentUtil.keycloakUrl
+                                                .plus("/realms/")
+                                                .plus(environmentUtil.realm)
+                                                .plus("/protocol/openid-connect/token")
+                                        )
+                                )
+                            )
+                    )
+                // Keycloak 17 may fix logout issue with authorizationCode flow till then password flow
+//                    .addSecuritySchemes(
+//                        SCHEME,
+//                        SecurityScheme()
+//                            .type(SecurityScheme.Type.OAUTH2)
+//                            .flows(
+//                                OAuthFlows().authorizationCode(
+//                                    OAuthFlow()
+//                                        .authorizationUrl(
+//                                            "${environmentUtil.keycloakUrl}/realms/
+//                                            ${environmentUtil.realm}/protocol/openid-connect/auth"
+//                                        )
+//                                        .tokenUrl(
+//                                            "${environmentUtil.keycloakUrl}/realms/
+//                                            ${environmentUtil.realm}/protocol/openid-connect/token"
+//                                        )
+//                                        .refreshUrl(
+//                                            "${environmentUtil.keycloakUrl}/realms/
+//                                            ${environmentUtil.realm}/protocol/openid-connect/token"
+//                                        )
+//                                )
+//                            )
+//                    )
             )
             .info(
                 Info()
