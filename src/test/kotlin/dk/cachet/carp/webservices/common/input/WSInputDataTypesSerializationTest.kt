@@ -62,7 +62,11 @@ class WSInputDataTypesSerializationTest {
                     level = EducationalDegree.IscedLevel.ISCED_6,
                     details = "Bachelor of Science in Computer Science",
                 ),
-                OnboardingResearcher(researcherId = "researcher-1", researcherName = "Dr. Smith"),
+                OnboardingResearcher(
+                    researcherId = "researcher-001",
+                    researcherName = "Dr. `John Smith",
+                    institutionName = "Copenhagen Research Platform",
+                ),
                 PreferredLanguage(languageCode = "da", region = "DK", displayName = "Danish"),
                 Occupation(
                     roles = listOf("Engineer", "Researcher"),

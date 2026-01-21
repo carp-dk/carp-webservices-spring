@@ -341,7 +341,8 @@ Highest completed educational degree, mapped to the ISCED framework for cross-co
 
 #### ISCED Levels
 
-- `ISCED_0_1`: Primary
+- `ISCED_0`: Early childhood education
+- `ISCED_1`: Primary
 - `ISCED_2`: Lower secondary
 - `ISCED_3`: Upper secondary
 - `ISCED_4`: Post-secondary non-tertiary
@@ -371,13 +372,15 @@ Information about the researcher who onboarded the participant.
 
 - `researcherId: String` - Identifier for the onboarding researcher.
 - `researcherName: String` - Name of the onboarding researcher.
+- `institutionName: String` - Institution the researcher is affiliated with.
 
 ### Example
 
 ```kotlin
 val researcher = OnboardingResearcher(
     researcherId = "researcher-1",
-    researcherName = "Dr. Smith"
+    researcherName = "Dr. John Smith",
+    institutionName = "Copenhagen Research Institute"
 )
 ```
 
