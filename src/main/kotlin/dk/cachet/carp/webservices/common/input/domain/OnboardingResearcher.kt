@@ -13,4 +13,5 @@ import kotlinx.serialization.Serializable
 data class OnboardingResearcher(
     val researcherId: String,
     val researcherName: String,
+    val institutionName: String,
 ) : Data

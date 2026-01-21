@@ -20,8 +20,11 @@ data class EducationalDegree(
 ) : Data {
     @Serializable
     enum class IscedLevel {
-        @SerialName("ISCED_0_1")
-        ISCED_0_1,
+        @SerialName("ISCED_0")
+        ISCED_0,
+
+        @SerialName("ISCED_1")
+        ISCED_1,
 
         @SerialName("ISCED_2")
         ISCED_2,
