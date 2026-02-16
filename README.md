@@ -81,14 +81,14 @@ For API documentation we use [Swagger](https://dev.carp.dk/doc/).
 
 Follow these steps to deploy CAWS:
 
-1. Edit the [.env file](.env). Choose a profile from the list of [Profiles](#profiles).
+1. Edit the [.env file](stack.env). Choose a profile from the list of [Profiles](#profiles).
    - Ignore the properties starting with KC_ for now
 2. Copy over the contents of the [template configuration file](src/main/resources/config/application.yml) to the environment specific [configuration file](src/main/resources/config) 
    - ignore the `keycloak` section for now
 3. Run `bash deployment.sh`
 4. Configure keycloak
    - If you are hosting the stack behind a reverse proxy (e.g. nginx), make sure to read the [official keycloak documentation](https://www.keycloak.org/docs/latest/server_installation/#_setting-up-a-load-balancer-or-proxy) on the subject.
-     - uncomment the lines in the [environment file](.env) and also in the [docker-compose file](docker-compose.yml) to enable the proxy (add them to the dev and prod commands if necessary).
+     - uncomment the lines in the [environment file](stack.env) and also in the [docker-compose file](docker-compose.yml) to enable the proxy (add them to the dev and prod commands if necessary).
    - Set up a client for service accounts (Note: this client will only be used by the backend services, not a custom CAWS fronted)
      - Set up a new client by selecting the `Carp` realm after opening `<server>/admin/master/console/`, and click `Create client` under the `Clients` tab.
      - Fill in the general information and then toggle `Client authentication` as well as the `Authorization` options on. Then fill the URL settings.
@@ -101,7 +101,7 @@ Follow these steps to deploy CAWS:
    - Under `Users` add a new Admin user and assign the `system-admin` role to it. This user will be used to invite the first researcher. Can be deactivated afterward.
    - Under `Realm settings` -> `Email` configure the email settings. This is used to send out invitations to researchers/researcher_assistants/participants. The same email server can be used as the one specified in the [configuration file](src/main/resources/config/application.yml).
    - Under `Realm settings` -> `Themes` configure the theme settings.
-   - Update the [environment file](.env) to match the newly created client.
+   - Update the [environment file](stack.env) to match the newly created client.
 5. Rebuild the carp-ws image and restart the stack.
 
 # Developer Guide
@@ -111,7 +111,7 @@ Follow these steps to deploy CAWS:
 - Make sure you have Docker (and Java 17) installed on your system.
 - Ensure Docker is able to mount the volume specified under carp-ws (/data/carp/storage/local); you may need to configure Docker File Sharing options to enable this
 - Clone the project and run `bash deployment.sh`
-- Create a .local.env file and copy over the contents of the [.env file](.env) to it and fill in the missing values.
+- Create a .local.env file and copy over the contents of the [.env file](stack.env) to it and fill in the missing values.
 - We use IntelliJ IDEA as our IDE, we recommend using it for development. Set up the EnvFile plugin to be able to use the .local.env file.
 - Add a new spring boot run configuration with the following parameters:
   - Main class: `dk.cachet.carp.webservices.Application`
