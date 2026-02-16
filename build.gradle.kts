@@ -47,7 +47,7 @@ configurations {
 
 allprojects {
     group = "dk.cachet"
-    version = "1.2.0"
+    version = "2.2.0"
 }
 
 kotlin {
