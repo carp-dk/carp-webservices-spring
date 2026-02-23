@@ -1,7 +1,10 @@
 package dk.cachet.carp.webservices.study.service.impl
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import dk.cachet.carp.common.application.UUID
+import dk.cachet.carp.deployments.application.users.StudyInvitation
 import dk.cachet.carp.studies.domain.StudySnapshot
+import dk.cachet.carp.studies.infrastructure.StudyServiceRequest
 import dk.cachet.carp.webservices.account.service.AccountService
 import dk.cachet.carp.webservices.common.services.CoreServiceContainer
 import dk.cachet.carp.webservices.export.service.ResourceExporter
@@ -12,6 +15,8 @@ import dk.cachet.carp.webservices.study.repository.CoreStudyRepository
 import dk.cachet.carp.webservices.study.service.StudyService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import org.springframework.stereotype.Service
 import java.nio.file.Path
 
@@ -19,9 +24,33 @@ import java.nio.file.Path
 class StudyServiceWrapper(
     private val accountService: AccountService,
     private val studyRepository: CoreStudyRepository,
+    private val objectMapper: ObjectMapper,
     services: CoreServiceContainer,
 ) : StudyService, ResourceExporter<StudySnapshot> {
+    companion object {
+        private const val APPLICATION_NAME_NOT_SET = "not-set"
+    }
+
     final override val core = services.studyService
+
+    override suspend fun invoke(request: StudyServiceRequest<*>): Any? {
+        if (request is StudyServiceRequest.GoLive) {
+            val details = core.getStudyDetails(request.studyId)
+            val applicationName = extractApplicationName(details.protocolSnapshot?.applicationData)
+            val applicationJson =
+                buildJsonObject {
+                    put("studyId", JsonPrimitive(request.studyId.stringRepresentation))
+                    put("applicationName", JsonPrimitive(applicationName ?: APPLICATION_NAME_NOT_SET))
+                }.toString()
+
+            core.setInvitation(
+                request.studyId,
+                StudyInvitation(details.invitation.name, details.invitation.description, applicationJson),
+            )
+        }
+
+        return core.invoke(request)
+    }
 
     override suspend fun getStudiesOverview(accountId: UUID): List<StudyOverview> =
         withContext(Dispatchers.IO + SecurityCoroutineContext()) {
@@ -66,4 +95,10 @@ class StudyServiceWrapper(
         deploymentIds: Set<UUID>,
         target: Path,
     ): Collection<StudySnapshot> = setOf(studyRepository.getStudySnapshotById(studyId))
+
+    private fun extractApplicationName(applicationData: String?): String? {
+        if (applicationData.isNullOrBlank()) return null
+        val applicationDataNode = runCatching { objectMapper.readTree(applicationData) }.getOrNull() ?: return null
+        return applicationDataNode.path("applicationName").asText().takeIf { it.isNotBlank() }
+    }
 }

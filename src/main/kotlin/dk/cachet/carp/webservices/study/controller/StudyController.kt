@@ -197,7 +197,7 @@ class StudyController(
     ): ResponseEntity<Any> {
         val request = studySerializer.deserializeRequest(StudyServiceRequest.Serializer, httpMessage)
         LOGGER.info("Start POST: $STUDY_SERVICE -> ${request::class.simpleName}")
-        val result = studyService.core.invoke(request)
+        val result = studyService.invoke(request)
         return studySerializer.serializeResponse(request, result).let { ResponseEntity.ok(it) }
     }
 }

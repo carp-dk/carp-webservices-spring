@@ -1,10 +1,15 @@
 package dk.cachet.carp.webservices.study.service.impl
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import dk.cachet.carp.common.application.UUID
+import dk.cachet.carp.deployments.application.users.StudyInvitation
+import dk.cachet.carp.protocols.application.StudyProtocolSnapshot
+import dk.cachet.carp.studies.application.StudyDetails
 import dk.cachet.carp.studies.application.StudyStatus
 import dk.cachet.carp.studies.domain.Study
 import dk.cachet.carp.studies.domain.StudySnapshot
 import dk.cachet.carp.studies.infrastructure.StudyServiceDecorator
+import dk.cachet.carp.studies.infrastructure.StudyServiceRequest
 import dk.cachet.carp.webservices.account.service.AccountService
 import dk.cachet.carp.webservices.common.services.CoreServiceContainer
 import dk.cachet.carp.webservices.security.authentication.domain.Account
@@ -21,13 +26,111 @@ import kotlin.test.*
 class StudyServiceWrapperTest {
     private val accountService: AccountService = mockk()
     private val studyRepository: CoreStudyRepository = mockk()
+    private val objectMapper: ObjectMapper = ObjectMapper()
+    private val coreStudyService: dk.cachet.carp.studies.application.StudyService = mockk()
+    private val studyServiceDecorator: StudyServiceDecorator =
+        StudyServiceDecorator(coreStudyService) { command -> command }
     val services: CoreServiceContainer =
         mockk<CoreServiceContainer> {
-            every { studyService } returns mockk<StudyServiceDecorator>()
+            every { studyService } returns studyServiceDecorator
         }
 
     @Nested
     inner class ExportDataOrThrow {
+        @Test
+        fun `should preprocess GoLive by setting invitation before invoking request`() {
+            runTest {
+                val studyId = UUID.randomUUID()
+                val request = StudyServiceRequest.GoLive(studyId)
+                val details =
+                    StudyDetails(
+                        studyId = studyId,
+                        ownerId = UUID.randomUUID(),
+                        name = "Study",
+                        createdOn = Instant.fromEpochMilliseconds(0),
+                        description = "desc",
+                        invitation = StudyInvitation("invite", "desc", """{"legacy":"value"}"""),
+                        protocolSnapshot =
+                            StudyProtocolSnapshot(
+                                id = UUID.randomUUID(),
+                                createdOn = Instant.fromEpochMilliseconds(0),
+                                version = 1,
+                                ownerId = UUID.randomUUID(),
+                                name = "protocol",
+                                applicationData = """{"applicationName":"My App"}""",
+                            ),
+                    )
+                val result = mockk<StudyStatus>()
+                val invitationSlot = slot<StudyInvitation>()
+
+                coEvery { coreStudyService.getStudyDetails(studyId) } returns details
+                coEvery { coreStudyService.setInvitation(studyId, capture(invitationSlot)) } returns mockk()
+                coEvery { coreStudyService.goLive(studyId) } returns result
+
+                val sut = StudyServiceWrapper(accountService, studyRepository, objectMapper, services)
+                val invokeResult = sut.invoke(request)
+
+                assertEquals(result, invokeResult)
+
+                coVerifySequence {
+                    coreStudyService.getStudyDetails(studyId)
+                    coreStudyService.setInvitation(studyId, any())
+                    coreStudyService.goLive(studyId)
+                }
+
+                val invitationData = objectMapper.readTree(invitationSlot.captured.applicationData)
+                assertEquals(studyId.stringRepresentation, invitationData.path("studyId").asText())
+                assertEquals("My App", invitationData.path("applicationName").asText())
+            }
+        }
+
+        @Test
+        fun `should set applicationName to not-set when missing in protocol snapshot`() {
+            runTest {
+                val studyId = UUID.randomUUID()
+                val request = StudyServiceRequest.GoLive(studyId)
+                val details =
+                    StudyDetails(
+                        studyId = studyId,
+                        ownerId = UUID.randomUUID(),
+                        name = "Study",
+                        createdOn = Instant.fromEpochMilliseconds(0),
+                        description = "desc",
+                        invitation = StudyInvitation("invite", "desc", """{"legacy":"value"}"""),
+                        protocolSnapshot =
+                            StudyProtocolSnapshot(
+                                id = UUID.randomUUID(),
+                                createdOn = Instant.fromEpochMilliseconds(0),
+                                version = 1,
+                                ownerId = UUID.randomUUID(),
+                                name = "protocol",
+                                applicationData = """{}""",
+                            ),
+                    )
+                val result = mockk<StudyStatus>()
+                val invitationSlot = slot<StudyInvitation>()
+
+                coEvery { coreStudyService.getStudyDetails(studyId) } returns details
+                coEvery { coreStudyService.setInvitation(studyId, capture(invitationSlot)) } returns mockk()
+                coEvery { coreStudyService.goLive(studyId) } returns result
+
+                val sut = StudyServiceWrapper(accountService, studyRepository, objectMapper, services)
+                val invokeResult = sut.invoke(request)
+
+                assertEquals(result, invokeResult)
+
+                coVerifySequence {
+                    coreStudyService.getStudyDetails(studyId)
+                    coreStudyService.setInvitation(studyId, any())
+                    coreStudyService.goLive(studyId)
+                }
+
+                val invitationData = objectMapper.readTree(invitationSlot.captured.applicationData)
+                assertEquals(studyId.stringRepresentation, invitationData.path("studyId").asText())
+                assertEquals("not-set", invitationData.path("applicationName").asText())
+            }
+        }
+
         @Test
         fun `should export data`() {
             runTest {
@@ -44,7 +147,7 @@ class StudyServiceWrapperTest {
                         mockStudySnapshot,
                     )
                 coEvery { studyRepository.getStudySnapshotById(mockStudyId) } returns mockStudySnapshot
-                val sut = StudyServiceWrapper(accountService, studyRepository, services)
+                val sut = StudyServiceWrapper(accountService, studyRepository, objectMapper, services)
 
                 val result = sut.exportDataOrThrow(mockStudyId, mockDeploymentIds, mockTarget)
 
@@ -88,7 +191,7 @@ class StudyServiceWrapperTest {
                         mockStudy11, mockStudy12, mockStudy21,
                     )
 
-                val sut = StudyServiceWrapper(accountService, studyRepository, services)
+                val sut = StudyServiceWrapper(accountService, studyRepository, objectMapper, services)
 
                 val result = sut.getStudiesOverview(mockAccountId)
 
@@ -104,7 +207,7 @@ class StudyServiceWrapperTest {
             runTest {
                 val mockAccountId = UUID.randomUUID()
                 coEvery { accountService.findByUUID(mockAccountId) } returns null
-                val sut = StudyServiceWrapper(accountService, studyRepository, services)
+                val sut = StudyServiceWrapper(accountService, studyRepository, objectMapper, services)
 
                 assertFailsWith<IllegalArgumentException> {
                     sut.getStudiesOverview(mockAccountId)
@@ -122,7 +225,7 @@ class StudyServiceWrapperTest {
                 coEvery { mockAccount.carpClaims } returns setOf(mockClaim1)
                 coEvery { studyRepository.findAllByStudyIds(any()) } returns emptyList()
 
-                val sut = StudyServiceWrapper(accountService, studyRepository, services)
+                val sut = StudyServiceWrapper(accountService, studyRepository, objectMapper, services)
 
                 val result = sut.getStudiesOverview(mockAccountId)
 
@@ -157,7 +260,7 @@ class StudyServiceWrapperTest {
                 coEvery { accountService.findByUUID(mockAccountId) } returns mockAccount
                 coEvery { studyRepository.findAllByStudyIds(listOf(mockStudyId1)) } returns listOf(mockStudy11)
 
-                val sut = StudyServiceWrapper(accountService, studyRepository, services)
+                val sut = StudyServiceWrapper(accountService, studyRepository, objectMapper, services)
 
                 val result = sut.getStudiesOverview(mockAccountId)
 
@@ -208,7 +311,7 @@ class StudyServiceWrapperTest {
                         mockStudy11, mockStudy12, mockStudy21,
                     )
 
-                val sut = StudyServiceWrapper(accountService, studyRepository, services)
+                val sut = StudyServiceWrapper(accountService, studyRepository, objectMapper, services)
 
                 val result = sut.getStudiesOverview(mockAccountId)
 
