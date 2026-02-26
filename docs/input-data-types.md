@@ -16,7 +16,7 @@
   * [OnboardingResearcher](#onboardingresearcher)
   * [PreferredLanguage](#preferredlanguage)
   * [Occupation](#occupation)
-- Supported CARP.CORE Input Data Types
+- Supported CARP Core Input Data Types
   * [Sex](#sex)
 
 ## Protocol Example
