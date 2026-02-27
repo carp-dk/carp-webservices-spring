@@ -1,6 +1,7 @@
 package dk.cachet.carp.webservices.study.service.impl
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.ObjectNode
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.deployments.application.users.StudyInvitation
 import dk.cachet.carp.studies.domain.StudySnapshot
@@ -8,6 +9,7 @@ import dk.cachet.carp.studies.infrastructure.StudyServiceRequest
 import dk.cachet.carp.webservices.account.service.AccountService
 import dk.cachet.carp.webservices.common.services.CoreServiceContainer
 import dk.cachet.carp.webservices.export.service.ResourceExporter
+import dk.cachet.carp.webservices.protocol.service.ProtocolService
 import dk.cachet.carp.webservices.security.authorization.Claim
 import dk.cachet.carp.webservices.security.config.SecurityCoroutineContext
 import dk.cachet.carp.webservices.study.domain.StudyOverview
@@ -24,6 +26,7 @@ import java.nio.file.Path
 class StudyServiceWrapper(
     private val accountService: AccountService,
     private val studyRepository: CoreStudyRepository,
+    private val protocolService: ProtocolService,
     private val objectMapper: ObjectMapper,
     services: CoreServiceContainer,
 ) : StudyService, ResourceExporter<StudySnapshot> {
@@ -32,25 +35,6 @@ class StudyServiceWrapper(
     }
 
     final override val core = services.studyService
-
-    override suspend fun invoke(request: StudyServiceRequest<*>): Any? {
-        if (request is StudyServiceRequest.GoLive) {
-            val details = core.getStudyDetails(request.studyId)
-            val applicationName = extractApplicationName(details.protocolSnapshot?.applicationData)
-            val applicationJson =
-                buildJsonObject {
-                    put("studyId", JsonPrimitive(request.studyId.stringRepresentation))
-                    put("applicationName", JsonPrimitive(applicationName ?: APPLICATION_NAME_NOT_SET))
-                }.toString()
-
-            core.setInvitation(
-                request.studyId,
-                StudyInvitation(details.invitation.name, details.invitation.description, applicationJson),
-            )
-        }
-
-        return core.invoke(request)
-    }
 
     override suspend fun getStudiesOverview(accountId: UUID): List<StudyOverview> =
         withContext(Dispatchers.IO + SecurityCoroutineContext()) {
@@ -96,9 +80,67 @@ class StudyServiceWrapper(
         target: Path,
     ): Collection<StudySnapshot> = setOf(studyRepository.getStudySnapshotById(studyId))
 
+    override suspend fun invoke(request: StudyServiceRequest<*>): Any? =
+        when (request) {
+            is StudyServiceRequest.SetProtocol -> {
+                val versionTag = protocolService.resolveVersionTag(request.protocol)
+                val updatedProtocol =
+                    request.protocol.copy(
+                        applicationData =
+                            mergeApplicationData(
+                                request.protocol.applicationData,
+                                mapOf("protocolVersionTag" to versionTag),
+                            ),
+                    )
+                core.invoke(request.copy(protocol = updatedProtocol))
+            }
+            is StudyServiceRequest.GoLive -> {
+                val details = core.getStudyDetails(request.studyId)
+                val applicationName = extractApplicationName(details.protocolSnapshot?.applicationData)
+                val applicationJson =
+                    buildJsonObject {
+                        put("studyId", JsonPrimitive(request.studyId.stringRepresentation))
+                        put("applicationName", JsonPrimitive(applicationName ?: APPLICATION_NAME_NOT_SET))
+                    }.toString()
+
+                core.setInvitation(
+                    request.studyId,
+                    StudyInvitation(details.invitation.name, details.invitation.description, applicationJson),
+                )
+                core.invoke(request)
+            }
+            else -> core.invoke(request)
+        }
+
     private fun extractApplicationName(applicationData: String?): String? {
         if (applicationData.isNullOrBlank()) return null
         val applicationDataNode = runCatching { objectMapper.readTree(applicationData) }.getOrNull() ?: return null
         return applicationDataNode.path("applicationName").asText().takeIf { it.isNotBlank() }
+    }
+
+    private fun mergeApplicationData(
+        existingData: String?,
+        fieldsToMerge: Map<String, String>,
+    ): String {
+        fun createMergedNode() =
+            objectMapper
+                .createObjectNode()
+                .apply {
+                    fieldsToMerge.forEach { (key, value) -> put(key, value) }
+                }
+
+        if (existingData.isNullOrBlank()) {
+            return createMergedNode().toString()
+        }
+
+        val existingNode = runCatching { objectMapper.readTree(existingData) }.getOrNull()
+        if (existingNode is ObjectNode) {
+            fieldsToMerge.forEach { (key, value) -> existingNode.put(key, value) }
+            return existingNode.toString()
+        }
+
+        return createMergedNode()
+            .put("legacyApplicationData", existingData)
+            .toString()
     }
 }

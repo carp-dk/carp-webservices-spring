@@ -13,6 +13,8 @@ import dk.cachet.carp.webservices.security.authentication.domain.Account
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.toKotlinInstant
+import org.apache.logging.log4j.LogManager
+import org.apache.logging.log4j.Logger
 import org.springframework.stereotype.Service
 
 @Service
@@ -21,6 +23,11 @@ class ProtocolServiceWrapper(
     private val protocolRepository: ProtocolRepository,
     services: CoreServiceContainer,
 ) : ProtocolService {
+    companion object {
+        private val LOGGER: Logger = LogManager.getLogger()
+        private const val FALLBACK_SNAPSHOT_MISMATCH_SUFFIX = "_snapshot_mismatch"
+    }
+
     final override val core = services.protocolService
 
     override suspend fun getSingleProtocolOverview(protocolId: String): ProtocolOverview? =
@@ -44,6 +51,30 @@ class ProtocolServiceWrapper(
                     val sorted = versions.sortedBy { it.createdAt }
                     createProtocolOverview(sorted, account)
                 }
+        }
+
+    override suspend fun resolveVersionTag(snapshot: StudyProtocolSnapshot): String =
+        withContext(Dispatchers.IO) {
+            val protocolId = snapshot.id.stringRepresentation
+            val versions = protocolRepository.findByParams(protocolId, null)
+            check(versions.isNotEmpty()) { "Protocol with id \"$protocolId\" is not found." }
+
+            val matchingVersion =
+                versions.firstOrNull { version ->
+                    val storedSnapshotNode = version.snapshot ?: return@firstOrNull false
+                    val storedSnapshot = WS_JSON.decodeFromString<StudyProtocolSnapshot>(storedSnapshotNode.toString())
+                    storedSnapshot == snapshot
+                }
+
+            if (matchingVersion != null) return@withContext matchingVersion.versionTag
+
+            val fallbackTag = versions.first().versionTag + FALLBACK_SNAPSHOT_MISMATCH_SUFFIX
+            LOGGER.warn(
+                "No matching protocol snapshot found for protocolId={}, falling back to latest version tag={}.",
+                protocolId,
+                fallbackTag,
+            )
+            fallbackTag
         }
 
     /**

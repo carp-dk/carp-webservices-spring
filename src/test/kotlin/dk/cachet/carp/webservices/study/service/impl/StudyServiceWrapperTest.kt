@@ -12,6 +12,7 @@ import dk.cachet.carp.studies.infrastructure.StudyServiceDecorator
 import dk.cachet.carp.studies.infrastructure.StudyServiceRequest
 import dk.cachet.carp.webservices.account.service.AccountService
 import dk.cachet.carp.webservices.common.services.CoreServiceContainer
+import dk.cachet.carp.webservices.protocol.service.ProtocolService
 import dk.cachet.carp.webservices.security.authentication.domain.Account
 import dk.cachet.carp.webservices.security.authorization.Claim
 import dk.cachet.carp.webservices.study.repository.CoreStudyRepository
@@ -26,6 +27,7 @@ import kotlin.test.*
 class StudyServiceWrapperTest {
     private val accountService: AccountService = mockk()
     private val studyRepository: CoreStudyRepository = mockk()
+    private val protocolService: ProtocolService = mockk()
     private val objectMapper: ObjectMapper = ObjectMapper()
     private val coreStudyService: dk.cachet.carp.studies.application.StudyService = mockk()
     private val studyServiceDecorator: StudyServiceDecorator =
@@ -67,7 +69,13 @@ class StudyServiceWrapperTest {
                 coEvery { coreStudyService.setInvitation(studyId, capture(invitationSlot)) } returns mockk()
                 coEvery { coreStudyService.goLive(studyId) } returns result
 
-                val sut = StudyServiceWrapper(accountService, studyRepository, objectMapper, services)
+                val sut = StudyServiceWrapper(
+                    accountService,
+                    studyRepository,
+                    protocolService,
+                    objectMapper,
+                    services,
+                )
                 val invokeResult = sut.invoke(request)
 
                 assertEquals(result, invokeResult)
@@ -114,7 +122,13 @@ class StudyServiceWrapperTest {
                 coEvery { coreStudyService.setInvitation(studyId, capture(invitationSlot)) } returns mockk()
                 coEvery { coreStudyService.goLive(studyId) } returns result
 
-                val sut = StudyServiceWrapper(accountService, studyRepository, objectMapper, services)
+                val sut = StudyServiceWrapper(
+                    accountService,
+                    studyRepository,
+                    protocolService,
+                    objectMapper,
+                    services,
+                )
                 val invokeResult = sut.invoke(request)
 
                 assertEquals(result, invokeResult)
@@ -128,6 +142,82 @@ class StudyServiceWrapperTest {
                 val invitationData = objectMapper.readTree(invitationSlot.captured.applicationData)
                 assertEquals(studyId.stringRepresentation, invitationData.path("studyId").asText())
                 assertEquals("not-set", invitationData.path("applicationName").asText())
+            }
+        }
+
+        @Test
+        fun `should preprocess SetProtocol by adding protocolVersionTag into protocol applicationData`() {
+            runTest {
+                val studyId = UUID.randomUUID()
+                val protocolId = UUID.randomUUID()
+                val protocolSnapshot =
+                    StudyProtocolSnapshot(
+                        id = protocolId,
+                        createdOn = Instant.fromEpochMilliseconds(0),
+                        version = 1,
+                        ownerId = UUID.randomUUID(),
+                        name = "protocol",
+                        applicationData = """{"applicationName":"My App"}""",
+                    )
+                val request = StudyServiceRequest.SetProtocol(studyId, protocolSnapshot)
+                val expectedStatus = mockk<StudyStatus.Configuring>()
+
+                val updatedProtocolSlot = slot<StudyProtocolSnapshot>()
+
+                coEvery { protocolService.resolveVersionTag(protocolSnapshot) } returns "v1.2.3"
+                coEvery { coreStudyService.setProtocol(studyId, capture(updatedProtocolSlot)) } returns expectedStatus
+
+                val sut = StudyServiceWrapper(
+                    accountService,
+                    studyRepository,
+                    protocolService,
+                    objectMapper,
+                    services,
+                )
+                val result = sut.invoke(request)
+
+                assertEquals(expectedStatus, result)
+                val applicationDataNode = objectMapper.readTree(updatedProtocolSlot.captured.applicationData)
+                assertEquals("My App", applicationDataNode.path("applicationName").asText())
+                assertEquals("v1.2.3", applicationDataNode.path("protocolVersionTag").asText())
+            }
+        }
+
+        @Test
+        fun `should preprocess SetProtocol legacy applicationData by wrapping as legacyApplicationData`() {
+            runTest {
+                val studyId = UUID.randomUUID()
+                val protocolId = UUID.randomUUID()
+                val protocolSnapshot =
+                    StudyProtocolSnapshot(
+                        id = protocolId,
+                        createdOn = Instant.fromEpochMilliseconds(0),
+                        version = 1,
+                        ownerId = UUID.randomUUID(),
+                        name = "protocol",
+                        applicationData = "legacy-string",
+                    )
+                val request = StudyServiceRequest.SetProtocol(studyId, protocolSnapshot)
+                val expectedStatus = mockk<StudyStatus.Configuring>()
+
+                val updatedProtocolSlot = slot<StudyProtocolSnapshot>()
+
+                coEvery { protocolService.resolveVersionTag(protocolSnapshot) } returns "v9"
+                coEvery { coreStudyService.setProtocol(studyId, capture(updatedProtocolSlot)) } returns expectedStatus
+
+                val sut = StudyServiceWrapper(
+                    accountService,
+                    studyRepository,
+                    protocolService,
+                    objectMapper,
+                    services,
+                )
+                val result = sut.invoke(request)
+
+                assertEquals(expectedStatus, result)
+                val applicationDataNode = objectMapper.readTree(updatedProtocolSlot.captured.applicationData)
+                assertEquals("v9", applicationDataNode.path("protocolVersionTag").asText())
+                assertEquals("legacy-string", applicationDataNode.path("legacyApplicationData").asText())
             }
         }
 
@@ -147,7 +237,13 @@ class StudyServiceWrapperTest {
                         mockStudySnapshot,
                     )
                 coEvery { studyRepository.getStudySnapshotById(mockStudyId) } returns mockStudySnapshot
-                val sut = StudyServiceWrapper(accountService, studyRepository, objectMapper, services)
+                val sut = StudyServiceWrapper(
+                    accountService,
+                    studyRepository,
+                    protocolService,
+                    objectMapper,
+                    services,
+                )
 
                 val result = sut.exportDataOrThrow(mockStudyId, mockDeploymentIds, mockTarget)
 
@@ -191,7 +287,13 @@ class StudyServiceWrapperTest {
                         mockStudy11, mockStudy12, mockStudy21,
                     )
 
-                val sut = StudyServiceWrapper(accountService, studyRepository, objectMapper, services)
+                val sut = StudyServiceWrapper(
+                    accountService,
+                    studyRepository,
+                    protocolService,
+                    objectMapper,
+                    services,
+                )
 
                 val result = sut.getStudiesOverview(mockAccountId)
 
@@ -207,7 +309,13 @@ class StudyServiceWrapperTest {
             runTest {
                 val mockAccountId = UUID.randomUUID()
                 coEvery { accountService.findByUUID(mockAccountId) } returns null
-                val sut = StudyServiceWrapper(accountService, studyRepository, objectMapper, services)
+                val sut = StudyServiceWrapper(
+                    accountService,
+                    studyRepository,
+                    protocolService,
+                    objectMapper,
+                    services,
+                )
 
                 assertFailsWith<IllegalArgumentException> {
                     sut.getStudiesOverview(mockAccountId)
@@ -225,7 +333,13 @@ class StudyServiceWrapperTest {
                 coEvery { mockAccount.carpClaims } returns setOf(mockClaim1)
                 coEvery { studyRepository.findAllByStudyIds(any()) } returns emptyList()
 
-                val sut = StudyServiceWrapper(accountService, studyRepository, objectMapper, services)
+                val sut = StudyServiceWrapper(
+                    accountService,
+                    studyRepository,
+                    protocolService,
+                    objectMapper,
+                    services,
+                )
 
                 val result = sut.getStudiesOverview(mockAccountId)
 
@@ -260,7 +374,13 @@ class StudyServiceWrapperTest {
                 coEvery { accountService.findByUUID(mockAccountId) } returns mockAccount
                 coEvery { studyRepository.findAllByStudyIds(listOf(mockStudyId1)) } returns listOf(mockStudy11)
 
-                val sut = StudyServiceWrapper(accountService, studyRepository, objectMapper, services)
+                val sut = StudyServiceWrapper(
+                    accountService,
+                    studyRepository,
+                    protocolService,
+                    objectMapper,
+                    services,
+                )
 
                 val result = sut.getStudiesOverview(mockAccountId)
 
@@ -311,7 +431,13 @@ class StudyServiceWrapperTest {
                         mockStudy11, mockStudy12, mockStudy21,
                     )
 
-                val sut = StudyServiceWrapper(accountService, studyRepository, objectMapper, services)
+                val sut = StudyServiceWrapper(
+                    accountService,
+                    studyRepository,
+                    protocolService,
+                    objectMapper,
+                    services,
+                )
 
                 val result = sut.getStudiesOverview(mockAccountId)
 
