@@ -65,10 +65,10 @@ fi
 
 if [ "$REMOVE" = true ]; then
     # If the -r flag is provided, remove the container and untag the image
-    remove_container_and_untag_image "carp-ws-${PROFILE}" "carp-ws:${profile}"
+    remove_container_and_untag_image "carp-ws-${PROFILE}" "carp-ws:${PROFILE}"
 fi
 
 # Instantiate containers
 # https://docs.docker.com/compose/environment-variables/
 # https://docs.docker.com/compose/profiles/
-docker compose --profile "${PROFILE}" -p "carp-webservices-${PROFILE}" up -d
+docker compose --env-file "${ENV}" --profile "${PROFILE}" -p "carp-webservices-${PROFILE}" up -d
