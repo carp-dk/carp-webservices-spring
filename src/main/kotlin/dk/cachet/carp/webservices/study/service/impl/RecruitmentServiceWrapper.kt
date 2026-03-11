@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.common.application.users.AccountIdentity
+import dk.cachet.carp.common.application.users.EmailAccountIdentity
+import dk.cachet.carp.common.application.users.UsernameAccountIdentity
 import dk.cachet.carp.studies.application.users.Participant
 import dk.cachet.carp.studies.application.users.ParticipantGroupStatus
 import dk.cachet.carp.webservices.account.service.AccountService
@@ -14,6 +16,10 @@ import dk.cachet.carp.webservices.security.authorization.Claim
 import dk.cachet.carp.webservices.security.authorization.Role
 import dk.cachet.carp.webservices.security.config.SecurityCoroutineContext
 import dk.cachet.carp.webservices.study.domain.*
+import dk.cachet.carp.webservices.study.dto.ParticipantAccountSummaryDto
+import dk.cachet.carp.webservices.study.dto.ParticipantAccountsRequestDto
+import dk.cachet.carp.webservices.study.dto.ParticipantAccountsResponseDto
+import dk.cachet.carp.webservices.study.repository.ParticipantAccountQueryRow
 import dk.cachet.carp.webservices.study.repository.RecruitmentRepository
 import dk.cachet.carp.webservices.study.service.RecruitmentService
 import kotlinx.coroutines.*
@@ -90,6 +96,7 @@ class RecruitmentServiceWrapper(
         limit: Int?,
         search: String?,
         isDescending: Boolean?,
+        sortBy: ParticipantOrderBy?,
     ): List<Account> =
         withContext(Dispatchers.IO + SecurityCoroutineContext()) {
             val serializedParticipants =
@@ -99,6 +106,7 @@ class RecruitmentServiceWrapper(
                     limit,
                     search,
                     isDescending,
+                    sortBy,
                 )
 
             if (serializedParticipants.isNullOrEmpty()) return@withContext emptyList()
@@ -131,6 +139,67 @@ class RecruitmentServiceWrapper(
 
             count
         }
+
+    override suspend fun queryParticipantAccounts(
+        studyId: UUID,
+        request: ParticipantAccountsRequestDto,
+    ): ParticipantAccountsResponseDto =
+        withContext(Dispatchers.IO + SecurityCoroutineContext()) {
+            val offset = request.page?.let { page -> request.size?.let { size -> page * size } }
+            val participantRows =
+                recruitmentRepository.queryParticipantAccounts(
+                    studyId.stringRepresentation,
+                    offset,
+                    request.size,
+                    request.search,
+                    request.isDeployed,
+                    request.sortDirection,
+                    request.sortBy,
+                )
+
+            val content =
+                participantRows.map { participantRow ->
+                    mapParticipantAccountRow(participantRow)
+                }
+
+            ParticipantAccountsResponseDto(
+                page = request.page,
+                size = request.size,
+                total =
+                    recruitmentRepository.countQueryParticipantAccounts(
+                        studyId.stringRepresentation,
+                        request.search,
+                        request.isDeployed,
+                    ),
+                content = content,
+            )
+        }
+
+    private suspend fun mapParticipantAccountRow(
+        participantRow: ParticipantAccountQueryRow,
+    ): ParticipantAccountSummaryDto {
+        val participant =
+            objectMapper.readValue(
+                participantRow.participantJson,
+                Participant::class.java,
+            )
+        val foundAccount = accountService.findByAccountIdentity(participant.accountIdentity)
+        val account = foundAccount ?: Account.fromAccountIdentity(participant.accountIdentity)
+
+        return ParticipantAccountSummaryDto(
+            participantId = participant.id.stringRepresentation,
+            firstName = account.firstName,
+            lastName = account.lastName,
+            accountIdentity =
+                when (val identity = participant.accountIdentity) {
+                    is EmailAccountIdentity -> identity.emailAddress.address
+                    is UsernameAccountIdentity -> identity.username.name
+                    else -> null
+                },
+            isDeployed = participantRow.isDeployed,
+            carpUser = foundAccount != null,
+        )
+    }
 
     override suspend fun getInactiveDeployments(
         studyId: UUID,
@@ -170,7 +239,7 @@ class RecruitmentServiceWrapper(
         accountId: UUID,
     ): Boolean =
         runBlocking(SecurityCoroutineContext()) {
-            getParticipants(studyId, null, null, null, false).any { it.id == accountId.toString() }
+            getParticipants(studyId, null, null, null, false, null).any { it.id == accountId.toString() }
         }
 
     override suspend fun getParticipantGroupsStatus(studyId: UUID): ParticipantGroupsStatus =

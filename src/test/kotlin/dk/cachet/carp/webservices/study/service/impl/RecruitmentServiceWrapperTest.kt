@@ -14,6 +14,8 @@ import dk.cachet.carp.webservices.datastream.service.DataStreamService
 import dk.cachet.carp.webservices.security.authentication.domain.Account
 import dk.cachet.carp.webservices.security.authorization.Claim
 import dk.cachet.carp.webservices.security.authorization.Role
+import dk.cachet.carp.webservices.study.dto.ParticipantAccountsRequestDto
+import dk.cachet.carp.webservices.study.repository.ParticipantAccountQueryRow
 import dk.cachet.carp.webservices.study.repository.RecruitmentRepository
 import io.mockk.*
 import kotlinx.coroutines.test.runTest
@@ -31,6 +33,15 @@ class RecruitmentServiceWrapperTest {
         mockk<CoreServiceContainer> {
             every { recruitmentService } returns mockk<RecruitmentServiceDecorator>()
         }
+
+    private fun createSut(): RecruitmentServiceWrapper =
+        RecruitmentServiceWrapper(
+            accountService,
+            dataStreamService,
+            recruitmentRepository,
+            objectMapper,
+            services,
+        )
 
     @Nested
     inner class InviteResearcher {
@@ -250,7 +261,7 @@ class RecruitmentServiceWrapperTest {
                         mockStudyId.stringRepresentation,
                         null,
                         null,
-                        null, null,
+                        null, null, null,
                     )
                 } returns serializedMockParticipants
                 coEvery {
@@ -301,7 +312,7 @@ class RecruitmentServiceWrapperTest {
                 coEvery {
                     recruitmentRepository.findRecruitmentParticipantsByStudyIdAndSearchAndLimitAndOffset(
                         mockStudyId.stringRepresentation,
-                        null, null, null, null,
+                        null, null, null, null, null,
                     )
                 } returns serializedMockParticipants
                 coEvery {
@@ -360,6 +371,146 @@ class RecruitmentServiceWrapperTest {
 
                 assertEquals(mockCount, result)
             }
+        }
+    }
+
+    @Nested
+    inner class QueryParticipantAccounts {
+        @Test
+        @Suppress("LongMethod")
+        fun `maps deployed state and carp user flag in response content`() {
+            runTest {
+                val mockStudyId = UUID.randomUUID()
+                val request = ParticipantAccountsRequestDto(page = 0, size = 2)
+
+                val ai1 = EmailAccountIdentity("alpha@example.com")
+                val ai2 = EmailAccountIdentity("bravo@example.com")
+                val p1 = Participant(ai1)
+                val p2 = Participant(ai2)
+
+                val account1 =
+                    Account(
+                        firstName = "Alice",
+                        lastName = "A",
+                        email = ai1.emailAddress.address,
+                    )
+
+                val participantRows =
+                    listOf(
+                        ParticipantAccountQueryRow("""{"stub":1}""", true),
+                        ParticipantAccountQueryRow("""{"stub":2}""", false),
+                    )
+
+                stubQueryParticipantAccounts(
+                    studyId = mockStudyId,
+                    offset = 0,
+                    size = 2,
+                    isDeployed = null,
+                    participantRows = participantRows,
+                    total = 7,
+                )
+                coEvery {
+                    objectMapper.readValue(
+                        participantRows[0].participantJson,
+                        Participant::class.java,
+                    )
+                } returns p1
+                coEvery {
+                    objectMapper.readValue(
+                        participantRows[1].participantJson,
+                        Participant::class.java,
+                    )
+                } returns p2
+                coEvery { accountService.findByAccountIdentity(ai1) } returns account1
+                coEvery { accountService.findByAccountIdentity(ai2) } returns null
+
+                val sut = createSut()
+
+                val result = sut.queryParticipantAccounts(mockStudyId, request)
+
+                assertEquals(7, result.total)
+                assertEquals(2, result.content.size)
+                assertEquals(p1.id.stringRepresentation, result.content[0].participantId)
+                assertEquals("Alice", result.content[0].firstName)
+                assertEquals(ai1.emailAddress.address, result.content[0].accountIdentity)
+                assertTrue(result.content[0].isDeployed)
+                assertTrue(result.content[0].carpUser)
+                assertEquals(p2.id.stringRepresentation, result.content[1].participantId)
+                assertEquals(ai2.emailAddress.address, result.content[1].accountIdentity)
+                assertFalse(result.content[1].isDeployed)
+                assertFalse(result.content[1].carpUser)
+            }
+        }
+
+        @Test
+        fun `uses filtered count for deployed query`() {
+            runTest {
+                val mockStudyId = UUID.randomUUID()
+                val request = ParticipantAccountsRequestDto(page = 1, size = 1, isDeployed = true)
+                val participantRows = listOf(ParticipantAccountQueryRow("""{"stub":1}""", true))
+
+                val ai1 = EmailAccountIdentity("deployed@example.com")
+                val participant = Participant(ai1)
+
+                stubQueryParticipantAccounts(
+                    studyId = mockStudyId,
+                    offset = 1,
+                    size = 1,
+                    isDeployed = true,
+                    participantRows = participantRows,
+                    total = 1,
+                )
+                coEvery {
+                    objectMapper.readValue(
+                        participantRows[0].participantJson,
+                        Participant::class.java,
+                    )
+                } returns participant
+                coEvery { accountService.findByAccountIdentity(ai1) } returns
+                    Account(email = ai1.emailAddress.address)
+
+                val sut = createSut()
+
+                val result = sut.queryParticipantAccounts(mockStudyId, request)
+
+                assertEquals(1, result.total)
+                coVerify(exactly = 1) {
+                    recruitmentRepository.countQueryParticipantAccounts(
+                        mockStudyId.stringRepresentation,
+                        null,
+                        true,
+                    )
+                }
+            }
+        }
+
+        @Suppress("LongParameterList")
+        private fun stubQueryParticipantAccounts(
+            studyId: UUID,
+            offset: Int,
+            size: Int,
+            isDeployed: Boolean?,
+            participantRows: List<ParticipantAccountQueryRow>,
+            total: Int,
+        ) {
+            coEvery {
+                recruitmentRepository.queryParticipantAccounts(
+                    studyId.stringRepresentation,
+                    offset,
+                    size,
+                    null,
+                    isDeployed,
+                    null,
+                    null,
+                )
+            } returns participantRows
+            coEvery {
+                recruitmentRepository.countQueryParticipantAccounts(
+                    studyId.stringRepresentation,
+                    null,
+                    isDeployed,
+                )
+            } returns total
         }
     }
 
@@ -681,7 +832,7 @@ class RecruitmentServiceWrapperTest {
                 coEvery {
                     recruitmentRepository.findRecruitmentParticipantsByStudyIdAndSearchAndLimitAndOffset(
                         mockStudyId.stringRepresentation,
-                        any(), any(), any(), any(),
+                        any(), any(), any(), any(), any(),
                     )
                 } returns serializedMockParticipants
                 coEvery { accountService.findByAccountIdentity(ai1) } returns a1
@@ -726,7 +877,7 @@ class RecruitmentServiceWrapperTest {
                 coEvery {
                     recruitmentRepository.findRecruitmentParticipantsByStudyIdAndSearchAndLimitAndOffset(
                         mockStudyId.stringRepresentation,
-                        any(), any(), any(), any(),
+                        any(), any(), any(), any(), any(),
                     )
                 } returns serializedMockParticipants
                 coEvery { accountService.findByAccountIdentity(ai1) } returns a1

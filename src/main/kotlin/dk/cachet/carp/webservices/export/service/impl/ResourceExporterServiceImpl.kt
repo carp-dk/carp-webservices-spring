@@ -37,9 +37,10 @@ class ResourceExporterServiceImpl(
                 ?: studyRepository.getDeploymentIdsOrThrow(studyId)
 
         if (activeDeploymentsOnly == true) {
-            studyDeploymentIds = studyDeploymentIds.filter {
-                deploymentRepository.getStudyDeploymentBy(it)?.startedOn != null
-            }.toSet()
+            studyDeploymentIds =
+                studyDeploymentIds.filter {
+                    deploymentRepository.getStudyDeploymentBy(it)?.startedOn != null
+                }.toSet()
         }
 
         exporters.forEach {

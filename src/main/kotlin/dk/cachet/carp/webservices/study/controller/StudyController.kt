@@ -18,6 +18,8 @@ import dk.cachet.carp.webservices.study.domain.ParticipantGroupsStatus
 import dk.cachet.carp.webservices.study.domain.StudyOverview
 import dk.cachet.carp.webservices.study.dto.AddParticipantsRequestDto
 import dk.cachet.carp.webservices.study.dto.ParticipantAccountsDto
+import dk.cachet.carp.webservices.study.dto.ParticipantAccountsRequestDto
+import dk.cachet.carp.webservices.study.dto.ParticipantAccountsResponseDto
 import dk.cachet.carp.webservices.study.serdes.RecruitmentRequestSerializer
 import dk.cachet.carp.webservices.study.serdes.StudyRequestSerializer
 import dk.cachet.carp.webservices.study.service.RecruitmentService
@@ -52,7 +54,7 @@ class StudyController(
         const val RESEARCH_ASSISTANTS = "/api/studies/{${PathVariableName.STUDY_ID}}/research-assistants"
         const val ADD_RESEARCHER = "/api/studies/{${PathVariableName.STUDY_ID}}/researchers/add"
         const val GET_STUDIES_OVERVIEW = "/api/studies/studies-overview"
-        const val GET_PARTICIPANTS_ACCOUNTS = "/api/studies/{${PathVariableName.STUDY_ID}}/participants/accounts"
+        const val PARTICIPANTS_ACCOUNTS = "/api/studies/{${PathVariableName.STUDY_ID}}/participants/accounts"
         const val GET_PARTICIPANT_GROUP_STATUS = "/api/studies/{${PathVariableName.STUDY_ID}}/participantGroup/status"
         const val ADD_PARTICIPANTS = "/api/studies/{${PathVariableName.STUDY_ID}}/participants/add"
         const val GET_INACTIVE_DEPLOYMENTS = "/api/studies/{${PathVariableName.STUDY_ID}}/inactive_deployments"
@@ -70,9 +72,17 @@ class StudyController(
         return recruitmentService.inviteUserWithRole(studyId, email, role)
     }
 
-    @GetMapping(value = [GET_PARTICIPANTS_ACCOUNTS])
+    @GetMapping(value = [PARTICIPANTS_ACCOUNTS])
     @PreAuthorize("canManageStudy(#studyId) or canLimitedManageStudy(#studyId)")
     @ResponseStatus(HttpStatus.OK)
+    @Deprecated(
+        message = "Use POST /api/studies/{studyId}/participants/accounts for the new participant query API.",
+    )
+    @Operation(
+        summary = "Get participant accounts",
+        description = "Legacy endpoint for participant accounts. Deprecated; use the POST query endpoint instead.",
+        deprecated = true,
+    )
     @Suppress("LongParameterList")
     suspend fun getParticipantAccounts(
         @PathVariable(PathVariableName.STUDY_ID) studyId: UUID,
@@ -80,7 +90,7 @@ class StudyController(
         @RequestParam(name = RequestParamName.LIMIT, required = false) limit: Int?,
         @RequestParam(name = RequestParamName.SEARCH, required = false) search: String?,
         @RequestParam(name = RequestParamName.IS_DESCENDING, required = false) isDescending: Boolean?,
-        @RequestParam(name = "response_as_dto", required = false) responseAsDto: Boolean?,
+        @RequestParam(name = RequestParamName.RESPONSE_AS_DTO, required = false) responseAsDto: Boolean?,
     ): Any {
         LOGGER.info("Start GET: /api/studies/$studyId/participants/accounts")
 
@@ -102,6 +112,23 @@ class StudyController(
         }
 
         return recruitmentService.getParticipants(studyId, offset, limit, search, isDescending)
+    }
+
+    @PostMapping(value = [PARTICIPANTS_ACCOUNTS])
+    @PreAuthorize("canManageStudy(#studyId) or canLimitedManageStudy(#studyId)")
+    @ResponseStatus(HttpStatus.OK)
+    @Operation(
+        summary = "Query participant accounts",
+        description =
+            "Returns a paged participant-centered view for a study. " +
+                "Supports search by participant ID or account identity, sorting, and filtering by deployment state.",
+    )
+    suspend fun queryParticipantAccounts(
+        @PathVariable(PathVariableName.STUDY_ID) studyId: UUID,
+        @Valid @RequestBody request: ParticipantAccountsRequestDto,
+    ): ParticipantAccountsResponseDto {
+        LOGGER.info("Start POST: /api/studies/$studyId/participants/accounts")
+        return recruitmentService.queryParticipantAccounts(studyId, request)
     }
 
     @GetMapping(value = [RESEARCHERS])
