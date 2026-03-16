@@ -54,4 +54,6 @@ interface IssuerFacade {
     ): String
 
     suspend fun getRedirectUrisForClient(): Map<String, List<String>>
+
+    suspend fun getCountForRole(role: Role): Long
 }
