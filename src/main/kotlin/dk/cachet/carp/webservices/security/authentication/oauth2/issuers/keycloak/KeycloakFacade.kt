@@ -125,7 +125,7 @@ class KeycloakFacade(
                 redirectUri,
                 expirationSeconds?.toInt() ?: (60 * 60 * 24),
                 studyId,
-                Role.PARTICIPANT.name,
+                Role.PARTICIPANT.name.lowercase(),
                 "inDeployment",
                 subdomain,
             )
@@ -344,6 +344,19 @@ class KeycloakFacade(
                     }
                 }.toMap()
         return clientsWithRedirectUris
+    }
+
+    override suspend fun getCountForRole(role: Role): Long {
+        val token = authenticate().accessToken
+
+        LOGGER.debug("Getting count for users with role ${role.name}")
+
+        return resourceClient
+            .get()
+            .uri("/analytics/users?roleName=${role.name}")
+            .headers { it.setBearerAuth(token!!) }
+            .retrieve()
+            .awaitBody<Long>()
     }
 
     private suspend fun queryAll(query: String): List<Account> {
