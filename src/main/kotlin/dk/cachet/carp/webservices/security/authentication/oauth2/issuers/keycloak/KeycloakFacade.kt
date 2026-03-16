@@ -12,6 +12,9 @@ import dk.cachet.carp.webservices.security.authentication.oauth2.IssuerFacade
 import dk.cachet.carp.webservices.security.authentication.oauth2.issuers.keycloak.domain.*
 import dk.cachet.carp.webservices.security.authorization.Claim
 import dk.cachet.carp.webservices.security.authorization.Role
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.buffer
+import kotlinx.coroutines.reactive.asFlow
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.springframework.beans.factory.annotation.Value
@@ -22,10 +25,7 @@ import org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED_VALUE
 import org.springframework.http.codec.json.Jackson2JsonDecoder
 import org.springframework.http.codec.json.Jackson2JsonEncoder
 import org.springframework.stereotype.Service
-import org.springframework.web.reactive.function.client.ExchangeStrategies
-import org.springframework.web.reactive.function.client.WebClient
-import org.springframework.web.reactive.function.client.awaitBodilessEntity
-import org.springframework.web.reactive.function.client.awaitBody
+import org.springframework.web.reactive.function.client.*
 import org.springframework.web.util.UriBuilder
 
 // https://www.keycloak.org/docs-api/21.1.1/rest-api/
@@ -56,6 +56,20 @@ class KeycloakFacade(
                     .jackson2JsonDecoder(
                         Jackson2JsonDecoder(objectMapper, MediaType.APPLICATION_JSON),
                     )
+                configurer.defaultCodecs().jackson2JsonDecoder(
+                    Jackson2JsonDecoder(
+                        objectMapper,
+                        MediaType.APPLICATION_NDJSON,
+                        MediaType.APPLICATION_JSON,
+                    ),
+                )
+                configurer.defaultCodecs().jackson2JsonEncoder(
+                    Jackson2JsonEncoder(
+                        objectMapper,
+                        MediaType.APPLICATION_NDJSON,
+                        MediaType.APPLICATION_JSON,
+                    ),
+                )
             }
             .build()
 
@@ -90,6 +104,49 @@ class KeycloakFacade(
         checkNotNull(createdAccount) { "Account not created." }
 
         return createdAccount
+    }
+
+    @Suppress("MagicNumber")
+    override suspend fun createAnonymousAccounts(
+        count: Int,
+        expirationSeconds: Long?,
+        clientId: String,
+        redirectUri: String?,
+        subdomain: String?,
+        studyId: String?,
+    ): Flow<MagicLinkResponse> {
+        val token = authenticate().accessToken
+
+        LOGGER.debug("Creating {} anonymous accounts", count)
+        val request =
+            CreateAnonymousAccountsRequest(
+                count,
+                clientId,
+                redirectUri,
+                expirationSeconds?.toInt() ?: (60 * 60 * 24),
+                studyId,
+                Role.PARTICIPANT.name,
+                "inDeployment",
+                subdomain,
+            )
+        try {
+            return resourceClient.post()
+                .uri("/bulk-users/anonymous")
+                .headers {
+                    it.setBearerAuth(token!!)
+                }
+                .bodyValue(request)
+                .accept(MediaType.APPLICATION_NDJSON)
+                .retrieve()
+                .bodyToFlux(MagicLinkResponse::class.java)
+                .asFlow()
+                .buffer(1000)
+        } catch (e: WebClientResponseException) {
+            LOGGER.error("Error creating anonymous accounts: ${e.statusCode} - ${e.responseBodyAsString}")
+            LOGGER.error(e.message)
+            LOGGER.error(e.cause)
+            throw e
+        }
     }
 
     override suspend fun addRole(
@@ -256,7 +313,7 @@ class KeycloakFacade(
                 .retrieve()
                 .awaitBody<MagicLinkResponse>()
 
-        return magicLinkResponse.link
+        return magicLinkResponse.link!!
     }
 
     override suspend fun getRedirectUrisForClient(): Map<String, List<String>> {

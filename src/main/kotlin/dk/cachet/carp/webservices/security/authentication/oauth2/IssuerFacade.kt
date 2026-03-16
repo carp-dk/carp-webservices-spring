@@ -3,13 +3,25 @@ package dk.cachet.carp.webservices.security.authentication.oauth2
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.common.application.users.AccountIdentity
 import dk.cachet.carp.webservices.security.authentication.domain.Account
+import dk.cachet.carp.webservices.security.authentication.oauth2.issuers.keycloak.domain.MagicLinkResponse
 import dk.cachet.carp.webservices.security.authentication.oauth2.issuers.keycloak.domain.RequiredActions
 import dk.cachet.carp.webservices.security.authorization.Claim
 import dk.cachet.carp.webservices.security.authorization.Role
+import kotlinx.coroutines.flow.Flow
 
 @Suppress("TooManyFunctions")
 interface IssuerFacade {
     suspend fun createAccount(account: Account): Account
+
+    @Suppress("LongParameterList")
+    suspend fun createAnonymousAccounts(
+        count: Int,
+        expirationSeconds: Long?,
+        clientId: String,
+        redirectUri: String?,
+        subdomain: String?,
+        studyId: String?,
+    ): Flow<MagicLinkResponse>
 
     suspend fun getAccount(uuid: UUID): Account?
 

@@ -38,4 +38,30 @@ interface RecruitmentRepository : JpaRepository<Recruitment, Int>, RecruitmentRe
         studyId: String,
         search: String?,
     ): Int
+
+    @Modifying
+    @Transactional
+    @Query(
+        nativeQuery = true,
+        value = """
+                UPDATE recruitments
+                SET snapshot = jsonb_set(
+                    jsonb_set(
+                        snapshot,
+                        '{participantGroups}',
+                        COALESCE(snapshot->'participantGroups', '{}'::jsonb)
+                        || (CAST(:participantGroups AS jsonb)->'participantGroups')
+                    ),
+                    '{participants}',
+                    COALESCE(snapshot->'participants', '[]'::jsonb)
+                    || CAST(:participants AS jsonb)
+                )
+                WHERE snapshot->>'studyId' = :studyId;
+        """,
+    )
+    fun bulkAddParticipantsAndGroups(
+        studyId: String,
+        participants: String,
+        participantGroups: String,
+    )
 }

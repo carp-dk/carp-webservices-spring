@@ -13,8 +13,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
+import org.springframework.data.domain.AuditorAware
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.sql.Timestamp
 import dk.cachet.carp.deployments.domain.StudyDeployment as CoreStudyDeployment
 
 @Service
@@ -24,6 +27,8 @@ class CoreDeploymentRepository(
     private val objectMapper: ObjectMapper,
     private val validationMessages: MessageBase,
     private val auth: AuthorizationService,
+    private val jdbcTemplate: JdbcTemplate,
+    private val auditorAware: AuditorAware<String>,
 ) : DeploymentRepository {
     companion object {
         private val LOGGER: Logger = LogManager.getLogger()
@@ -42,11 +47,30 @@ class CoreDeploymentRepository(
             }
             val studyDeploymentToSave = StudyDeployment()
 
-            val snapshot = WS_JSON.encodeToString(StudyDeploymentSnapshot.serializer(), studyDeployment.getSnapshot())
+            val snapshot =
+                WS_JSON.encodeToString(
+                    StudyDeploymentSnapshot.serializer(),
+                    studyDeployment.getSnapshot(),
+                )
             studyDeploymentToSave.snapshot = objectMapper.readTree(snapshot)
 
             studyDeploymentRepository.save(studyDeploymentToSave)
             LOGGER.info("Deployment saved, id: ${studyDeployment.id.stringRepresentation}")
+        }
+
+    @Suppress("MagicNumber", "MaxLineLength")
+    suspend fun addAll(studyDeployments: List<StudyDeployment>) =
+        withContext(Dispatchers.IO) {
+            val sql =
+                "INSERT INTO deployments (created_at, created_by, updated_at, updated_by, snapshot) VALUES (?,?,?,?,?::jsonb)"
+            jdbcTemplate.batchUpdate(sql, studyDeployments, studyDeployments.size) { ps, deployment ->
+                ps.setObject(1, Timestamp.from(java.time.Instant.now()))
+                ps.setObject(2, auditorAware.currentAuditor.orElse("system"))
+                ps.setObject(3, Timestamp.from(java.time.Instant.now()))
+                ps.setObject(4, auditorAware.currentAuditor.orElse("system"))
+                ps.setObject(5, deployment.snapshot?.toString())
+            }
+            Unit
         }
 
     override suspend fun getStudyDeploymentBy(id: UUID) =

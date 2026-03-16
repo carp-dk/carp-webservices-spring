@@ -7,10 +7,12 @@ import dk.cachet.carp.common.application.users.EmailAccountIdentity
 import dk.cachet.carp.webservices.account.service.impl.AccountServiceImpl
 import dk.cachet.carp.webservices.security.authentication.domain.Account
 import dk.cachet.carp.webservices.security.authentication.oauth2.IssuerFacade
+import dk.cachet.carp.webservices.security.authentication.oauth2.issuers.keycloak.domain.MagicLinkResponse
 import dk.cachet.carp.webservices.security.authentication.oauth2.issuers.keycloak.domain.RequiredActions
 import dk.cachet.carp.webservices.security.authorization.Claim
 import dk.cachet.carp.webservices.security.authorization.Role
 import io.mockk.*
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
 import org.springframework.web.reactive.function.client.WebClientResponseException
@@ -466,14 +468,25 @@ class AccountServiceImplTest {
                 val clientId = "clientId"
                 val redirectUri = "http://localhost:8080"
                 val account = mockk<Account>()
-                coEvery { issuerFacade.createAccount(any()) } returns account
-                coEvery { issuerFacade.recoverAccount(account, clientId, redirectUri, expirationSeconds) } returns "foo"
+                coEvery { account.username } returns UUID.randomUUID().toString()
+                coEvery {
+                    issuerFacade
+                        .createAnonymousAccounts(
+                            1,
+                            expirationSeconds,
+                            clientId,
+                            redirectUri,
+                            null,
+                            null,
+                        )
+                } returns flowOf(MagicLinkResponse(account.username, "random-link-placeholder"))
                 val sut = AccountServiceImpl(issuerFacade)
 
-                val result = sut.generateAnonymousAccount(expirationSeconds, clientId, redirectUri, null)
+                val result = mutableListOf<Pair<String, String>>()
+                sut.generateAnonymousAccount(expirationSeconds, clientId, redirectUri, null, 1, null)
+                    .collect { result.add(Pair(it.userId!!, it.link!!)) }
 
-                coVerify(exactly = 1) { issuerFacade.createAccount(any()) }
-                assertTrue { result.first.username.toString().length == UUID.randomUUID().stringRepresentation.length }
+                assertTrue { result.first().first.length == UUID.randomUUID().stringRepresentation.length }
             }
     }
 }
