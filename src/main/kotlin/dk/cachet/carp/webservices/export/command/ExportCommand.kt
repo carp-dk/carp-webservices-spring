@@ -13,6 +13,7 @@ import dk.cachet.carp.webservices.export.domain.ExportType
 import dk.cachet.carp.webservices.export.service.ResourceExporterService
 import dk.cachet.carp.webservices.file.util.FileUtil
 import dk.cachet.carp.webservices.study.domain.AnonymousParticipantRequest
+import dk.cachet.carp.webservices.study.service.AnonymousService
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toJavaInstant
 import org.springframework.stereotype.Service
@@ -38,6 +39,7 @@ abstract class ExportCommand(
 class ExportCommandFactory(
     private val services: CoreServiceContainer,
     private val accountService: AccountService,
+    private val anonymousService: AnonymousService,
     private val resourceExporter: ResourceExporterService,
     private val fileUtil: FileUtil,
 ) {
@@ -113,8 +115,8 @@ class ExportCommandFactory(
             entry,
             payload,
             services,
+            anonymousService,
             accountService,
-            resourceExporter,
             fileUtil,
         )
     }

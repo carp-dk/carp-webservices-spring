@@ -3,13 +3,14 @@ package dk.cachet.carp.webservices.account.service.impl
 import dk.cachet.carp.common.application.EmailAddress
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.common.application.users.AccountIdentity
-import dk.cachet.carp.common.application.users.UsernameAccountIdentity
 import dk.cachet.carp.webservices.account.service.AccountService
 import dk.cachet.carp.webservices.security.authentication.domain.Account
 import dk.cachet.carp.webservices.security.authentication.oauth2.IssuerFacade
+import dk.cachet.carp.webservices.security.authentication.oauth2.issuers.keycloak.domain.MagicLinkResponse
 import dk.cachet.carp.webservices.security.authentication.oauth2.issuers.keycloak.domain.RequiredActions
 import dk.cachet.carp.webservices.security.authorization.Claim
 import dk.cachet.carp.webservices.security.authorization.Role
+import kotlinx.coroutines.flow.Flow
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.springframework.stereotype.Service
@@ -147,27 +148,17 @@ class AccountServiceImpl(
         clientId: String,
         redirectUri: String?,
         subdomain: String?,
-    ): Pair<UsernameAccountIdentity, String> {
-        val username = UUID.randomUUID()
-        val identity = UsernameAccountIdentity(username.toString())
-        val account = issuerFacade.createAccount(Account.fromAccountIdentity(identity))
-        val uri = issuerFacade.recoverAccount(
-            account,
+        numberOfAccounts: Int,
+        studyId: String?,
+    ): Flow<MagicLinkResponse> =
+        issuerFacade.createAnonymousAccounts(
+            numberOfAccounts,
+            expirationSeconds,
             clientId,
             redirectUri,
-            expirationSeconds,
-        ).let {
-            if (subdomain != null) {
-                it.replace("://", "://$subdomain.")
-            }
-            it
-        }
-
-        return Pair(
-            identity,
-            uri,
+            subdomain,
+            studyId,
         )
-    }
 
     override suspend fun getRedirectUris(): Map<String, List<String>> {
         return issuerFacade.getRedirectUrisForClient()

@@ -11,6 +11,9 @@ import dk.cachet.carp.webservices.security.authorization.service.AuthorizationSe
 import io.mockk.*
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
+import org.springframework.data.domain.AuditorAware
+import org.springframework.jdbc.core.JdbcTemplate
+import kotlin.arrayOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -19,6 +22,8 @@ class CoreDeploymentRepositoryTest {
     private val auth: AuthorizationService = mockk()
     private val objectMapper: ObjectMapper = mockk()
     private val validationMessages: MessageBase = mockk()
+    private val jbdcTemplate: JdbcTemplate = mockk()
+    private val auditorAware: AuditorAware<String> = mockk()
 
     @Nested
     inner class Remove {
@@ -41,8 +46,17 @@ class CoreDeploymentRepositoryTest {
                 coEvery { studyDeploymentRepository.findAllByStudyDeploymentIds(any()) } returns studyDeployments
                 coEvery { studyDeploymentRepository.deleteByDeploymentIds(any()) } returns Unit
                 coEvery { auth.revokeClaimsFromAllAccounts(any()) } returns Unit
+                coEvery { jbdcTemplate.batchUpdate(any()) } returns IntArray(1)
+                coEvery { auditorAware.currentAuditor.orElse(any()) } returns "system"
 
-                val sut = CoreDeploymentRepository(studyDeploymentRepository, objectMapper, validationMessages, auth)
+                val sut = CoreDeploymentRepository(
+                    studyDeploymentRepository,
+                    objectMapper,
+                    validationMessages,
+                    auth,
+                    jbdcTemplate,
+                    auditorAware
+                )
 
                 val result = sut.remove(studyDeploymentIds)
 
