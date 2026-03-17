@@ -3,6 +3,7 @@ package dk.cachet.carp.webservices.account.service.impl
 import dk.cachet.carp.common.application.EmailAddress
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.common.application.users.AccountIdentity
+import dk.cachet.carp.common.application.users.UsernameAccountIdentity
 import dk.cachet.carp.webservices.account.service.AccountService
 import dk.cachet.carp.webservices.security.authentication.domain.Account
 import dk.cachet.carp.webservices.security.authentication.oauth2.IssuerFacade
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service
 import org.springframework.web.reactive.function.client.WebClientResponseException
 
 @Service
+@Suppress("TooManyFunctions")
 class AccountServiceImpl(
     private val issuerFacade: IssuerFacade,
 ) : AccountService {
@@ -143,7 +145,7 @@ class AccountServiceImpl(
         return issuerFacade.updateAccount(account)
     }
 
-    override suspend fun generateAnonymousAccount(
+    override suspend fun generateAnonymousAccountBulk(
         expirationSeconds: Long?,
         clientId: String,
         redirectUri: String?,
@@ -151,7 +153,7 @@ class AccountServiceImpl(
         numberOfAccounts: Int,
         studyId: String?,
     ): Flow<MagicLinkResponse> =
-        issuerFacade.createAnonymousAccounts(
+        issuerFacade.createAnonymousAccountsBulk(
             numberOfAccounts,
             expirationSeconds,
             clientId,
@@ -159,6 +161,33 @@ class AccountServiceImpl(
             subdomain,
             studyId,
         )
+
+    override suspend fun generateAnonymousAccount(
+        expirationSeconds: Long?,
+        clientId: String,
+        redirectUri: String?,
+        subdomain: String?,
+    ): Pair<UsernameAccountIdentity, String> {
+        val username = UUID.randomUUID()
+        val identity = UsernameAccountIdentity(username.toString())
+        val account = issuerFacade.createAccount(Account.fromAccountIdentity(identity))
+        val uri = issuerFacade.recoverAccount(
+            account,
+            clientId,
+            redirectUri,
+            expirationSeconds,
+        ).let {
+            if (subdomain != null) {
+                it.replace("://", "://$subdomain.")
+            }
+            it
+        }
+
+        return Pair(
+            identity,
+            uri,
+        )
+    }
 
     override suspend fun getRedirectUris(): Map<String, List<String>> {
         return issuerFacade.getRedirectUrisForClient()

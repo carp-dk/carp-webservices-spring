@@ -16,4 +16,5 @@ data class AnonymousParticipantRequest(
     @field:NotBlank
     val participantRoleName: String,
     val subdomain: String?,
+    val useFastPipeline: Boolean = false,
 )

@@ -6,6 +6,7 @@ import dk.cachet.carp.webservices.account.service.AccountService
 import dk.cachet.carp.webservices.common.services.CoreServiceContainer
 import dk.cachet.carp.webservices.export.command.impl.ExportAnonymousParticipants
 import dk.cachet.carp.webservices.export.domain.Export
+import dk.cachet.carp.webservices.export.service.ResourceExporterService
 import dk.cachet.carp.webservices.file.util.FileUtil
 import dk.cachet.carp.webservices.study.domain.AnonymousParticipantRequest
 import dk.cachet.carp.webservices.study.service.AnonymousService
@@ -21,6 +22,7 @@ class ExportAnonymousParticipantsTest {
     private val accountService = mockk<AccountService>()
     private val anonymousService = mockk<AnonymousService>()
     private val fileUtil = mockk<FileUtil>()
+    private val resourceExporter = mockk<ResourceExporterService>()
 
     private val payload =
         AnonymousParticipantRequest(
@@ -60,6 +62,7 @@ class ExportAnonymousParticipantsTest {
                     services,
                     anonymousService,
                     accountService,
+                    resourceExporter,
                     fileUtil,
                 )
             val canExecute = command.canExecute().first
@@ -91,6 +94,7 @@ class ExportAnonymousParticipantsTest {
                     services,
                     anonymousService,
                     accountService,
+                    resourceExporter,
                     fileUtil,
                 )
             val canExecute = command.canExecute().first
@@ -127,6 +131,7 @@ class ExportAnonymousParticipantsTest {
                     services,
                     anonymousService,
                     accountService,
+                    resourceExporter,
                     fileUtil,
                 )
             val canExecute = command.canExecute().first
@@ -163,6 +168,7 @@ class ExportAnonymousParticipantsTest {
                     services,
                     anonymousService,
                     accountService,
+                    resourceExporter,
                     fileUtil,
                 )
             val canExecute = command.canExecute().first

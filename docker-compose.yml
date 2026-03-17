@@ -119,7 +119,7 @@ services:
       - ./deployment/keycloak/carp-realm.json:/opt/keycloak/data/import/carp-realm.json
       - ./deployment/keycloak/carp-theme.jar:/opt/keycloak/providers/carp-theme.jar
       - ./deployment/keycloak/magic-links.jar:/opt/keycloak/providers/magic-links.jar
-      - ./deployment/keycloak/bulk-extension-1.0.0.jar:/opt/keycloak/providers/bulk-extension-1.0.0.jar
+      - ./deployment/keycloak/carp-keycloak-extension-1.0.0.jar:/opt/keycloak/providers/carp-keycloak-extension-1.0.0.jar
       - keycloak:/opt/keycloak/data
 
   keycloak-dev:

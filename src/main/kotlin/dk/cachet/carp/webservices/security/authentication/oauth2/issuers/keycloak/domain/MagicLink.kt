@@ -11,7 +11,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class MagicLinkResponse(
-    @JsonProperty("userId")
+    @JsonProperty("user_id")
     val userId: String?,
     val link: String?,
 )

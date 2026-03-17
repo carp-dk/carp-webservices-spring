@@ -13,7 +13,6 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
 import org.springframework.data.domain.AuditorAware
 import org.springframework.jdbc.core.JdbcTemplate
-import kotlin.arrayOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -49,14 +48,15 @@ class CoreDeploymentRepositoryTest {
                 coEvery { jbdcTemplate.batchUpdate(any()) } returns IntArray(1)
                 coEvery { auditorAware.currentAuditor.orElse(any()) } returns "system"
 
-                val sut = CoreDeploymentRepository(
-                    studyDeploymentRepository,
-                    objectMapper,
-                    validationMessages,
-                    auth,
-                    jbdcTemplate,
-                    auditorAware
-                )
+                val sut =
+                    CoreDeploymentRepository(
+                        studyDeploymentRepository,
+                        objectMapper,
+                        validationMessages,
+                        auth,
+                        jbdcTemplate,
+                        auditorAware,
+                    )
 
                 val result = sut.remove(studyDeploymentIds)
 
