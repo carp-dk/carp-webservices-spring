@@ -471,7 +471,7 @@ class AccountServiceImplTest {
                 coEvery { account.username } returns UUID.randomUUID().toString()
                 coEvery {
                     issuerFacade
-                        .createAnonymousAccounts(
+                        .createAnonymousAccountsBulk(
                             1,
                             expirationSeconds,
                             clientId,
@@ -483,7 +483,7 @@ class AccountServiceImplTest {
                 val sut = AccountServiceImpl(issuerFacade)
 
                 val result = mutableListOf<Pair<String, String>>()
-                sut.generateAnonymousAccount(expirationSeconds, clientId, redirectUri, null, 1, null)
+                sut.generateAnonymousAccountBulk(expirationSeconds, clientId, redirectUri, null, 1, null)
                     .collect { result.add(Pair(it.userId!!, it.link!!)) }
 
                 assertTrue { result.first().first.length == UUID.randomUUID().stringRepresentation.length }

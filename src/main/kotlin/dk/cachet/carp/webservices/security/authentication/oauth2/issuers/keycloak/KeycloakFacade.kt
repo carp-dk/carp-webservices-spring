@@ -107,7 +107,7 @@ class KeycloakFacade(
     }
 
     @Suppress("MagicNumber")
-    override suspend fun createAnonymousAccounts(
+    override suspend fun createAnonymousAccountsBulk(
         count: Int,
         expirationSeconds: Long?,
         clientId: String,

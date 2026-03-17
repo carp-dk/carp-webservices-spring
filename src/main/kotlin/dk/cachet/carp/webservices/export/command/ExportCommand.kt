@@ -117,6 +117,7 @@ class ExportCommandFactory(
             services,
             anonymousService,
             accountService,
+            resourceExporter,
             fileUtil,
         )
     }

@@ -3,12 +3,14 @@ package dk.cachet.carp.webservices.account.service
 import dk.cachet.carp.common.application.EmailAddress
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.common.application.users.AccountIdentity
+import dk.cachet.carp.common.application.users.UsernameAccountIdentity
 import dk.cachet.carp.webservices.security.authentication.domain.Account
 import dk.cachet.carp.webservices.security.authentication.oauth2.issuers.keycloak.domain.MagicLinkResponse
 import dk.cachet.carp.webservices.security.authorization.Claim
 import dk.cachet.carp.webservices.security.authorization.Role
 import kotlinx.coroutines.flow.Flow
 
+@Suppress("TooManyFunctions")
 interface AccountService {
     suspend fun invite(
         identity: AccountIdentity,
@@ -43,7 +45,7 @@ interface AccountService {
     ): Account
 
     @Suppress("LongParameterList")
-    suspend fun generateAnonymousAccount(
+    suspend fun generateAnonymousAccountBulk(
         expirationSeconds: Long?,
         clientId: String,
         redirectUri: String?,
@@ -53,4 +55,11 @@ interface AccountService {
     ): Flow<MagicLinkResponse>
 
     suspend fun getRedirectUris(): Map<String, List<String>>
+
+    suspend fun generateAnonymousAccount(
+        expirationSeconds: Long?,
+        clientId: String,
+        redirectUri: String?,
+        subdomain: String?
+    ): Pair<UsernameAccountIdentity, String>
 }

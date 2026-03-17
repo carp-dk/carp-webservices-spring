@@ -14,7 +14,7 @@ interface IssuerFacade {
     suspend fun createAccount(account: Account): Account
 
     @Suppress("LongParameterList")
-    suspend fun createAnonymousAccounts(
+    suspend fun createAnonymousAccountsBulk(
         count: Int,
         expirationSeconds: Long?,
         clientId: String,
