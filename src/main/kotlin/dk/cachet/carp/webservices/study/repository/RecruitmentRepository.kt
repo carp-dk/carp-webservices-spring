@@ -50,7 +50,7 @@ interface RecruitmentRepository : JpaRepository<Recruitment, Int>, RecruitmentRe
                         snapshot,
                         '{participantGroups}',
                         COALESCE(snapshot->'participantGroups', '{}'::jsonb)
-                        || (CAST(:participantGroups AS jsonb)->'participantGroups')
+                        || CAST(:participantGroups AS jsonb)
                     ),
                     '{participants}',
                     COALESCE(snapshot->'participants', '[]'::jsonb)
