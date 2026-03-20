@@ -25,7 +25,7 @@ class RecruitmentRepositoryImplTest {
             query
         }
         every { query.setParameter(any<String>(), any()) } returns query
-        every { query.resultList } returns listOf(arrayOf("""{"id":"p1"}""", true))
+        every { query.resultList } returns listOf(arrayOf("""{"id":"p1"}""", true, "deployment-1"))
 
         val sut = RecruitmentRepositoryImpl(entityManager)
 
@@ -45,9 +45,14 @@ class RecruitmentRepositoryImplTest {
         assertEquals(1, result.size)
         assertEquals("""{"id":"p1"}""", result[0].participantJson)
         assertEquals(true, result[0].isDeployed)
+        assertEquals("deployment-1", result[0].deploymentId)
         assertContains(
             normalizedSql,
-            "SELECT elem AS participant, deployed_participant.participant_id IS NOT NULL AS is_deployed",
+            """
+            SELECT elem AS participant,
+            deployed_participant.participant_id IS NOT NULL AS is_deployed,
+            deployed_participant.deployment_id
+            """.replace(Regex("\\s+"), " ").trim(),
         )
         assertContains(
             normalizedSql,
@@ -83,7 +88,7 @@ class RecruitmentRepositoryImplTest {
             query
         }
         every { query.setParameter(any<String>(), any()) } returns query
-        every { query.resultList } returns listOf(arrayOf("""{"id":"p1"}""", false))
+        every { query.resultList } returns listOf(arrayOf("""{"id":"p1"}""", false, null))
 
         val sut = RecruitmentRepositoryImpl(entityManager)
 
@@ -101,6 +106,7 @@ class RecruitmentRepositoryImplTest {
         val normalizedSql = capturedSql.replace(Regex("\\s+"), " ").trim()
 
         assertEquals(1, result.size)
+        assertEquals(null, result[0].deploymentId)
         assertFalse(normalizedSql.contains("LIMIT :limit OFFSET :offset"))
         verify { query.setParameter("studyId", "study-id") }
         verify(exactly = 0) { query.setParameter("limit", any()) }

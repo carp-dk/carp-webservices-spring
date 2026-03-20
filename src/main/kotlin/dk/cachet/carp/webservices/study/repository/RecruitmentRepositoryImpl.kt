@@ -12,12 +12,15 @@ class RecruitmentRepositoryImpl(
         private const val DEPLOYED_PARTICIPANTS_CTE =
             """
             WITH deployed_participants AS (
-                SELECT DISTINCT participant_id
+                SELECT DISTINCT ON (participant_id)
+                    participant_id,
+                    group_id AS deployment_id
                 FROM public.recruitments,
                      jsonb_each(snapshot->'participantGroups') groups(group_id, group_value),
                      jsonb_array_elements_text(group_value->'_participantIds') participant_ids(participant_id)
                 WHERE snapshot->>'studyId' = :studyId
                 AND group_value->>'isDeployed' = 'true'
+                ORDER BY participant_id, group_id
             )
             """
     }
@@ -207,7 +210,8 @@ class RecruitmentRepositoryImpl(
             $DEPLOYED_PARTICIPANTS_CTE
             SELECT
                 elem AS participant,
-                deployed_participant.participant_id IS NOT NULL AS is_deployed
+                deployed_participant.participant_id IS NOT NULL AS is_deployed,
+                deployed_participant.deployment_id
             FROM public.recruitments,
                  jsonb_array_elements(snapshot->'participants') WITH ORDINALITY arr(elem, idx)
             LEFT JOIN deployed_participants deployed_participant
@@ -234,6 +238,7 @@ class RecruitmentRepositoryImpl(
             ParticipantAccountQueryRow(
                 participantJson = row[0].toString(),
                 isDeployed = row[1] as Boolean,
+                deploymentId = row[2] as String?,
             )
         }
     }

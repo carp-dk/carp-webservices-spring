@@ -40,6 +40,7 @@ class RecruitmentServiceWrapper(
     services: CoreServiceContainer,
 ) : RecruitmentService {
     final override val core = services.recruitmentService
+    private val deploymentCore = services.deploymentService
 
     companion object {
         private val LOGGER: Logger = LogManager.getLogger()
@@ -157,9 +158,19 @@ class RecruitmentServiceWrapper(
                     request.sortBy,
                 )
 
+            val invitedOnByDeploymentId =
+                participantRows
+                    .mapNotNull { row -> row.deploymentId?.let(UUID::parse) }
+                    .toSet()
+                    .takeIf { it.isNotEmpty() }
+                    ?.let { deploymentIds ->
+                        deploymentCore.getStudyDeploymentStatusList(deploymentIds)
+                            .associate { status -> status.studyDeploymentId.stringRepresentation to status.createdOn }
+                    } ?: emptyMap()
+
             val content =
                 participantRows.map { participantRow ->
-                    mapParticipantAccountRow(participantRow)
+                    mapParticipantAccountRow(participantRow, invitedOnByDeploymentId)
                 }
 
             ParticipantAccountsResponseDto(
@@ -177,6 +188,7 @@ class RecruitmentServiceWrapper(
 
     private suspend fun mapParticipantAccountRow(
         participantRow: ParticipantAccountQueryRow,
+        invitedOnByDeploymentId: Map<String, Instant>,
     ): ParticipantAccountSummaryDto {
         val participant =
             objectMapper.readValue(
@@ -197,6 +209,7 @@ class RecruitmentServiceWrapper(
                     else -> null
                 },
             isDeployed = participantRow.isDeployed,
+            invitedOn = participantRow.deploymentId?.let(invitedOnByDeploymentId::get),
             carpUser = foundAccount != null,
         )
     }
