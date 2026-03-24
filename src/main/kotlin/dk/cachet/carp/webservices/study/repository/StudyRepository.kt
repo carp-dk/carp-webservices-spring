@@ -27,6 +27,12 @@ interface StudyRepository : JpaRepository<Study, Int> {
     )
     fun findAllByStudyIds(studyIds: List<String>): List<Study>
 
+    @Query(
+        nativeQuery = true,
+        value = "SELECT count(*) FROM studies WHERE snapshot->>'isLive' = 'true'",
+    )
+    fun countLiveStudies(): Long
+
     @Modifying
     @Transactional
     @Query(
