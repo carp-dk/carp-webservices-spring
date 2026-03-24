@@ -111,6 +111,8 @@ class AccountServiceImpl(
         issuerFacade.addRole(account, role)
     }
 
+    override suspend fun getCountByRole(role: Role): Long = issuerFacade.getCountForRole(role)
+
     override suspend fun grant(
         identity: AccountIdentity,
         claims: Set<Claim>,

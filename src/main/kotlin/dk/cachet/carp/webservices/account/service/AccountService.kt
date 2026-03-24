@@ -34,6 +34,8 @@ interface AccountService {
         role: Role,
     )
 
+    suspend fun getCountByRole(role: Role): Long
+
     suspend fun grant(
         identity: AccountIdentity,
         claims: Set<Claim>,

@@ -312,6 +312,22 @@ class AccountServiceImplTest {
     }
 
     @Nested
+    inner class GetCountByRole {
+        @Test
+        fun `should relay the task to issuerFacade`() =
+            runTest {
+                val role = Role.PARTICIPANT
+                coEvery { issuerFacade.getCountForRole(any()) } returns 13
+                val sut = AccountServiceImpl(issuerFacade)
+
+                val result = sut.getCountByRole(role)
+
+                coVerify(exactly = 1) { issuerFacade.getCountForRole(role) }
+                assertEquals(13, result)
+            }
+    }
+
+    @Nested
     inner class Grant {
         @Test
         fun `should throw if there is any VirtualClaims`() =
