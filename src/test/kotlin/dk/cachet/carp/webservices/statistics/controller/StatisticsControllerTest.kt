@@ -1,5 +1,6 @@
 package dk.cachet.carp.webservices.statistics.controller
 
+import dk.cachet.carp.webservices.statistics.dto.LocationCoordinatesDto
 import dk.cachet.carp.webservices.statistics.dto.StatisticsOverviewDto
 import dk.cachet.carp.webservices.statistics.service.StatisticsService
 import io.mockk.coEvery
@@ -32,8 +33,8 @@ class StatisticsControllerTest {
                     totalParticipants = 2,
                     totalResearchers = 3,
                     dailyDatastreamUploads = emptyMap(),
-                    operationsByApplications = emptyMap(),
-                    locationwiseDataUploads = emptyMap(),
+                    studiesByApplications = emptyMap(),
+                    locationwiseDataUploads = emptyList<LocationCoordinatesDto>(),
                 )
 
             mockMvc.perform(

@@ -1,6 +1,7 @@
 package dk.cachet.carp.webservices.study.repository
 
 import dk.cachet.carp.webservices.study.domain.Study
+import dk.cachet.carp.webservices.study.dto.ApplicationDataQuantityPairDb
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
@@ -32,6 +33,20 @@ interface StudyRepository : JpaRepository<Study, Int> {
         value = "SELECT count(*) FROM studies WHERE snapshot->>'isLive' = 'true'",
     )
     fun countLiveStudies(): Long
+
+    @Query(
+        nativeQuery = true,
+        value =
+            """
+                SELECT
+                    snapshot->'protocolSnapshot'->>'applicationData' AS application_data,
+                    COUNT(*) AS quantity
+                FROM studies
+                WHERE snapshot->>'isLive' = 'true'
+                GROUP BY snapshot->'protocolSnapshot'->>'applicationData'
+            """,
+    )
+    fun getLiveStudyCountsByApplicationData(): List<ApplicationDataQuantityPairDb>
 
     @Modifying
     @Transactional

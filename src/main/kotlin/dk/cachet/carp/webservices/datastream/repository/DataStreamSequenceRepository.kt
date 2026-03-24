@@ -1,7 +1,9 @@
 package dk.cachet.carp.webservices.datastream.repository
 
 import dk.cachet.carp.webservices.datastream.domain.DataStreamSequence
+import dk.cachet.carp.webservices.datastream.dto.DateQuantityPairDb
 import dk.cachet.carp.webservices.datastream.dto.DateTaskQuantityTripleDb
+import dk.cachet.carp.webservices.datastream.dto.LocationCoordinatesDb
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
@@ -66,6 +68,59 @@ interface DataStreamSequenceRepository : JpaRepository<DataStreamSequence, Int> 
     fun findSequenceIdsByStreamId(
         @Param("dataStreamIds") dataStreamIds: List<Int>,
     ): List<Int>
+
+    @Query(
+        nativeQuery = true,
+        value =
+            """
+                SELECT
+                    DATE(created_at AT TIME ZONE 'UTC') AS date,
+                    COUNT(*) AS quantity
+                FROM data_stream_sequence
+                WHERE created_at >= :from
+                GROUP BY DATE(created_at AT TIME ZONE 'UTC')
+                ORDER BY DATE(created_at AT TIME ZONE 'UTC')
+            """,
+    )
+    fun getDailyUploadCountsSince(
+        from: Instant,
+    ): List<DateQuantityPairDb>
+
+    @Query(
+        nativeQuery = true,
+        value =
+            """
+                SELECT
+                    CASE
+                        WHEN btrim((latest.snapshot->'measurements'->(jsonb_array_length(latest.snapshot->'measurements') - 1))->'data'->>'latitude') ~
+                             '^[-+]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)(?:[eE][-+]?\\d+)?$'
+                        THEN ((latest.snapshot->'measurements'->(jsonb_array_length(latest.snapshot->'measurements') - 1))->'data'->>'latitude')::double precision
+                        ELSE NULL
+                    END AS latitude,
+                    CASE
+                        WHEN btrim((latest.snapshot->'measurements'->(jsonb_array_length(latest.snapshot->'measurements') - 1))->'data'->>'longitude') ~
+                             '^[-+]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)(?:[eE][-+]?\\d+)?$'
+                        THEN ((latest.snapshot->'measurements'->(jsonb_array_length(latest.snapshot->'measurements') - 1))->'data'->>'longitude')::double precision
+                        ELSE NULL
+                    END AS longitude
+                FROM (
+                    SELECT DISTINCT ON (data_stream_id) id, data_stream_id, snapshot, created_at
+                    FROM data_stream_sequence
+                    WHERE data_stream_id IN (:dataStreamIds)
+                        AND created_at >= :from
+                        AND jsonb_typeof(snapshot->'measurements') = 'array'
+                        AND jsonb_array_length(snapshot->'measurements') > 0
+                    ORDER BY data_stream_id, created_at DESC, id DESC
+                ) latest
+                ORDER BY latest.created_at DESC, latest.id DESC
+                LIMIT :limit
+            """,
+    )
+    fun getLatestLocationCoordinatesByDataStreamIds(
+        @Param("dataStreamIds") dataStreamIds: Collection<Int>,
+        @Param("from") from: Instant,
+        @Param("limit") limit: Int,
+    ): List<LocationCoordinatesDb>
 
     @Query(
         nativeQuery = true,

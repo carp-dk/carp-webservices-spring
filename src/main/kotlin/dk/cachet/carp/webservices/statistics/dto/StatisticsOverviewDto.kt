@@ -5,6 +5,6 @@ data class StatisticsOverviewDto(
     val totalParticipants: Long,
     val totalResearchers: Long,
     val dailyDatastreamUploads: Map<String, Long>,
-    val operationsByApplications: Map<String, Long>,
-    val locationwiseDataUploads: Map<String, Long>,
+    val studiesByApplications: Map<String, Long>,
+    val locationwiseDataUploads: List<LocationCoordinatesDto>,
 )

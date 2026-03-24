@@ -10,7 +10,21 @@ import org.springframework.transaction.annotation.Transactional
 import java.util.*
 
 @Repository
+@Suppress("TooManyFunctions")
 interface DataStreamIdRepository : JpaRepository<DataStreamId, Int> {
+    @Query(
+        nativeQuery = true,
+        value =
+            """
+                SELECT id
+                FROM data_stream_ids
+                WHERE name = :name
+            """,
+    )
+    fun getAllIdsByName(
+        @Param("name") name: String,
+    ): List<Int>
+
     fun findByStudyDeploymentIdAndDeviceRoleNameAndNameAndNameSpace(
         studyDeploymentId: String,
         deviceRoleName: String,
