@@ -6,8 +6,11 @@ import dk.cachet.carp.data.infrastructure.DataStreamServiceDecorator
 import dk.cachet.carp.deployments.application.users.Participation
 import dk.cachet.carp.deployments.domain.users.AccountParticipation
 import dk.cachet.carp.deployments.domain.users.ParticipantGroup
+import dk.cachet.carp.protocols.application.StudyProtocolSnapshot
+import dk.cachet.carp.studies.application.StudyDetails
 import dk.cachet.carp.studies.domain.users.ParticipantRepository
 import dk.cachet.carp.studies.domain.users.Recruitment
+import dk.cachet.carp.studies.infrastructure.StudyServiceDecorator
 import dk.cachet.carp.webservices.common.services.CoreServiceContainer
 import dk.cachet.carp.webservices.datastream.domain.DataStreamId
 import dk.cachet.carp.webservices.datastream.domain.DateTaskQuantityTriple
@@ -47,12 +50,14 @@ import kotlin.test.assertTrue
 class DataStreamServiceTest {
     private val dataStreamIdRepository = mockk<DataStreamIdRepository>()
     private val dataStreamSequenceRepository = mockk<DataStreamSequenceRepository>()
-    private val objectMapper = mockk<ObjectMapper>()
+    private val objectMapper = ObjectMapper()
     private val participantRepository = mockk<ParticipantRepository>()
     private val participationService = mockk<ParticipationService>()
+    private val studyService = mockk<StudyServiceDecorator>()
     val services: CoreServiceContainer =
         mockk<CoreServiceContainer> {
             every { dataStreamService } returns mockk<DataStreamServiceDecorator>()
+            every { studyService } returns this@DataStreamServiceTest.studyService
         }
 
     @Nested
@@ -184,6 +189,25 @@ class DataStreamServiceTest {
                 participationService,
                 services,
             )
+
+        @BeforeEach
+        fun setup() {
+            stubProtocolApiLevel("1.0.0")
+        }
+
+        private fun stubProtocolApiLevel(level: String?) {
+            val mockedProtocolSnapshot =
+                level?.let {
+                    mockk<StudyProtocolSnapshot> {
+                        every { applicationData } returns """{"protocolApiLevel":"$it"}"""
+                    }
+                }
+            val studyDetails =
+                mockk<StudyDetails> {
+                    every { protocolSnapshot } returns mockedProtocolSnapshot
+                }
+            coEvery { studyService.getStudyDetails(any()) } returns studyDetails
+        }
 
         @Test
         fun `throws exception if type is invalid`() {
@@ -317,6 +341,84 @@ class DataStreamServiceTest {
                 assertEquals(result.type, taskType)
                 assertEquals(result.from, from)
                 assertEquals(result.to, to)
+            }
+        }
+
+        @Suppress("LongMethod")
+        @Test
+        fun `should return the data stream summary for deployment scope when protocol api level is v2`() {
+            runTest {
+                stubProtocolApiLevel("2.0.0")
+
+                val deploymentId = UUID.randomUUID()
+                val from = Instant.fromEpochMilliseconds(0)
+                val to = Instant.fromEpochMilliseconds(1000)
+                val studyId = UUID.randomUUID()
+                val taskType = "survey"
+
+                val mockListOfDateTaskQuantityTripleDbs =
+                    listOf(
+                        DateTaskQuantityTripleDb(
+                            date = Timestamp(1000L),
+                            "survey",
+                            2,
+                        ),
+                    )
+
+                val mockedListOfDateTaskQuantityTriples =
+                    mockListOfDateTaskQuantityTripleDbs.map {
+                        DateTaskQuantityTriple(
+                            date = Instant.fromEpochMilliseconds(it.date.time),
+                            task = it.task,
+                            quantity = it.quantity,
+                        )
+                    }
+
+                every {
+                    dataStreamIdRepository.getAllIdsByDeploymentIdAndNameSpaceAndName(
+                        deploymentId.toString(),
+                        "dk.cachet.carp.completedapptask",
+                        taskType,
+                    )
+                } returns listOf(1, 2)
+
+                every {
+                    dataStreamSequenceRepository.getDayKeyQuantityListByDataStreamIdsAndOtherParametersV2(
+                        dataStreamIds = listOf(1, 2),
+                        from = from.toJavaInstant(),
+                        to = to.toJavaInstant(),
+                        completedAppTaskType = "dk.cachet.carp.completedapptask.$taskType",
+                    )
+                } returns mockListOfDateTaskQuantityTripleDbs
+
+                val result =
+                    sut.getDataStreamsSummary(
+                        studyId = studyId,
+                        deploymentId = deploymentId,
+                        participantId = null,
+                        scope = "deployment",
+                        type = taskType,
+                        from = from,
+                        to = to,
+                    )
+
+                assertEquals(result.data, mockedListOfDateTaskQuantityTriples)
+                verify(exactly = 1) {
+                    dataStreamSequenceRepository.getDayKeyQuantityListByDataStreamIdsAndOtherParametersV2(
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                    )
+                }
+                verify(exactly = 0) {
+                    dataStreamSequenceRepository.getDayKeyQuantityListByDataStreamIdsAndOtherParameters(
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                    )
+                }
             }
         }
 

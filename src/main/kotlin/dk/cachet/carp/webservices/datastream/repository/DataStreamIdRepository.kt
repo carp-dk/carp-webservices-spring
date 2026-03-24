@@ -48,6 +48,40 @@ interface DataStreamIdRepository : JpaRepository<DataStreamId, Int> {
 
     @Query(
         nativeQuery = true,
+        value =
+            """
+                SELECT id
+                FROM data_stream_ids
+                WHERE study_deployment_id IN (:deploymentIds)
+                    AND name_space = :nameSpace
+                    AND name = :name
+            """,
+    )
+    fun getAllIdsByDeploymentIdsAndNameSpaceAndName(
+        @Param("deploymentIds") deploymentIds: Collection<String>,
+        @Param("nameSpace") nameSpace: String,
+        @Param("name") name: String,
+    ): List<Int>
+
+    @Query(
+        nativeQuery = true,
+        value =
+            """
+                SELECT id
+                FROM data_stream_ids
+                WHERE study_deployment_id = :deploymentId
+                    AND name_space = :nameSpace
+                    AND name = :name
+            """,
+    )
+    fun getAllIdsByDeploymentIdAndNameSpaceAndName(
+        @Param("deploymentId") deploymentId: String,
+        @Param("nameSpace") nameSpace: String,
+        @Param("name") name: String,
+    ): List<Int>
+
+    @Query(
+        nativeQuery = true,
         value = "SELECT * FROM data_stream_ids WHERE study_deployment_id = :deploymentId ",
     )
     fun getAllByDeploymentId(
@@ -66,4 +100,23 @@ interface DataStreamIdRepository : JpaRepository<DataStreamId, Int> {
         studyDeploymentId: String,
         deviceRoleNames: MutableCollection<String>,
     ): MutableList<DataStreamId>
+
+    @Query(
+        nativeQuery = true,
+        value =
+            """
+                SELECT id
+                FROM data_stream_ids
+                WHERE study_deployment_id = :deploymentId
+                    AND device_role_name IN (:deviceRoleNames)
+                    AND name_space = :nameSpace
+                    AND name = :name
+            """,
+    )
+    fun getAllIdsByDeploymentIdAndDeviceRoleNameInAndNameSpaceAndName(
+        @Param("deploymentId") deploymentId: String,
+        @Param("deviceRoleNames") deviceRoleNames: Collection<String>,
+        @Param("nameSpace") nameSpace: String,
+        @Param("name") name: String,
+    ): List<Int>
 }

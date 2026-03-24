@@ -92,4 +92,29 @@ interface DataStreamSequenceRepository : JpaRepository<DataStreamSequence, Int> 
         to: Instant,
         taskType: String,
     ): List<DateTaskQuantityTripleDb>
+
+    @Query(
+        nativeQuery = true,
+        value =
+            """
+                SELECT 
+                    (measurement->'data'->>'completedAt')::timestamp AS date,
+                    measurement->'data'->>'taskName' AS task_name,
+                    COUNT(*) AS quantity
+                FROM public.data_stream_sequence ds,
+                     LATERAL jsonb_array_elements(ds.snapshot->'measurements') AS measurement
+                WHERE ds.data_stream_id IN (:dataStreamIds)
+                    AND measurement->'data'->>'__type' = :completedAppTaskType
+                    AND (measurement->'data'->>'completedAt')::timestamp > :from
+                    AND (measurement->'data'->>'completedAt')::timestamp < :to
+                GROUP BY date, task_name
+                ORDER BY date DESC 
+            """,
+    )
+    fun getDayKeyQuantityListByDataStreamIdsAndOtherParametersV2(
+        dataStreamIds: List<Int>,
+        from: Instant,
+        to: Instant,
+        completedAppTaskType: String,
+    ): List<DateTaskQuantityTripleDb>
 }

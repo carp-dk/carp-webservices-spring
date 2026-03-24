@@ -39,6 +39,10 @@ class DataStreamService(
 ) : DataStreamService {
     companion object {
         private val LOGGER: Logger = LogManager.getLogger()
+        private const val COMPLETED_APP_TASK_NAMESPACE = "dk.cachet.carp.completedapptask"
+        private const val V2_COMPLETED_APP_TASK_TYPE_PREFIX = "$COMPLETED_APP_TASK_NAMESPACE."
+        private const val SEMVER_COMPONENT_COUNT = 3
+        private const val SEMVER_PADDING_VALUE = 0
         private val validTypes =
             setOf(
                 "informed_consent",
@@ -55,6 +59,7 @@ class DataStreamService(
     }
 
     final override val core = services.dataStreamService
+    private val studyService = services.studyService
 
     /**
      * Retrieves the latest update timestamp for a given deployment.
@@ -85,6 +90,25 @@ class DataStreamService(
     }
 
     override suspend fun getDataStreamsSummary(
+        studyId: UUID,
+        deploymentId: UUID?,
+        participantId: UUID?,
+        scope: String,
+        type: String,
+        from: Instant,
+        to: Instant,
+    ): DataStreamsSummaryDto {
+        val protocolApiLevel = getProtocolApiLevel(studyId)
+        val isV2 = protocolApiLevel?.let { compareVersions(it, "2.0.0") }?.let { it >= 0 } ?: false
+        return if (!isV2) {
+            getDataStreamsSummaryV1(studyId, deploymentId, participantId, scope, type, from, to)
+        } else {
+            getDataStreamsSummaryV2(studyId, deploymentId, participantId, scope, type, from, to)
+        }
+    }
+
+    @Suppress("LongParameterList")
+    private suspend fun getDataStreamsSummaryV1(
         studyId: UUID,
         deploymentId: UUID?,
         participantId: UUID?,
@@ -136,6 +160,173 @@ class DataStreamService(
             from = from,
             to = to,
         )
+    }
+
+    @Suppress("LongParameterList")
+    private suspend fun getDataStreamsSummaryV2(
+        studyId: UUID,
+        deploymentId: UUID?,
+        participantId: UUID?,
+        scope: String,
+        type: String,
+        from: Instant,
+        to: Instant,
+    ): DataStreamsSummaryDto {
+        require(type in validTypes) { "Invalid type: $type. Allowed values: $validTypes" }
+        require(from < to) { "'from' must be before 'to'." }
+
+        val dataStreamIds = getDataStreamIdsV2(scope, studyId, deploymentId, participantId, type)
+        if (dataStreamIds.isEmpty()) {
+            return DataStreamsSummaryDto(
+                data = emptyList(),
+                studyId = studyId.toString(),
+                deploymentId = deploymentId?.toString(),
+                participantId = participantId?.toString(),
+                scope = scope,
+                type = type,
+                from = from,
+                to = to,
+            )
+        }
+
+        val dateTaskQuantityTriples =
+            withContext(Dispatchers.IO) {
+                dataStreamSequenceRepository.getDayKeyQuantityListByDataStreamIdsAndOtherParametersV2(
+                    dataStreamIds = dataStreamIds,
+                    from = from.toJavaInstant(),
+                    to = to.toJavaInstant(),
+                    completedAppTaskType = getCompletedAppTaskTypeV2(type),
+                )
+            }.map {
+                DateTaskQuantityTriple(
+                    date = Instant.fromEpochMilliseconds(it.date.time),
+                    task = it.task,
+                    quantity = it.quantity,
+                )
+            }
+
+        return DataStreamsSummaryDto(
+            data = dateTaskQuantityTriples,
+            studyId = studyId.toString(),
+            deploymentId = deploymentId?.toString(),
+            participantId = participantId?.toString(),
+            scope = scope,
+            type = type,
+            from = from,
+            to = to,
+        )
+    }
+
+    private suspend fun getProtocolApiLevel(studyId: UUID): String? {
+        val protocolSnapshot = studyService.getStudyDetails(studyId).protocolSnapshot
+        val applicationData = protocolSnapshot?.applicationData?.trim().orEmpty()
+        if (applicationData.isEmpty()) return null
+
+        return try {
+            val node = objectMapper.readTree(applicationData)?.path("protocolApiLevel")
+            node?.asText()?.trim()?.takeIf { it.isNotEmpty() }
+        } catch (e: JsonProcessingException) {
+            LOGGER.warn("Failed to parse protocolApiLevel from applicationData for study $studyId.", e)
+            null
+        }
+    }
+
+    private fun compareVersions(left: String, right: String): Int? {
+        val leftParts = parseSemver(left) ?: return null
+        val rightParts = parseSemver(right) ?: return null
+
+        return leftParts
+            .zip(rightParts)
+            .firstOrNull { (l, r) -> l != r }
+            ?.let { (l, r) -> l.compareTo(r) }
+            ?: 0
+    }
+
+    private fun parseSemver(value: String): List<Int>? {
+        val parts = value.trim().split(".")
+        if (parts.isEmpty()) return null
+
+        val numbers =
+            parts.map { it.toIntOrNull() ?: return null }
+                .toMutableList()
+        while (numbers.size < SEMVER_COMPONENT_COUNT) numbers.add(SEMVER_PADDING_VALUE)
+        return numbers.take(SEMVER_COMPONENT_COUNT)
+    }
+
+    private fun getCompletedAppTaskTypeV2(taskType: String): String = "$V2_COMPLETED_APP_TASK_TYPE_PREFIX$taskType"
+
+    private suspend fun getDataStreamIdsV2(
+        scope: String,
+        studyId: UUID,
+        deploymentId: UUID?,
+        participantId: UUID?,
+        taskType: String,
+    ): List<Int> {
+        require(scope in validScopes) { "Invalid scope: $scope. Allowed values: $validScopes" }
+        return when (scope) {
+            "deployment" -> {
+                requireNotNull(deploymentId) { "Deployment ID must be provided when scope is 'deployment'." }
+                getDataStreamIdsForDeploymentV2(deploymentId, taskType)
+            }
+            "study" -> getDataStreamIdsForStudyV2(studyId, taskType)
+            "participant" -> {
+                requireNotNull(participantId) { "Participant ID must be provided when scope is 'participant'." }
+                requireNotNull(deploymentId) { "Deployment ID must be provided when scope is 'participant'." }
+                getDataStreamIdsForParticipantV2(participantId, deploymentId, taskType)
+            }
+            else -> emptyList()
+        }
+    }
+
+    private fun getDataStreamIdsForDeploymentV2(
+        deploymentId: UUID,
+        taskType: String,
+    ): List<Int> {
+        return dataStreamIdRepository.getAllIdsByDeploymentIdAndNameSpaceAndName(
+            deploymentId.toString(),
+            COMPLETED_APP_TASK_NAMESPACE,
+            taskType,
+        )
+    }
+
+    private suspend fun getDataStreamIdsForStudyV2(
+        studyId: UUID,
+        taskType: String,
+    ): List<Int> {
+        val deploymentIds =
+            requireNotNull(
+                participantRepository.getRecruitment(studyId)?.participantGroups?.keys?.toSet(),
+            ) { "Recruitment not found for study $studyId" }
+
+        return dataStreamIdRepository.getAllIdsByDeploymentIdsAndNameSpaceAndName(
+            deploymentIds.map { it.toString() },
+            COMPLETED_APP_TASK_NAMESPACE,
+            taskType,
+        ).toSet().toList()
+    }
+
+    private suspend fun getDataStreamIdsForParticipantV2(
+        participantId: UUID,
+        deploymentId: UUID,
+        taskType: String,
+    ): List<Int> {
+        val participantGroup =
+            requireNotNull(
+                participationService.getParticipantGroup(deploymentId),
+            ) { "Participant group not found for deployment $deploymentId" }
+
+        val participationHavingParticipantId =
+            requireNotNull(
+                participantGroup.participations.find { it.participation.participantId == participantId },
+            ) { "Participant $participantId not assigned to deployment $deploymentId" }
+
+        val assignedPrimaryDeviceRoleNames = participationHavingParticipantId.assignedPrimaryDeviceRoleNames
+        return dataStreamIdRepository.getAllIdsByDeploymentIdAndDeviceRoleNameInAndNameSpaceAndName(
+            deploymentId.toString(),
+            assignedPrimaryDeviceRoleNames.toList(),
+            COMPLETED_APP_TASK_NAMESPACE,
+            taskType,
+        ).toSet().toList()
     }
 
     fun findLatestUpdatedAtByDataStreamIds(dataStreamIds: List<Int>): Instant? {
