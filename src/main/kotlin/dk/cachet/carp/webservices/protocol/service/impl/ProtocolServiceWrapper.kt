@@ -2,7 +2,9 @@ package dk.cachet.carp.webservices.protocol.service.impl
 
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.protocols.application.StudyProtocolSnapshot
+import dk.cachet.carp.protocols.infrastructure.ProtocolServiceRequest
 import dk.cachet.carp.webservices.account.service.AccountService
+import dk.cachet.carp.webservices.common.input.ApplicationDataService
 import dk.cachet.carp.webservices.common.input.WS_JSON
 import dk.cachet.carp.webservices.common.services.CoreServiceContainer
 import dk.cachet.carp.webservices.protocol.domain.Protocol
@@ -19,9 +21,45 @@ import org.springframework.stereotype.Service
 class ProtocolServiceWrapper(
     private val accountService: AccountService,
     private val protocolRepository: ProtocolRepository,
+    private val applicationDataService: ApplicationDataService,
     services: CoreServiceContainer,
 ) : ProtocolService {
     final override val core = services.protocolService
+
+    override suspend fun invoke(request: ProtocolServiceRequest<*>): Any? =
+        when (request) {
+            is ProtocolServiceRequest.Add ->
+                core.invoke(
+                    request.copy(
+                        protocol =
+                            request.protocol.copy(
+                                applicationData =
+                                    applicationDataService.mergeApplicationData(
+                                        request.protocol.applicationData,
+                                        mapOf("protocolVersionTag" to request.versionTag),
+                                    ),
+                            ),
+                    ),
+                )
+            is ProtocolServiceRequest.AddVersion ->
+                core.invoke(
+                    request.copy(
+                        protocol =
+                            request.protocol.copy(
+                                applicationData =
+                                    applicationDataService.mergeApplicationData(
+                                        request.protocol.applicationData,
+                                        mapOf("protocolVersionTag" to request.versionTag),
+                                    ),
+                            ),
+                    ),
+                )
+            is ProtocolServiceRequest.UpdateParticipantDataConfiguration,
+            is ProtocolServiceRequest.GetBy,
+            is ProtocolServiceRequest.GetAllForOwner,
+            is ProtocolServiceRequest.GetVersionHistoryFor,
+            -> core.invoke(request)
+        }
 
     override suspend fun getSingleProtocolOverview(protocolId: String): ProtocolOverview? =
         withContext(Dispatchers.IO) {

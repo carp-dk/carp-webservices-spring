@@ -65,7 +65,7 @@ class ProtocolController(
     ): ResponseEntity<Any> {
         val request = WS_JSON.decodeFromString(ProtocolServiceRequest.Serializer, httpMessage)
         LOGGER.info("Start POST: $PROTOCOL_SERVICE -> ${request::class.simpleName}")
-        val result = protocolService.core.invoke(request)
+        val result = protocolService.invoke(request)
         return serializer.serializeResponse(request, result).let { ResponseEntity.ok(it) }
     }
 
