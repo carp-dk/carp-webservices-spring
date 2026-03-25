@@ -61,13 +61,15 @@ class CoreDeploymentRepository(
     @Suppress("MagicNumber", "MaxLineLength")
     suspend fun addAll(studyDeployments: List<StudyDeployment>) =
         withContext(Dispatchers.IO) {
+            val timestamp = Timestamp.from(java.time.Instant.now())
+            val auditor = auditorAware.currentAuditor.orElse("system")
             val sql =
                 "INSERT INTO deployments (created_at, created_by, updated_at, updated_by, snapshot) VALUES (?,?,?,?,?::jsonb)"
             jdbcTemplate.batchUpdate(sql, studyDeployments, studyDeployments.size) { ps, deployment ->
-                ps.setObject(1, Timestamp.from(java.time.Instant.now()))
-                ps.setObject(2, auditorAware.currentAuditor.orElse("system"))
-                ps.setObject(3, Timestamp.from(java.time.Instant.now()))
-                ps.setObject(4, auditorAware.currentAuditor.orElse("system"))
+                ps.setObject(1, timestamp)
+                ps.setObject(2, auditor)
+                ps.setObject(3, timestamp)
+                ps.setObject(4, auditor)
                 ps.setObject(5, deployment.snapshot?.toString())
             }
             Unit
