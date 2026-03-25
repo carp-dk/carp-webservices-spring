@@ -6,6 +6,7 @@ import dk.cachet.carp.common.application.data.input.Sex
 import dk.cachet.carp.common.application.data.input.elements.SelectOne
 import dk.cachet.carp.common.application.data.input.elements.Text
 import dk.cachet.carp.webservices.common.input.domain.*
+import kotlinx.datetime.LocalDate
 
 object WSInputDataTypes : InputDataTypeList() {
     /**
@@ -47,6 +48,8 @@ object WSInputDataTypes : InputDataTypeList() {
     internal const val ONBOARDING_RESEARCHER_TYPE_NAME = "$WS_NAMESPACE.onboarding_researcher"
     internal const val LANGUAGE_TYPE_NAME = "$WS_NAMESPACE.language"
     internal const val OCCUPATION_TYPE_NAME = "$WS_NAMESPACE.occupation"
+    internal const val AGE_TYPE_NAME = "$WS_NAMESPACE.age"
+    internal const val DATE_OF_BIRTH_TYPE_NAME = "$WS_NAMESPACE.date_of_birth"
 
     /**
      * Phone name of a participant.
@@ -190,5 +193,29 @@ object WSInputDataTypes : InputDataTypeList() {
             dataClass = Occupation::class,
             inputToData = { WS_JSON.decodeFromString(Occupation.serializer(), it) },
             dataToInput = { WS_JSON.encodeToString(Occupation.serializer(), it) },
+        )
+
+    /**
+     * Age in completed years.
+     */
+    val AGE =
+        add(
+            inputDataType = InputDataType.fromString(AGE_TYPE_NAME),
+            inputElement = Text("Age"),
+            dataClass = Age::class,
+            inputToData = { Age(it.trim().toInt()) },
+            dataToInput = { it.years.toString() },
+        )
+
+    /**
+     * Date of birth in ISO 8601 format (`YYYY-MM-DD`).
+     */
+    val DATE_OF_BIRTH =
+        add(
+            inputDataType = InputDataType.fromString(DATE_OF_BIRTH_TYPE_NAME),
+            inputElement = Text("Date of Birth"),
+            dataClass = DateOfBirth::class,
+            inputToData = { DateOfBirth(LocalDate.parse(it.trim())) },
+            dataToInput = { it.date.toString() },
         )
 }

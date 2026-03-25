@@ -26,6 +26,8 @@ private val WS_MODULE =
             subclass(OnboardingResearcher::class)
             subclass(PreferredLanguage::class)
             subclass(Occupation::class)
+            subclass(Age::class)
+            subclass(DateOfBirth::class)
         }
     }
 

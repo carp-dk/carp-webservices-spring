@@ -4,7 +4,9 @@
   * [Protocol Example](#protocol-example)
   * [Endpoint Example](#endpoint-example)
 - Supported Input Data Types
+  * [Age](#age)
   * [Address](#address)
+  * [DateOfBirth](#dateofbirth)
   * [Diagnosis](#diagnosis)
   * [HandedOutDevice](#handedoutdevice)
   * [FullName](#fullname)
@@ -104,6 +106,28 @@ Example setting participant data
 }
 ```
 
+## Age
+
+Represents age in completed years.
+
+### Data Type Name
+
+`dk.carp.webservices.input.age`
+
+### Fields
+
+- `years: Int` - Age in completed years.
+
+### Input Element
+
+- `Text("Age")`
+
+### Example
+
+```kotlin
+val age = Age(years = 42)
+```
+
 ## Address
 
 Represents an address with various fields.
@@ -134,6 +158,28 @@ val address = Address(
     postalCode = "12345",
     country = "USA"
 )
+```
+
+## DateOfBirth
+
+Represents date of birth as an ISO 8601 calendar date.
+
+### Data Type Name
+
+`dk.carp.webservices.input.date_of_birth`
+
+### Fields
+
+- `date: LocalDate` - The date of birth in `YYYY-MM-DD` format.
+
+### Input Element
+
+- `Text("Date of Birth")`
+
+### Example
+
+```kotlin
+val dateOfBirth = DateOfBirth(date = LocalDate.parse("1982-04-12"))
 ```
 
 ## Diagnosis
