@@ -13,8 +13,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
+import org.springframework.data.domain.AuditorAware
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.sql.Timestamp
+import dk.cachet.carp.webservices.deployment.domain.ParticipantGroup as WSParticipantGroup
 
 /**
  * The Class [CoreParticipationRepository].
@@ -26,6 +30,8 @@ class CoreParticipationRepository(
     private val participantGroupRepository: ParticipantGroupRepository,
     private val objectMapper: ObjectMapper,
     private val validationMessage: MessageBase,
+    private val jdbcTemplate: JdbcTemplate,
+    private val auditorAware: AuditorAware<String>,
 ) : ParticipationRepository {
     companion object {
         private val LOGGER: Logger = LogManager.getLogger()
@@ -92,7 +98,7 @@ class CoreParticipationRepository(
                 val savedGroup = participantGroupRepository.save(newParticipantGroup)
                 LOGGER.info(
                     "New participant group with id: ${savedGroup.id} " +
-                        "saved for deployment with id: ${group.studyDeploymentId.stringRepresentation}",
+                            "saved for deployment with id: ${group.studyDeploymentId.stringRepresentation}",
                 )
                 return@withContext null
             }
@@ -136,4 +142,21 @@ class CoreParticipationRepository(
         val snapshot = WS_JSON.decodeFromString(ParticipantGroupSnapshot.serializer(), node.toString())
         return ParticipantGroup.fromSnapshot(snapshot)
     }
+
+    @Suppress("MaxLineLength", "MagicNumber")
+    suspend fun addAll(groups: List<WSParticipantGroup>) =
+        withContext(Dispatchers.IO) {
+            val timestamp = Timestamp.from(java.time.Instant.now())
+            val auditor = auditorAware.currentAuditor.orElse("system")
+            val sql =
+                "INSERT INTO participant_groups (created_at, created_by, updated_at, updated_by, snapshot) VALUES (?,?,?,?,?::jsonb)"
+            jdbcTemplate.batchUpdate(sql, groups, groups.size) { ps, group ->
+                ps.setObject(1, timestamp)
+                ps.setObject(2, auditor)
+                ps.setObject(3, timestamp)
+                ps.setObject(4, auditor)
+                ps.setObject(5, group.snapshot.toString())
+            }
+            Unit
+        }
 }
