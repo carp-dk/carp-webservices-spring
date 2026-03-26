@@ -353,7 +353,7 @@ class KeycloakFacade(
 
         return resourceClient
             .get()
-            .uri("/analytics/users?roleName=${role.name}")
+            .uri("/analytics/users?roleName=${role.name.lowercase()}")
             .headers { it.setBearerAuth(token!!) }
             .retrieve()
             .awaitBody<Long>()
