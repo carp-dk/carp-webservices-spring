@@ -5,7 +5,6 @@ import dk.cachet.carp.webservices.account.service.AccountService
 import dk.cachet.carp.webservices.common.input.ApplicationDataService
 import dk.cachet.carp.webservices.datastream.dto.DateQuantityPairDb
 import dk.cachet.carp.webservices.datastream.dto.LocationCoordinatesDb
-import dk.cachet.carp.webservices.datastream.repository.DataStreamIdRepository
 import dk.cachet.carp.webservices.datastream.repository.DataStreamSequenceRepository
 import dk.cachet.carp.webservices.security.authorization.Role
 import dk.cachet.carp.webservices.statistics.dto.LocationCoordinatesDto
@@ -26,10 +25,8 @@ class StatisticsServiceImplTest {
     private val studyRepository = mockk<StudyRepository>()
     private val accountService = mockk<AccountService>()
     private val applicationDataService = ApplicationDataService(ObjectMapper())
-    private val dataStreamIdRepository = mockk<DataStreamIdRepository>()
     private val dataStreamSequenceRepository = mockk<DataStreamSequenceRepository>()
     private val clock = Clock.fixed(Instant.parse("2025-02-21T12:00:00Z"), ZoneOffset.UTC)
-    private val locationStreamIds = listOf(1, 2, 3, 4)
     private val locationLookbackFrom = Instant.parse("2024-02-22T12:00:00Z")
 
     private val sut =
@@ -37,7 +34,6 @@ class StatisticsServiceImplTest {
             studyRepository,
             accountService,
             applicationDataService,
-            dataStreamIdRepository,
             dataStreamSequenceRepository,
             clock,
         )
@@ -128,10 +124,9 @@ class StatisticsServiceImplTest {
                 ApplicationDataQuantityPairDb(null, 5),
                 ApplicationDataQuantityPairDb("""{"applicationName":"Research App"}""", 7),
             )
-        every { dataStreamIdRepository.getAllIdsByName("location") } returns locationStreamIds
         every {
-            dataStreamSequenceRepository.getLatestLocationCoordinatesByDataStreamIds(
-                locationStreamIds,
+            dataStreamSequenceRepository.getLatestLocationCoordinatesByDataStreamName(
+                "location",
                 locationLookbackFrom,
                 5000,
             )
@@ -152,6 +147,12 @@ class StatisticsServiceImplTest {
             dataStreamSequenceRepository.getDailyUploadCountsSince(Instant.parse("2025-02-15T00:00:00Z"))
         } returns emptyList()
         every { studyRepository.getLiveStudyCountsByApplicationData() } returns emptyList()
-        every { dataStreamIdRepository.getAllIdsByName("location") } returns emptyList()
+        every {
+            dataStreamSequenceRepository.getLatestLocationCoordinatesByDataStreamName(
+                "location",
+                locationLookbackFrom,
+                5000,
+            )
+        } returns emptyList()
     }
 }

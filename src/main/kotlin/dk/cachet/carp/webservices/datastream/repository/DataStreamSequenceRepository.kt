@@ -91,33 +91,34 @@ interface DataStreamSequenceRepository : JpaRepository<DataStreamSequence, Int> 
         value =
             """
                 SELECT
-                    CASE
-                        WHEN btrim((latest.snapshot->'measurements'->(jsonb_array_length(latest.snapshot->'measurements') - 1))->'data'->>'latitude') ~
-                             '^[-+]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)(?:[eE][-+]?\\d+)?$'
-                        THEN ((latest.snapshot->'measurements'->(jsonb_array_length(latest.snapshot->'measurements') - 1))->'data'->>'latitude')::double precision
-                        ELSE NULL
-                    END AS latitude,
-                    CASE
-                        WHEN btrim((latest.snapshot->'measurements'->(jsonb_array_length(latest.snapshot->'measurements') - 1))->'data'->>'longitude') ~
-                             '^[-+]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)(?:[eE][-+]?\\d+)?$'
-                        THEN ((latest.snapshot->'measurements'->(jsonb_array_length(latest.snapshot->'measurements') - 1))->'data'->>'longitude')::double precision
-                        ELSE NULL
-                    END AS longitude
+                    (latest.measurement_data->>'latitude')::double precision AS latitude,
+                    (latest.measurement_data->>'longitude')::double precision AS longitude
                 FROM (
-                    SELECT DISTINCT ON (data_stream_id) id, data_stream_id, snapshot, created_at
-                    FROM data_stream_sequence
-                    WHERE data_stream_id IN (:dataStreamIds)
-                        AND created_at >= :from
-                        AND jsonb_typeof(snapshot->'measurements') = 'array'
-                        AND jsonb_array_length(snapshot->'measurements') > 0
-                    ORDER BY data_stream_id, created_at DESC, id DESC
+                    SELECT DISTINCT ON (dss.data_stream_id)
+                        dss.id,
+                        dss.data_stream_id,
+                        dss.created_at,
+                        measurement.value->'data' AS measurement_data
+                    FROM data_stream_sequence dss
+                    JOIN data_stream_ids dsi ON dsi.id = dss.data_stream_id
+                    CROSS JOIN LATERAL (
+                        SELECT value
+                        FROM jsonb_array_elements(dss.snapshot->'measurements') WITH ORDINALITY AS measurement_item(value, ordinality)
+                        ORDER BY ordinality DESC
+                        LIMIT 1
+                    ) measurement
+                    WHERE dsi.name = :name
+                        AND dss.created_at >= :from
+                        AND jsonb_typeof(dss.snapshot->'measurements') = 'array'
+                        AND jsonb_array_length(dss.snapshot->'measurements') > 0
+                    ORDER BY dss.data_stream_id, dss.created_at DESC, dss.id DESC
                 ) latest
                 ORDER BY latest.created_at DESC, latest.id DESC
                 LIMIT :limit
             """,
     )
-    fun getLatestLocationCoordinatesByDataStreamIds(
-        @Param("dataStreamIds") dataStreamIds: Collection<Int>,
+    fun getLatestLocationCoordinatesByDataStreamName(
+        @Param("name") name: String,
         @Param("from") from: Instant,
         @Param("limit") limit: Int,
     ): List<LocationCoordinatesDb>

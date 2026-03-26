@@ -2,7 +2,6 @@ package dk.cachet.carp.webservices.statistics.service.impl
 
 import dk.cachet.carp.webservices.account.service.AccountService
 import dk.cachet.carp.webservices.common.input.ApplicationDataService
-import dk.cachet.carp.webservices.datastream.repository.DataStreamIdRepository
 import dk.cachet.carp.webservices.datastream.repository.DataStreamSequenceRepository
 import dk.cachet.carp.webservices.security.authorization.Role
 import dk.cachet.carp.webservices.statistics.dto.LocationCoordinatesDto
@@ -21,7 +20,6 @@ class StatisticsServiceImpl(
     private val studyRepository: StudyRepository,
     private val accountService: AccountService,
     private val applicationDataService: ApplicationDataService,
-    private val dataStreamIdRepository: DataStreamIdRepository,
     private val dataStreamSequenceRepository: DataStreamSequenceRepository,
     private val clock: Clock = Clock.systemUTC(),
 ) : StatisticsService {
@@ -62,21 +60,25 @@ class StatisticsServiceImpl(
             ).mapValues { (_, quantities) -> quantities.sum() }
 
     private fun getLocationwiseDataUploads(): List<LocationCoordinatesDto> {
-        val locationStreamIds = dataStreamIdRepository.getAllIdsByName(LOCATION_STREAM_NAME)
-        if (locationStreamIds.isEmpty()) return emptyList()
         val from = clock.instant().minus(LOCATION_LOOKBACK_DAYS, ChronoUnit.DAYS)
+        val rawCoordinates =
+            dataStreamSequenceRepository.getLatestLocationCoordinatesByDataStreamName(
+                LOCATION_STREAM_NAME,
+                from,
+                MAX_LOCATION_RESULTS,
+            )
 
-        return dataStreamSequenceRepository.getLatestLocationCoordinatesByDataStreamIds(
-            locationStreamIds,
-            from,
-            MAX_LOCATION_RESULTS,
-        )
+        val mappedCoordinates =
+            rawCoordinates
             .mapNotNull { coordinates ->
                 val latitude = coordinates.latitude
                 val longitude = coordinates.longitude
                 if (latitude == null || longitude == null) null
                 else LocationCoordinatesDto(latitude, longitude)
-            }.distinct()
+            }
+        val distinctCoordinates = mappedCoordinates.distinct()
+
+        return distinctCoordinates
     }
 
     companion object {
