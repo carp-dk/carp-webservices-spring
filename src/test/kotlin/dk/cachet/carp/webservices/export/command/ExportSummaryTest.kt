@@ -9,12 +9,16 @@ import dk.cachet.carp.webservices.file.util.FileUtil
 import io.mockk.*
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
+import java.nio.file.Files
+import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 
 class ExportSummaryTest {
     private val fileUtil = mockk<FileUtil>()
     private val resourceExporter = mockk<ResourceExporterService>()
+    private val zipParent: Path = Files.createTempDirectory("export-summary-test-")
+    private val zipPath: Path = zipParent.resolve("fileName")
 
     @Nested
     inner class Execute {
@@ -27,7 +31,7 @@ class ExportSummaryTest {
                         studyId = UUID.randomUUID().stringRepresentation,
                     )
 
-                every { fileUtil.resolveFileStoragePathForFilenameAndRelativePath(any(), any()) } returns mockk()
+                every { fileUtil.resolveFileStoragePathForFilenameAndRelativePath(any(), any()) } returns zipPath
                 every { fileUtil.zipDirectory(any(), any()) } throws FileStorageException("Failed to zip.")
                 every { fileUtil.deleteFile(any()) } answers { nothing }
                 coEvery { resourceExporter.exportStudyData(any(), any(), any(), any(), any()) } answers { nothing }
@@ -46,7 +50,7 @@ class ExportSummaryTest {
                         studyId = UUID.randomUUID().stringRepresentation,
                     )
 
-                every { fileUtil.resolveFileStoragePathForFilenameAndRelativePath(any(), any()) } returns mockk()
+                every { fileUtil.resolveFileStoragePathForFilenameAndRelativePath(any(), any()) } returns zipPath
                 every { fileUtil.zipDirectory(any(), any()) } answers { nothing }
                 every { fileUtil.deleteFile(any()) } answers { nothing }
                 coEvery { resourceExporter.exportStudyData(any(), any(), any(), any(), any()) } answers { nothing }

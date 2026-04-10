@@ -27,12 +27,12 @@ class ExportSummary(
 
     @OptIn(ExperimentalPathApi::class)
     override suspend fun execute() {
-        val workingDir = createTempDirectory()
         val zipPath =
             fileUtil.resolveFileStoragePathForFilenameAndRelativePath(
                 entry.fileName,
                 Path.of(entry.relativePath),
             )
+        val workingDir = createTempDirectory(zipPath.parent, "temp-")
 
         resourceExporter.exportStudyData(UUID(entry.studyId), deploymentIds, workingDir, logger, activeDeploymentsOnly)
 
