@@ -49,19 +49,24 @@ class ProxiesMethodSecurityExpressionRoot(
     private val auth: AuthenticationService,
 ) : SpringAddonsMethodSecurityExpressionRoot() {
     fun canManageStudy(studyId: UUID?): Boolean =
-        studyId != null && auth.getClaims().contains(Claim.ManageStudy(studyId)) || isAdmin()
+        studyId != null && auth.getClaims(setOf(Claim.ManageStudy::class))
+            .contains(Claim.ManageStudy(studyId)) || isAdmin()
 
     fun canLimitedManageStudy(studyId: UUID?): Boolean =
-        studyId != null && auth.getClaims().contains(Claim.LimitedManageStudy(studyId)) || isAdmin()
+        studyId != null && auth.getClaims(setOf(Claim.LimitedManageStudy::class))
+            .contains(Claim.LimitedManageStudy(studyId)) || isAdmin()
 
     fun isInDeployment(deploymentId: UUID?): Boolean =
-        deploymentId != null && auth.getClaims().contains(Claim.InDeployment(deploymentId)) || isAdmin()
+        deploymentId != null && auth.getClaims(setOf(Claim.InDeployment::class))
+            .contains(Claim.InDeployment(deploymentId)) || isAdmin()
 
     fun canManageDeployment(deploymentId: UUID?): Boolean =
-        deploymentId != null && auth.getClaims().contains(Claim.ManageDeployment(deploymentId)) || isAdmin()
+        deploymentId != null && auth.getClaims(setOf(Claim.ManageDeployment::class))
+            .contains(Claim.ManageDeployment(deploymentId)) || isAdmin()
 
     fun isCollectionOwner(collectionId: Int?): Boolean =
-        collectionId != null && auth.getClaims().contains(Claim.CollectionOwner(collectionId)) || isAdmin()
+        collectionId != null && auth.getClaims(setOf(Claim.CollectionOwner::class))
+            .contains(Claim.CollectionOwner(collectionId)) || isAdmin()
 
     // HACK: it is not easy to assign a claim with a studyId when creating deployments,
     // so we inject `CoreParticipantRepository` here to check whether the user is in a deployment
@@ -75,7 +80,7 @@ class ProxiesMethodSecurityExpressionRoot(
             val id =
                 participantRepository.getRecruitment(studyId)?.participantGroups?.keys
                     ?.firstOrNull {
-                        auth.getClaims().contains(Claim.InDeployment(it))
+                        auth.getClaims(setOf(Claim.InDeployment::class)).contains(Claim.InDeployment(it))
                     }
 
             id != null
