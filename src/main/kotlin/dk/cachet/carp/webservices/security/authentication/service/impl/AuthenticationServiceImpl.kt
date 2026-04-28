@@ -96,7 +96,7 @@ class AuthenticationServiceImpl(
                                     }
                                 }
 
-                                else -> emptyList()
+                                else -> listOf(innerClaim)
                             }
                         }
                 }
