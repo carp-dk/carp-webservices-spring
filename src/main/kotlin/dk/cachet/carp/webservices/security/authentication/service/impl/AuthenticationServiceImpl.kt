@@ -11,6 +11,10 @@ import kotlinx.coroutines.runBlocking
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.stereotype.Service
+import java.lang.reflect.Type
+import kotlin.collections.mapNotNull
+import kotlin.reflect.KClass
+import kotlin.reflect.typeOf
 
 @Service
 class AuthenticationServiceImpl(
@@ -42,6 +46,7 @@ class AuthenticationServiceImpl(
                                 ?: listOf(claim)
                         }
                     }
+
                     is Claim.LimitedManageStudy -> {
                         runBlocking {
                             participantRepository.getRecruitment(claim.studyId)
@@ -51,9 +56,57 @@ class AuthenticationServiceImpl(
                                 ?: listOf(claim)
                         }
                     }
+
                     else -> setOf(claim)
                 }
             }
+
+    override fun getClaims(claims: Collection<KClass<out Claim>>): Collection<Claim> {
+        val userClaims = getJwtAuthenticationToken().authorities
+            .mapNotNull { Claim.fromGrantedAuthority(it.authority) }
+        return claims.flatMap { claim ->
+            when (claim) {
+                Claim.InDeployment::class -> {
+                    userClaims
+                        .flatMap { innerClaim ->
+                            when (innerClaim) {
+                                is Claim.ManageStudy -> {
+                                    runBlocking {
+                                        participantRepository
+                                            .getRecruitment(innerClaim.studyId)
+                                            ?.participantGroups
+                                            ?.keys
+                                            ?.map { deploymentId ->
+                                                Claim.InDeployment(deploymentId)
+                                            }
+                                            ?: emptyList()
+                                    }
+                                }
+
+                                is Claim.LimitedManageStudy -> {
+                                    runBlocking {
+                                        participantRepository
+                                            .getRecruitment(innerClaim.studyId)
+                                            ?.participantGroups
+                                            ?.keys
+                                            ?.map { deploymentId ->
+                                                Claim.InDeployment(deploymentId)
+                                            }
+                                            ?: emptyList()
+                                    }
+                                }
+
+                                else -> listOf(innerClaim)
+                            }
+                        }
+                }
+
+                else ->
+                    userClaims
+                    .filterIsInstance(claim.java)
+            }
+        }
+    }
 
     override fun getCarpIdentity(): AccountIdentity {
         val authentication = getJwtAuthenticationToken()
