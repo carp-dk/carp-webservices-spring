@@ -1,5 +1,6 @@
 package dk.cachet.carp.webservices.statistics.controller
 
+import dk.cachet.carp.webservices.statistics.dto.LocationCoordinatesDto
 import dk.cachet.carp.webservices.statistics.dto.StatisticsOverviewDto
 import dk.cachet.carp.webservices.statistics.service.StatisticsService
 import org.apache.logging.log4j.LogManager
@@ -21,6 +22,7 @@ class StatisticsController(
 
         const val STATISTICS_BASE = "/api/internal/statistics"
         const val OVERVIEW = "/overview"
+        const val LOCATION_DATA_UPLOADS = "/locations"
     }
 
     @GetMapping(OVERVIEW)
@@ -29,5 +31,13 @@ class StatisticsController(
     suspend fun getOverview(): StatisticsOverviewDto {
         LOGGER.info("Start GET: $STATISTICS_BASE$OVERVIEW")
         return statisticsService.getOverview()
+    }
+
+    @GetMapping(LOCATION_DATA_UPLOADS)
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("isAdmin()")
+    suspend fun getLocationDataUploads(): List<LocationCoordinatesDto> {
+        LOGGER.info("Start GET: $STATISTICS_BASE$LOCATION_DATA_UPLOADS")
+        return statisticsService.getLocationDataUploads()
     }
 }

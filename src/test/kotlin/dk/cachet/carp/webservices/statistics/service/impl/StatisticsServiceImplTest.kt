@@ -68,17 +68,26 @@ class StatisticsServiceImplTest {
                 ),
                 result.studiesByApplications,
             )
+        }
+
+    @Test
+    fun `should return locationwise data uploads`() =
+        runTest {
+            mockLocationwiseDataUploads()
+
+            val result = sut.getLocationDataUploads()
+
             assertEquals(
                 listOf(
                     LocationCoordinatesDto(55.7814989, 12.5183833),
                     LocationCoordinatesDto(56.162939, 10.203921),
                 ),
-                result.locationwiseDataUploads,
+                result,
             )
         }
 
     @Test
-    fun `should return empty locationwise uploads when no location streams exist`() =
+    fun `should return empty overview`() =
         runTest {
             mockEmptyOverviewDependencies()
 
@@ -100,7 +109,16 @@ class StatisticsServiceImplTest {
                 result.dailyDatastreamUploads,
             )
             assertEquals(emptyMap(), result.studiesByApplications)
-            assertEquals(emptyList(), result.locationwiseDataUploads)
+        }
+
+    @Test
+    fun `should return empty locationwise uploads when no location streams exist`() =
+        runTest {
+            mockEmptyLocationwiseDataUploads()
+
+            val result = sut.getLocationDataUploads()
+
+            assertEquals(emptyList(), result)
         }
 
     private fun mockOverviewDependencies() {
@@ -124,6 +142,19 @@ class StatisticsServiceImplTest {
                 ApplicationDataQuantityPairDb(null, 5),
                 ApplicationDataQuantityPairDb("""{"applicationName":"Research App"}""", 7),
             )
+    }
+
+    private fun mockEmptyOverviewDependencies() {
+        every { studyRepository.countLiveStudies() } returns 0
+        coEvery { accountService.getCountByRole(Role.PARTICIPANT) } returns 0
+        coEvery { accountService.getCountByRole(Role.RESEARCHER) } returns 0
+        every {
+            dataStreamSequenceRepository.getDailyUploadCountsSince(Instant.parse("2025-02-15T00:00:00Z"))
+        } returns emptyList()
+        every { studyRepository.getLiveStudyCountsByApplicationData() } returns emptyList()
+    }
+
+    private fun mockLocationwiseDataUploads() {
         every {
             dataStreamSequenceRepository.getLatestLocationCoordinatesByDataStreamName(
                 "location",
@@ -139,14 +170,7 @@ class StatisticsServiceImplTest {
             )
     }
 
-    private fun mockEmptyOverviewDependencies() {
-        every { studyRepository.countLiveStudies() } returns 0
-        coEvery { accountService.getCountByRole(Role.PARTICIPANT) } returns 0
-        coEvery { accountService.getCountByRole(Role.RESEARCHER) } returns 0
-        every {
-            dataStreamSequenceRepository.getDailyUploadCountsSince(Instant.parse("2025-02-15T00:00:00Z"))
-        } returns emptyList()
-        every { studyRepository.getLiveStudyCountsByApplicationData() } returns emptyList()
+    private fun mockEmptyLocationwiseDataUploads() {
         every {
             dataStreamSequenceRepository.getLatestLocationCoordinatesByDataStreamName(
                 "location",

@@ -34,11 +34,22 @@ class StatisticsControllerTest {
                     totalResearchers = 3,
                     dailyDatastreamUploads = emptyMap(),
                     studiesByApplications = emptyMap(),
-                    locationwiseDataUploads = emptyList<LocationCoordinatesDto>(),
                 )
 
             mockMvc.perform(
                 get("/api/internal/statistics/overview")
+                    .contentType(MediaType.APPLICATION_JSON),
+            ).andExpect(status().isOk)
+        }
+
+    @Test
+    fun `should relay locationwise data uploads task to statistics service`() =
+        runTest {
+            coEvery { statisticsService.getLocationDataUploads() } returns
+                listOf(LocationCoordinatesDto(55.7814989, 12.5183833))
+
+            mockMvc.perform(
+                get("/api/internal/statistics/locations")
                     .contentType(MediaType.APPLICATION_JSON),
             ).andExpect(status().isOk)
         }
