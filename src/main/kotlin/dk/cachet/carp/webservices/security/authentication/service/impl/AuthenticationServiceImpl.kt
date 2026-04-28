@@ -101,7 +101,8 @@ class AuthenticationServiceImpl(
                         }
                 }
 
-                else -> userClaims
+                else ->
+                    userClaims
                     .filterIsInstance(claim.java)
             }
         }
