@@ -33,7 +33,6 @@ class StatisticsServiceImpl(
                 totalResearchers = accountService.getCountByRole(Role.RESEARCHER),
                 dailyDatastreamUploads = dailyUploadCounts,
                 studiesByApplications = studiesByApplications,
-                locationwiseDataUploads = getLocationwiseDataUploads(),
             )
         }
 
@@ -59,27 +58,28 @@ class StatisticsServiceImpl(
                 valueTransform = { it.quantity },
             ).mapValues { (_, quantities) -> quantities.sum() }
 
-    private fun getLocationwiseDataUploads(): List<LocationCoordinatesDto> {
-        val from = clock.instant().minus(LOCATION_LOOKBACK_DAYS, ChronoUnit.DAYS)
-        val rawCoordinates =
-            dataStreamSequenceRepository.getLatestLocationCoordinatesByDataStreamName(
-                LOCATION_STREAM_NAME,
-                from,
-                MAX_LOCATION_RESULTS,
-            )
+    override suspend fun getLocationDataUploads(): List<LocationCoordinatesDto> =
+        withContext(Dispatchers.IO) {
+            val from = clock.instant().minus(LOCATION_LOOKBACK_DAYS, ChronoUnit.DAYS)
+            val rawCoordinates =
+                dataStreamSequenceRepository.getLatestLocationCoordinatesByDataStreamName(
+                    LOCATION_STREAM_NAME,
+                    from,
+                    MAX_LOCATION_RESULTS,
+                )
 
-        val mappedCoordinates =
-            rawCoordinates
-            .mapNotNull { coordinates ->
-                val latitude = coordinates.latitude
-                val longitude = coordinates.longitude
-                if (latitude == null || longitude == null) null
-                else LocationCoordinatesDto(latitude, longitude)
-            }
-        val distinctCoordinates = mappedCoordinates.distinct()
+            val mappedCoordinates =
+                rawCoordinates
+                    .mapNotNull { coordinates ->
+                        val latitude = coordinates.latitude
+                        val longitude = coordinates.longitude
+                        if (latitude == null || longitude == null) null
+                        else LocationCoordinatesDto(latitude, longitude)
+                    }
+            val distinctCoordinates = mappedCoordinates.distinct()
 
-        return distinctCoordinates
-    }
+            distinctCoordinates
+        }
 
     companion object {
         private const val APPLICATION_NAME_NOT_SET = "not-set"
