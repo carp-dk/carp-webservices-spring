@@ -13,7 +13,6 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
-import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.post
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import kotlin.test.BeforeTest
@@ -34,40 +33,6 @@ class StudyControllerTest {
                     authenticationService, accountService, studyService, recruitmentService,
                 ),
             ).build()
-    }
-
-    @Nested
-    inner class GetParticipantAccounts {
-        @Test
-        fun `should return a list`() {
-            runTest {
-                val mockStudyId = UUID.randomUUID().stringRepresentation
-                val url = "/api/studies/$mockStudyId/participants/accounts"
-
-                coEvery { recruitmentService.getParticipants(any(), any(), any(), any(), any(), any()) }
-
-                mockMvc.get(url).andExpect { status { isOk() } }
-                coVerify(exactly = 1) { recruitmentService.getParticipants(any(), any(), any(), any(), any(), any()) }
-                coVerify(exactly = 0) { recruitmentService.countParticipants(any(), any()) }
-            }
-        }
-
-        @Test
-        fun `should return response as DTO if specified in query`() {
-            runTest {
-                val mockStudyId = UUID.randomUUID().stringRepresentation
-                val url = "/api/studies/$mockStudyId/participants/accounts?response_as_dto=true"
-
-                coEvery { recruitmentService.countParticipants(any(), any()) } returns 0
-                coEvery {
-                    recruitmentService.getParticipants(any(), any(), any(), any(), any(), any())
-                } returns emptyList()
-
-                mockMvc.get(url).andExpect { status { isOk() } }
-                coVerify(exactly = 1) { recruitmentService.getParticipants(any(), any(), any(), any(), any(), any()) }
-                coVerify(exactly = 1) { recruitmentService.countParticipants(any(), any()) }
-            }
-        }
     }
 
     @Nested

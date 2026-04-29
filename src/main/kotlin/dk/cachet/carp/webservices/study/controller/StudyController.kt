@@ -17,7 +17,6 @@ import dk.cachet.carp.webservices.study.domain.InactiveDeploymentInfo
 import dk.cachet.carp.webservices.study.domain.ParticipantGroupsStatus
 import dk.cachet.carp.webservices.study.domain.StudyOverview
 import dk.cachet.carp.webservices.study.dto.AddParticipantsRequestDto
-import dk.cachet.carp.webservices.study.dto.ParticipantAccountsDto
 import dk.cachet.carp.webservices.study.dto.ParticipantAccountsRequestDto
 import dk.cachet.carp.webservices.study.dto.ParticipantAccountsResponseDto
 import dk.cachet.carp.webservices.study.serdes.RecruitmentRequestSerializer
@@ -70,48 +69,6 @@ class StudyController(
     ) {
         LOGGER.info("Start POST: /api/studies/$studyId/researchers")
         return recruitmentService.inviteUserWithRole(studyId, email, role)
-    }
-
-    @GetMapping(value = [PARTICIPANTS_ACCOUNTS])
-    @PreAuthorize("canManageStudy(#studyId) or canLimitedManageStudy(#studyId)")
-    @ResponseStatus(HttpStatus.OK)
-    @Deprecated(
-        message = "Use POST /api/studies/{studyId}/participants/accounts for the new participant query API.",
-    )
-    @Operation(
-        summary = "Get participant accounts",
-        description = "Legacy endpoint for participant accounts. Deprecated; use the POST query endpoint instead.",
-        deprecated = true,
-    )
-    @Suppress("LongParameterList")
-    suspend fun getParticipantAccounts(
-        @PathVariable(PathVariableName.STUDY_ID) studyId: UUID,
-        @RequestParam(name = RequestParamName.OFFSET, required = false) offset: Int?,
-        @RequestParam(name = RequestParamName.LIMIT, required = false) limit: Int?,
-        @RequestParam(name = RequestParamName.SEARCH, required = false) search: String?,
-        @RequestParam(name = RequestParamName.IS_DESCENDING, required = false) isDescending: Boolean?,
-        @RequestParam(name = RequestParamName.RESPONSE_AS_DTO, required = false) responseAsDto: Boolean?,
-    ): Any {
-        LOGGER.info("Start GET: /api/studies/$studyId/participants/accounts")
-
-        if (responseAsDto == true) {
-            return ParticipantAccountsDto(
-                offset = offset,
-                search = search,
-                limit = limit,
-                total = recruitmentService.countParticipants(studyId, search),
-                participants =
-                    recruitmentService.getParticipants(
-                        studyId,
-                        offset,
-                        limit,
-                        search,
-                        isDescending,
-                    ),
-            )
-        }
-
-        return recruitmentService.getParticipants(studyId, offset, limit, search, isDescending)
     }
 
     @PostMapping(value = [PARTICIPANTS_ACCOUNTS])

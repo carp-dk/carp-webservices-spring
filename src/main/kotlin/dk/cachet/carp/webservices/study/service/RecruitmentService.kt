@@ -34,11 +34,6 @@ interface RecruitmentService {
         sortBy: ParticipantOrderBy? = null,
     ): List<Account>
 
-    suspend fun countParticipants(
-        studyId: UUID,
-        search: String?,
-    ): Int
-
     suspend fun queryParticipantAccounts(
         studyId: UUID,
         request: ParticipantAccountsRequestDto,
