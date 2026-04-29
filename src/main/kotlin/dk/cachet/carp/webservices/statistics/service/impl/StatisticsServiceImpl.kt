@@ -4,12 +4,15 @@ import dk.cachet.carp.webservices.account.service.AccountService
 import dk.cachet.carp.webservices.common.input.ApplicationDataService
 import dk.cachet.carp.webservices.datastream.repository.DataStreamSequenceRepository
 import dk.cachet.carp.webservices.security.authorization.Role
+import dk.cachet.carp.webservices.statistics.dto.DailyDataStreamUploadDto
 import dk.cachet.carp.webservices.statistics.dto.LocationCoordinatesDto
 import dk.cachet.carp.webservices.statistics.dto.StatisticsOverviewDto
+import dk.cachet.carp.webservices.statistics.dto.StudiesByApplicationDto
 import dk.cachet.carp.webservices.statistics.service.StatisticsService
 import dk.cachet.carp.webservices.study.repository.StudyRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.toKotlinInstant
 import org.springframework.stereotype.Service
 import java.time.Clock
 import java.time.ZoneOffset
@@ -31,32 +34,40 @@ class StatisticsServiceImpl(
                 totalLiveStudies = studyRepository.countLiveStudies(),
                 totalParticipants = accountService.getCountByRole(Role.PARTICIPANT),
                 totalResearchers = accountService.getCountByRole(Role.RESEARCHER),
-                dailyDatastreamUploads = dailyUploadCounts,
+                dailyDataStreamUploads = dailyUploadCounts,
                 studiesByApplications = studiesByApplications,
             )
         }
 
-    private fun getDailyUploadCounts(): Map<String, Long> {
+    private fun getDailyUploadCounts(): List<DailyDataStreamUploadDto> {
         val today = clock.instant().atZone(ZoneOffset.UTC).toLocalDate()
         val startDate = today.minusDays(DAILY_UPLOAD_WINDOW_DAYS - 1)
         val dbCounts =
             dataStreamSequenceRepository.getDailyUploadCountsSince(startDate.atStartOfDay().toInstant(ZoneOffset.UTC))
                 .associate { it.date.toLocalDate().toString() to it.quantity }
 
-        return (0L until DAILY_UPLOAD_WINDOW_DAYS).associate { offset ->
+        return (0L until DAILY_UPLOAD_WINDOW_DAYS).map { offset ->
             val date = startDate.plusDays(offset)
-            date.toString() to (dbCounts[date.toString()] ?: 0L)
+            DailyDataStreamUploadDto(
+                time = date.atStartOfDay().toInstant(ZoneOffset.UTC).toKotlinInstant(),
+                value = dbCounts[date.toString()] ?: 0L,
+            )
         }
     }
 
-    private fun getStudiesByApplications(): Map<String, Long> =
+    private fun getStudiesByApplications(): List<StudiesByApplicationDto> =
         studyRepository.getLiveStudyCountsByApplicationData()
             .groupBy(
                 keySelector = {
                     applicationDataService.extractApplicationName(it.applicationData) ?: APPLICATION_NAME_NOT_SET
                 },
                 valueTransform = { it.quantity },
-            ).mapValues { (_, quantities) -> quantities.sum() }
+            ).map { (applicationName, quantities) ->
+                StudiesByApplicationDto(
+                    app = applicationName,
+                    value = quantities.sum(),
+                )
+            }
 
     override suspend fun getLocationDataUploads(): List<LocationCoordinatesDto> =
         withContext(Dispatchers.IO) {

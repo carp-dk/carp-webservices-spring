@@ -1,46 +1,84 @@
 package dk.cachet.carp.webservices.statistics.controller
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.SerializationFeature
+import com.fasterxml.jackson.databind.module.SimpleModule
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import dk.cachet.carp.webservices.common.serialisers.ObjectMapperConfig
+import dk.cachet.carp.webservices.statistics.dto.DailyDataStreamUploadDto
 import dk.cachet.carp.webservices.statistics.dto.LocationCoordinatesDto
 import dk.cachet.carp.webservices.statistics.dto.StatisticsOverviewDto
+import dk.cachet.carp.webservices.statistics.dto.StudiesByApplicationDto
 import dk.cachet.carp.webservices.statistics.service.StatisticsService
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.Instant
 import org.springframework.http.MediaType
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class StatisticsControllerTest {
     private val statisticsService: StatisticsService = mockk()
+    private val objectMapper =
+        ObjectMapper()
+            .registerModule(JavaTimeModule())
+            .registerModule(
+                SimpleModule().addSerializer(Instant::class.java, ObjectMapperConfig.KInstantSerializer.INSTANCE),
+            )
+            .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
 
     private lateinit var mockMvc: MockMvc
 
     @BeforeTest
     fun setup() {
-        mockMvc = MockMvcBuilders.standaloneSetup(StatisticsController(statisticsService)).build()
+        mockMvc =
+            MockMvcBuilders
+                .standaloneSetup(StatisticsController(statisticsService))
+                .setMessageConverters(MappingJackson2HttpMessageConverter(objectMapper))
+                .build()
     }
 
     @Test
     fun `should relay task to statistics service`() =
         runTest {
-            coEvery { statisticsService.getOverview() } returns
-                StatisticsOverviewDto(
-                    totalLiveStudies = 1,
-                    totalParticipants = 2,
-                    totalResearchers = 3,
-                    dailyDatastreamUploads = emptyMap(),
-                    studiesByApplications = emptyMap(),
-                )
+            coEvery { statisticsService.getOverview() } returns overviewDto()
 
             mockMvc.perform(
                 get("/api/internal/statistics/overview")
                     .contentType(MediaType.APPLICATION_JSON),
             ).andExpect(status().isOk)
         }
+
+    @Test
+    fun `should serialize overview statistics rows for browser`() {
+        val serialized = objectMapper.writeValueAsString(overviewDto())
+
+        assertEquals(
+            """
+            {
+              "totalLiveStudies" : 1,
+              "totalParticipants" : 2,
+              "totalResearchers" : 3,
+              "dailyDataStreamUploads" : [ {
+                "time" : "2026-04-21T00:00:00Z",
+                "value" : 0
+              } ],
+              "studiesByApplications" : [ {
+                "app" : "not-set",
+                "value" : 40
+              } ]
+            }
+            """.trimIndent(),
+            objectMapper.readTree(serialized).toPrettyString(),
+        )
+    }
 
     @Test
     fun `should relay locationwise data uploads task to statistics service`() =
@@ -53,4 +91,25 @@ class StatisticsControllerTest {
                     .contentType(MediaType.APPLICATION_JSON),
             ).andExpect(status().isOk)
         }
+
+    private fun overviewDto() =
+        StatisticsOverviewDto(
+            totalLiveStudies = 1,
+            totalParticipants = 2,
+            totalResearchers = 3,
+            dailyDataStreamUploads =
+                listOf(
+                    DailyDataStreamUploadDto(
+                        time = Instant.parse("2026-04-21T00:00:00Z"),
+                        value = 0,
+                    ),
+                ),
+            studiesByApplications =
+                listOf(
+                    StudiesByApplicationDto(
+                        app = "not-set",
+                        value = 40,
+                    ),
+                ),
+        )
 }
