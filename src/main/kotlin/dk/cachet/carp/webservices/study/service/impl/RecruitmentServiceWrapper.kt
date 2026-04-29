@@ -127,20 +127,6 @@ class RecruitmentServiceWrapper(
             accounts
         }
 
-    override suspend fun countParticipants(
-        studyId: UUID,
-        search: String?,
-    ): Int =
-        withContext(Dispatchers.IO + SecurityCoroutineContext()) {
-            val count =
-                recruitmentRepository.countRecruitmentParticipantsByStudyIdAndSearch(
-                    studyId.stringRepresentation,
-                    search,
-                )
-
-            count
-        }
-
     override suspend fun queryParticipantAccounts(
         studyId: UUID,
         request: ParticipantAccountsRequestDto,

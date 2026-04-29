@@ -20,25 +20,6 @@ interface RecruitmentRepository : JpaRepository<Recruitment, Int>, RecruitmentRe
     )
     fun deleteByStudyId(studyId: String)
 
-    @Query(
-        value = """
-                SELECT count(*)
-                FROM public.recruitments, 
-                     jsonb_array_elements(snapshot->'participants') arr(elem)
-                WHERE snapshot->>'studyId' = :studyId
-                AND (
-                    :search IS NULL 
-                    OR elem->'accountIdentity'->>'username' ILIKE '%' || :search || '%'
-                    OR elem->'accountIdentity'->>'emailAddress' ILIKE '%' || :search || '%'
-                )
-        """,
-        nativeQuery = true,
-    )
-    fun countRecruitmentParticipantsByStudyIdAndSearch(
-        studyId: String,
-        search: String?,
-    ): Int
-
     @Modifying
     @Transactional
     @Query(

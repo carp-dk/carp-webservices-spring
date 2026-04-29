@@ -346,39 +346,6 @@ class RecruitmentServiceWrapperTest {
     }
 
     @Nested
-    inner class CountParticipants {
-        @Test
-        fun `returns count of participants`() {
-            runTest {
-                val mockStudyId = UUID.randomUUID()
-                val mockSearch = "search"
-
-                val mockCount = 3
-
-                coEvery {
-                    recruitmentRepository.countRecruitmentParticipantsByStudyIdAndSearch(
-                        mockStudyId.stringRepresentation,
-                        mockSearch,
-                    )
-                } returns mockCount
-
-                val sut =
-                    RecruitmentServiceWrapper(
-                        accountService,
-                        dataStreamService,
-                        recruitmentRepository,
-                        objectMapper,
-                        services,
-                    )
-
-                val result = sut.countParticipants(mockStudyId, mockSearch)
-
-                assertEquals(mockCount, result)
-            }
-        }
-    }
-
-    @Nested
     inner class QueryParticipantAccounts {
         @Test
         @Suppress("LongMethod")
