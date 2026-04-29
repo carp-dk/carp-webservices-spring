@@ -7,7 +7,9 @@ import dk.cachet.carp.webservices.datastream.dto.DateQuantityPairDb
 import dk.cachet.carp.webservices.datastream.dto.LocationCoordinatesDb
 import dk.cachet.carp.webservices.datastream.repository.DataStreamSequenceRepository
 import dk.cachet.carp.webservices.security.authorization.Role
+import dk.cachet.carp.webservices.statistics.dto.DailyDataStreamUploadDto
 import dk.cachet.carp.webservices.statistics.dto.LocationCoordinatesDto
+import dk.cachet.carp.webservices.statistics.dto.StudiesByApplicationDto
 import dk.cachet.carp.webservices.study.dto.ApplicationDataQuantityPairDb
 import dk.cachet.carp.webservices.study.repository.StudyRepository
 import io.mockk.coEvery
@@ -20,6 +22,7 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 import kotlin.test.assertEquals
+import kotlinx.datetime.Instant as KInstant
 
 class StatisticsServiceImplTest {
     private val studyRepository = mockk<StudyRepository>()
@@ -49,22 +52,22 @@ class StatisticsServiceImplTest {
             assertEquals(13, result.totalParticipants)
             assertEquals(17, result.totalResearchers)
             assertEquals(
-                mapOf(
-                    "2025-02-15" to 0L,
-                    "2025-02-16" to 2L,
-                    "2025-02-17" to 0L,
-                    "2025-02-18" to 5L,
-                    "2025-02-19" to 0L,
-                    "2025-02-20" to 0L,
-                    "2025-02-21" to 7L,
+                listOf(
+                    DailyDataStreamUploadDto(KInstant.parse("2025-02-15T00:00:00Z"), 0L),
+                    DailyDataStreamUploadDto(KInstant.parse("2025-02-16T00:00:00Z"), 2L),
+                    DailyDataStreamUploadDto(KInstant.parse("2025-02-17T00:00:00Z"), 0L),
+                    DailyDataStreamUploadDto(KInstant.parse("2025-02-18T00:00:00Z"), 5L),
+                    DailyDataStreamUploadDto(KInstant.parse("2025-02-19T00:00:00Z"), 0L),
+                    DailyDataStreamUploadDto(KInstant.parse("2025-02-20T00:00:00Z"), 0L),
+                    DailyDataStreamUploadDto(KInstant.parse("2025-02-21T00:00:00Z"), 7L),
                 ),
-                result.dailyDatastreamUploads,
+                result.dailyDataStreamUploads,
             )
             assertEquals(
-                mapOf(
-                    "Research App" to 10L,
-                    "Ops App" to 2L,
-                    "not-set" to 10L,
+                listOf(
+                    StudiesByApplicationDto("Research App", 10L),
+                    StudiesByApplicationDto("Ops App", 2L),
+                    StudiesByApplicationDto("not-set", 10L),
                 ),
                 result.studiesByApplications,
             )
@@ -97,18 +100,18 @@ class StatisticsServiceImplTest {
             assertEquals(0, result.totalParticipants)
             assertEquals(0, result.totalResearchers)
             assertEquals(
-                mapOf(
-                    "2025-02-15" to 0L,
-                    "2025-02-16" to 0L,
-                    "2025-02-17" to 0L,
-                    "2025-02-18" to 0L,
-                    "2025-02-19" to 0L,
-                    "2025-02-20" to 0L,
-                    "2025-02-21" to 0L,
+                listOf(
+                    DailyDataStreamUploadDto(KInstant.parse("2025-02-15T00:00:00Z"), 0L),
+                    DailyDataStreamUploadDto(KInstant.parse("2025-02-16T00:00:00Z"), 0L),
+                    DailyDataStreamUploadDto(KInstant.parse("2025-02-17T00:00:00Z"), 0L),
+                    DailyDataStreamUploadDto(KInstant.parse("2025-02-18T00:00:00Z"), 0L),
+                    DailyDataStreamUploadDto(KInstant.parse("2025-02-19T00:00:00Z"), 0L),
+                    DailyDataStreamUploadDto(KInstant.parse("2025-02-20T00:00:00Z"), 0L),
+                    DailyDataStreamUploadDto(KInstant.parse("2025-02-21T00:00:00Z"), 0L),
                 ),
-                result.dailyDatastreamUploads,
+                result.dailyDataStreamUploads,
             )
-            assertEquals(emptyMap(), result.studiesByApplications)
+            assertEquals(emptyList(), result.studiesByApplications)
         }
 
     @Test
