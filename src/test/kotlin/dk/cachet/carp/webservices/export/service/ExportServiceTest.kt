@@ -141,11 +141,11 @@ class ExportServiceTest {
     }
 
     @Nested
-    inner class DeleteAllOlderThan {
+    inner class CleanupExpiredExports {
         @Test
-        fun `should delete all exports older than specified days`() {
-            val days = 7
-            val clockNow7DaysAgo = System.currentTimeMillis() - days * 24 * 60 * 60 * 1000
+        fun `should delete all exports older than retention days`() {
+            val retentionDays = 7
+            val expiresBefore = System.currentTimeMillis() - retentionDays * 24 * 60 * 60 * 1000
             val exportsToDelete =
                 mutableListOf(
                     Export(
@@ -165,7 +165,7 @@ class ExportServiceTest {
             every { fileStorage.deleteFileAtPath(any(), any()) } returns true
 
             val sut = ExportServiceImpl(repository, invoker, fileStorage)
-            sut.deleteAllOlderThan(days)
+            sut.cleanupExpiredExports(retentionDays)
 
             verify(exactly = exportsToDelete.size) { repository.delete(any()) }
             verify(exactly = exportsToDelete.size) { fileStorage.deleteFileAtPath(any(), any()) }
@@ -174,7 +174,7 @@ class ExportServiceTest {
                 repository.getAllByUpdatedAtIsBefore(
                     match {
                         val tolerance = 5000
-                        Math.abs(it.toEpochMilli() - clockNow7DaysAgo) <= tolerance
+                        Math.abs(it.toEpochMilli() - expiresBefore) <= tolerance
                     },
                 )
             }
@@ -182,7 +182,7 @@ class ExportServiceTest {
 
         @Test
         fun `should continue deletion if something throws`() {
-            val days = 7
+            val retentionDays = 7
             val exportsToDelete =
                 mutableListOf(
                     Export(
@@ -203,7 +203,7 @@ class ExportServiceTest {
             every { fileStorage.deleteFileAtPath("file2", Path.of("path2")) } throws IOException(";(")
 
             val sut = ExportServiceImpl(repository, invoker, fileStorage)
-            sut.deleteAllOlderThan(days)
+            sut.cleanupExpiredExports(retentionDays)
 
             verify(exactly = exportsToDelete.size) { repository.delete(any()) }
             verify(exactly = exportsToDelete.size) { fileStorage.deleteFileAtPath(any(), any()) }

@@ -20,5 +20,5 @@ interface ExportService {
         exportId: UUID,
     ): UUID
 
-    fun deleteAllOlderThan(days: Int)
+    fun cleanupExpiredExports(retentionDays: Int)
 }

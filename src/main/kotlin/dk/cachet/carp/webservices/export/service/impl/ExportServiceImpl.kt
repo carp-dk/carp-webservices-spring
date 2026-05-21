@@ -6,6 +6,7 @@ import dk.cachet.carp.webservices.export.command.ExportCommand
 import dk.cachet.carp.webservices.export.command.ExportCommandInvoker
 import dk.cachet.carp.webservices.export.domain.Export
 import dk.cachet.carp.webservices.export.domain.ExportStatus
+import dk.cachet.carp.webservices.export.domain.ExportType
 import dk.cachet.carp.webservices.export.repository.ExportRepository
 import dk.cachet.carp.webservices.export.service.ExportService
 import dk.cachet.carp.webservices.file.service.FileStorage
@@ -15,6 +16,7 @@ import org.springframework.core.io.Resource
 import org.springframework.stereotype.Service
 import java.io.IOException
 import java.nio.file.Path
+import java.time.Duration
 import java.time.Instant
 
 @Service
@@ -69,21 +71,33 @@ class ExportServiceImpl(
         return studyId
     }
 
-    @Suppress("MagicNumber")
-    override fun deleteAllOlderThan(days: Int) {
-        val clockNow7DaysAgo = System.currentTimeMillis() - days * 24 * 60 * 60 * 1000
-        val exportsToDelete = exportRepository.getAllByUpdatedAtIsBefore(Instant.ofEpochMilli(clockNow7DaysAgo))
+    override fun cleanupExpiredExports(retentionDays: Int) {
+        val expiredBefore = Instant.now().minus(Duration.ofDays(retentionDays.toLong()))
+        val expiredExports = exportRepository.getAllByUpdatedAtIsBefore(expiredBefore)
 
-        exportsToDelete.forEach { export: Export ->
-            exportRepository.delete(export)
-            try {
-                fileStorage.deleteFileAtPath(export.fileName, Path.of(export.relativePath))
-            } catch (e: IOException) {
-                LOGGER.error("Failed to delete export with id ${export.id}.", e)
-            }
+        expiredExports
+            .filterNot(::isRetainedAfterExpiration)
+            .forEach(::deleteExportAndFile)
+
+        LOGGER.info("Export cleanup completed for exports older than $retentionDays days.")
+    }
+
+    private fun isRetainedAfterExpiration(export: Export): Boolean =
+        when (export.type) {
+            ExportType.UNKNOWN,
+            ExportType.STUDY_DATA,
+            ExportType.DEPLOYMENT_DATA,
+            ExportType.ANONYMOUS_PARTICIPANTS,
+            -> false
         }
 
-        LOGGER.info("Exports older than $days days have been successfully deleted.")
+    private fun deleteExportAndFile(export: Export) {
+        exportRepository.delete(export)
+        try {
+            fileStorage.deleteFileAtPath(export.fileName, Path.of(export.relativePath))
+        } catch (e: IOException) {
+            LOGGER.error("Failed to delete export with id ${export.id}.", e)
+        }
     }
 
     /**

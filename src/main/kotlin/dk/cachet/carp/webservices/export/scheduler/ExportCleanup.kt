@@ -19,6 +19,6 @@ class ExportCleanup(
     @Scheduled(cron = "0 5 9 * * ?")
     fun cleanup() {
         LOGGER.info("Cleaning up exports...")
-        exportService.deleteAllOlderThan(days)
+        exportService.cleanupExpiredExports(days)
     }
 }
