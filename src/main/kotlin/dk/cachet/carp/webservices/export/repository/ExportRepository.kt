@@ -31,8 +31,5 @@ interface ExportRepository : JpaRepository<Export, String> {
         exportId: String,
     )
 
-    @Query(nativeQuery = true, value = "SELECT * FROM exports WHERE created_at < :timestamp")
-    fun findAllCreatedBefore(timestamp: Instant): List<Export>
-
     fun getAllByUpdatedAtIsBefore(updatedAtBefore: Instant): MutableList<Export>
 }

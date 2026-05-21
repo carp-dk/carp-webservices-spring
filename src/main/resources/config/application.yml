@@ -259,10 +259,6 @@ teams:
 
 storage:
   directory: /home/carp/storage/${spring.profiles.active}/
-  exports:
-    expiration:
-      enabled: true
-      days: 90
 
 cleanup:
   exports:
