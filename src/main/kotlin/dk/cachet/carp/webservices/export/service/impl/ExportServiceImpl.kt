@@ -87,8 +87,8 @@ class ExportServiceImpl(
             ExportType.UNKNOWN,
             ExportType.STUDY_DATA,
             ExportType.DEPLOYMENT_DATA,
-            ExportType.ANONYMOUS_PARTICIPANTS,
             -> false
+            ExportType.ANONYMOUS_PARTICIPANTS -> true
         }
 
     private fun deleteExportAndFile(export: Export) {

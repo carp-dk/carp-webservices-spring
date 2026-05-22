@@ -6,6 +6,7 @@ import dk.cachet.carp.webservices.export.command.ExportCommand
 import dk.cachet.carp.webservices.export.command.ExportCommandInvoker
 import dk.cachet.carp.webservices.export.domain.Export
 import dk.cachet.carp.webservices.export.domain.ExportStatus
+import dk.cachet.carp.webservices.export.domain.ExportType
 import dk.cachet.carp.webservices.export.repository.ExportRepository
 import dk.cachet.carp.webservices.export.service.impl.ExportServiceImpl
 import dk.cachet.carp.webservices.file.service.FileStorage
@@ -178,6 +179,26 @@ class ExportServiceTest {
                     },
                 )
             }
+        }
+
+        @Test
+        fun `should retain anonymous participants exports`() {
+            val retentionDays = 7
+            val anonymousParticipantsExport =
+                Export(
+                    id = "1",
+                    fileName = "file2",
+                    relativePath = "path2",
+                    type = ExportType.ANONYMOUS_PARTICIPANTS,
+                )
+
+            every { repository.getAllByUpdatedAtIsBefore(any()) } returns mutableListOf(anonymousParticipantsExport)
+
+            val sut = ExportServiceImpl(repository, invoker, fileStorage)
+            sut.cleanupExpiredExports(retentionDays)
+
+            verify(exactly = 0) { repository.delete(anonymousParticipantsExport) }
+            verify(exactly = 0) { fileStorage.deleteFileAtPath(any(), any()) }
         }
 
         @Test
