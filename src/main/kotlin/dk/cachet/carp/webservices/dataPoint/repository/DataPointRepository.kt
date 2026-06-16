@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
 import java.util.*
 
+@Deprecated("DataPoint is deprecated. Use DataStream instead.")
 @Repository
 interface DataPointRepository :
     JpaRepository<DataPoint, String>,
@@ -100,6 +101,7 @@ interface DataPointRepository :
  * The [DataPointRepositoryCustom] interface implements a repository for
  * [DataPoint] to insert data with the given [dataPoint] and [uploadedFile].
  */
+@Deprecated("DataPoint is deprecated. Use DataStream instead.")
 interface DataPointRepositoryCustom {
     fun save(
         dataPoint: DataPoint,
@@ -110,6 +112,7 @@ interface DataPointRepositoryCustom {
 /**
  * The [DataPointRepositoryImpl] implements the [DataPointRepositoryCustom] to insert the new data points.
  */
+@Deprecated("DataPoint is deprecated. Use DataStream instead.")
 @Repository
 class DataPointRepositoryImpl(
     @Lazy private val dataPointRepository: DataPointRepository,

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component
  * It requeues the messages when the messages did not surpass the retry threshold
  * or redirects them to the Parking-Lot-Queue.
  */
+@Deprecated("DataPoint is deprecated. Use DataStream instead.")
 @Component
 class DataPointBatchProcessorDLQListener(
     private val rabbitTemplate: RabbitTemplate,

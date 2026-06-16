@@ -11,6 +11,7 @@ import org.springframework.amqp.core.Message
 import org.springframework.amqp.rabbit.annotation.RabbitListener
 import org.springframework.stereotype.Component
 
+@Deprecated("DataPoint is deprecated. Use DataStream instead.")
 @Component
 class ThirdPartyProcessorJob(
     private val objectMapper: ObjectMapper,

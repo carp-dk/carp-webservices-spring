@@ -19,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile
  * The Class [DataPointBatchProcessorJob].
  * The [DataPointBatchProcessorJob] process the data points using the RabbitMQ with the message queue.
  */
+@Deprecated("DataPoint is deprecated. Use DataStream instead.")
 @RabbitListener(queues = ["\${rabbit.data-point.processing.queue}"])
 @Component
 class DataPointBatchProcessorJob(private val environment: Environment) {
