@@ -7,6 +7,7 @@ import jakarta.validation.Valid
 import jakarta.validation.constraints.NotNull
 import org.jetbrains.annotations.Nullable
 
+@Deprecated("DataPoint is deprecated. Use DataStream instead.")
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
 data class CreateDataPointRequestDto(
     @field:Valid

@@ -13,6 +13,7 @@ import java.time.Instant
  * The Data Class [DataPointHeaderDto].
  * [DataPointHeaderDto] represents a data point headers to a user with the given header values and creation timestamps.
  */
+@Deprecated("DataPoint is deprecated. Use DataStream instead.")
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
 data class DataPointHeaderDto(
     /** The [studyId] of the request. */

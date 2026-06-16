@@ -13,6 +13,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener
 import java.io.Serializable
 import java.util.*
 
+@Deprecated("DataPoint is deprecated. Use DataStream instead.")
 @Entity(name = "data_points")
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
 @EntityListeners(AuditingEntityListener::class)

@@ -30,6 +30,7 @@ import org.springframework.web.multipart.MultipartFile
 import java.nio.file.Path
 import java.time.LocalDate
 
+@Deprecated("DataPoint is deprecated. Use DataStream instead.")
 @Service
 @Transactional
 class DataPointServiceImpl(

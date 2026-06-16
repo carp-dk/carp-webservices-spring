@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component
  * It updated the email entity in the database to the status of FAILED
  * and sends notification.
  */
+@Deprecated("DataPoint is deprecated. Use DataStream instead.")
 @Component
 class ThirdPartyProcessorPLQListener {
     companion object {

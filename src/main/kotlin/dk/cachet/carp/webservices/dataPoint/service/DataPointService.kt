@@ -6,6 +6,7 @@ import dk.cachet.carp.webservices.deployment.dto.DeploymentStatisticsResponseDto
 import org.springframework.data.domain.PageRequest
 import org.springframework.web.multipart.MultipartFile
 
+@Deprecated("DataPoint is deprecated. Use DataStream instead.")
 interface DataPointService {
     suspend fun getAll(
         deploymentId: String,

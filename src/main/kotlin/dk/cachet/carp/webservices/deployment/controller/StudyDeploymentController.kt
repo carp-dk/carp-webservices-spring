@@ -75,6 +75,7 @@ class StudyDeploymentController(
      * statistics for a single participant group.
      */
     @Deprecated("This endpoint is disabled")
+    @Suppress("DEPRECATION")
     @PostMapping(value = [DEPLOYMENT_STATISTICS])
     @PreAuthorize("false")
     @ResponseStatus(HttpStatus.OK)

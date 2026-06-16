@@ -105,6 +105,7 @@ class CoreStudyRepository(
 
             collectionRepository.deleteAllByDeploymentIds(idsToRemove.map { it.stringRepresentation })
             consentDocumentRepository.deleteAllByDeploymentIds(idsToRemove.map { it.stringRepresentation })
+            @Suppress("DEPRECATION") // TODO: remove once study deletion migrates to StudyRemoved event handler (#376)
             dataPointRepository.deleteAllByDeploymentIds(idsToRemove.map { it.stringRepresentation })
 
             fileService.deleteAllByStudyId(studyId.stringRepresentation)
