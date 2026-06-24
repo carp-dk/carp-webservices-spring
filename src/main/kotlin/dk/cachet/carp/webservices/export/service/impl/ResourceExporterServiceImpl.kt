@@ -1,6 +1,5 @@
 package dk.cachet.carp.webservices.export.service.impl
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.deployments.domain.DeploymentRepository
 import dk.cachet.carp.webservices.datastream.service.impl.DataStreamService
@@ -10,6 +9,7 @@ import dk.cachet.carp.webservices.export.service.ResourceExporterService
 import dk.cachet.carp.webservices.study.repository.CoreStudyRepository
 import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.stereotype.Service
+import tools.jackson.databind.ObjectMapper
 import java.io.ByteArrayInputStream
 import java.nio.file.Files
 import java.nio.file.Path
@@ -111,7 +111,7 @@ class ResourceExporterServiceImpl(
         log: ExportLog,
     ) {
         try {
-            val jsonGenerator = objectMapper.factory.createGenerator(path.toFile().outputStream())
+            val jsonGenerator = objectMapper.createGenerator(path.toFile().outputStream())
 
             jsonGenerator.use { objectMapper.writeValue(it, resource) }
 

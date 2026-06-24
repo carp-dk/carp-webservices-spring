@@ -1,8 +1,5 @@
 package dk.cachet.carp.webservices.common.serialisers.serdes
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.databind.JsonSerializer
-import com.fasterxml.jackson.databind.SerializerProvider
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.common.infrastructure.serialization.JSON
 import dk.cachet.carp.webservices.common.configuration.internationalisation.service.MessageBase
@@ -10,13 +7,16 @@ import dk.cachet.carp.webservices.common.exception.serialization.SerializationEx
 import kotlinx.serialization.encodeToString
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
+import tools.jackson.core.JsonGenerator
+import tools.jackson.databind.SerializationContext
+import tools.jackson.databind.ValueSerializer
 
 /**
  * The Class [UUIDSerializer].
  * The [UUIDSerializer] implements the serialization mechanism for the [UUID] class.
  */
 @Suppress("TooGenericExceptionCaught", "SwallowedException")
-class UUIDSerializer(private val validationMessages: MessageBase) : JsonSerializer<UUID>() {
+class UUIDSerializer(private val validationMessages: MessageBase) : ValueSerializer<UUID>() {
     companion object {
         private val LOGGER: Logger = LogManager.getLogger()
     }
@@ -30,9 +30,9 @@ class UUIDSerializer(private val validationMessages: MessageBase) : JsonSerializ
      * @return The serialized core [uuid].
      */
     override fun serialize(
-        uuid: UUID?,
-        jsonGenerator: JsonGenerator?,
-        serializers: SerializerProvider?,
+        uuid: UUID,
+        jsonGenerator: JsonGenerator,
+        serializers: SerializationContext,
     ) {
         if (uuid == null) {
             LOGGER.error("The core UUID is null.")

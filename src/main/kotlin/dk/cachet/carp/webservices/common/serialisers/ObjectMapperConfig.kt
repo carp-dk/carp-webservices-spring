@@ -1,14 +1,5 @@
 package dk.cachet.carp.webservices.common.serialisers
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.databind.JsonSerializer
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.SerializationFeature
-import com.fasterxml.jackson.databind.SerializerProvider
-import com.fasterxml.jackson.databind.module.SimpleModule
-import com.fasterxml.jackson.datatype.jsr310.deser.InstantDeserializer
-import com.fasterxml.jackson.datatype.jsr310.ser.InstantSerializer
-import com.fasterxml.jackson.module.kotlin.KotlinModule
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.common.application.users.AccountIdentity
 import dk.cachet.carp.data.application.DataStreamBatch
@@ -23,16 +14,22 @@ import dk.cachet.carp.webservices.common.serialisers.serdes.UUIDDeserializer
 import dk.cachet.carp.webservices.common.serialisers.serdes.UUIDSerializer
 import dk.cachet.carp.webservices.datastream.serdes.*
 import kotlinx.datetime.Instant
-import kotlinx.datetime.toJavaInstant
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
+import tools.jackson.core.JsonGenerator
+import tools.jackson.databind.ObjectMapper
+import tools.jackson.databind.SerializationContext
+import tools.jackson.databind.ValueSerializer
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.databind.module.SimpleModule
+import tools.jackson.module.kotlin.KotlinModule
 
 /**
  * The Configuration Class [ObjectMapperConfig].
  * The [ObjectMapperConfig] implements the [SimpleModule] that allows registration of serializers and deserializers,
  * bean serializer and deserializer modifiers, registration of subtypes and mix-ins as well as some other commonly
- * needed aspects [com.fasterxml.jackson.databind.AbstractTypeResolver].
+ * needed aspects [tools.jackson.databind.AbstractTypeResolver].
  */
 @Configuration
 class ObjectMapperConfig(validationMessages: MessageBase) : SimpleModule() {
@@ -58,19 +55,16 @@ class ObjectMapperConfig(validationMessages: MessageBase) : SimpleModule() {
 
         this.addSerializer(Instant::class.java, KInstantSerializer.INSTANCE)
 
-        this.addSerializer(java.time.Instant::class.java, InstantSerializer.INSTANCE)
-        this.addDeserializer(java.time.Instant::class.java, InstantDeserializer.INSTANT)
-
         this.addSerializer(StudyProtocolSnapshot::class.java, StudyProtocolSnapshotSerializer(validationMessages))
     }
 
-    class KInstantSerializer : JsonSerializer<Instant>() {
+    class KInstantSerializer : ValueSerializer<Instant>() {
         override fun serialize(
             value: Instant,
             gen: JsonGenerator,
-            serializers: SerializerProvider,
+            serializers: SerializationContext,
         ) {
-            return(InstantSerializer.INSTANCE.serialize(value.toJavaInstant(), gen, serializers))
+            gen.writeString(value.toString())
         }
 
         companion object {
@@ -86,15 +80,9 @@ class ObjectMapperConfig(validationMessages: MessageBase) : SimpleModule() {
      */
     @Bean
     @Primary
-    fun objectMapper(): ObjectMapper {
-        val objectMapper = ObjectMapper()
-        objectMapper.registerModule(KotlinModule.Builder().build())
-
-        objectMapper.registerModule(this)
-
-//        objectMapper.registerModule(JavaTimeModule())
-        objectMapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
-
-        return objectMapper
-    }
+    fun objectMapper(): ObjectMapper =
+        JsonMapper.builder()
+            .addModule(KotlinModule.Builder().build())
+            .addModule(this)
+            .build()
 }

@@ -1,8 +1,5 @@
 package dk.cachet.carp.webservices.account.serdes
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.databind.JsonSerializer
-import com.fasterxml.jackson.databind.SerializerProvider
 import dk.cachet.carp.protocols.application.StudyProtocolSnapshot
 import dk.cachet.carp.webservices.common.configuration.internationalisation.service.MessageBase
 import dk.cachet.carp.webservices.common.exception.serialization.SerializationException
@@ -10,6 +7,9 @@ import dk.cachet.carp.webservices.common.input.WS_JSON
 import kotlinx.serialization.encodeToString
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
+import tools.jackson.core.JsonGenerator
+import tools.jackson.databind.SerializationContext
+import tools.jackson.databind.ValueSerializer
 
 /**
  * The Class [StudyProtocolSnapshotSerializer].
@@ -18,7 +18,7 @@ import org.apache.logging.log4j.Logger
 @Suppress("TooGenericExceptionCaught", "SwallowedException")
 class StudyProtocolSnapshotSerializer(
     private val validationMessages: MessageBase,
-) : JsonSerializer<StudyProtocolSnapshot>() {
+) : ValueSerializer<StudyProtocolSnapshot>() {
     companion object {
         private val LOGGER: Logger = LogManager.getLogger()
     }
@@ -32,9 +32,9 @@ class StudyProtocolSnapshotSerializer(
      * @return The serialization [StudyProtocolSnapshot] object.
      */
     override fun serialize(
-        studyProtocolSnapshot: StudyProtocolSnapshot?,
-        jsonGeneator: JsonGenerator?,
-        serializers: SerializerProvider?,
+        studyProtocolSnapshot: StudyProtocolSnapshot,
+        jsonGeneator: JsonGenerator,
+        serializers: SerializationContext,
     ) {
         if (studyProtocolSnapshot == null) {
             LOGGER.error("The core StudyProtocolSnapshot is null.")

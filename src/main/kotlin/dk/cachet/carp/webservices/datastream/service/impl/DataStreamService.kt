@@ -1,8 +1,5 @@
 package dk.cachet.carp.webservices.datastream.service.impl
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.core.JsonProcessingException
-import com.fasterxml.jackson.databind.ObjectMapper
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.common.application.data.DataType
 import dk.cachet.carp.data.application.DataStreamId
@@ -25,6 +22,9 @@ import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.springframework.dao.DataAccessException
 import org.springframework.stereotype.Service
+import tools.jackson.core.JacksonException
+import tools.jackson.core.JsonGenerator
+import tools.jackson.databind.ObjectMapper
 import java.io.IOException
 import java.nio.file.Path
 
@@ -225,7 +225,7 @@ class DataStreamService(
         return try {
             val node = objectMapper.readTree(applicationData)?.path("protocolApiLevel")
             node?.asText()?.trim()?.takeIf { it.isNotEmpty() }
-        } catch (e: JsonProcessingException) {
+        } catch (e: JacksonException) {
             LOGGER.warn("Failed to parse protocolApiLevel from applicationData for study $studyId.", e)
             null
         }
@@ -377,7 +377,7 @@ class DataStreamService(
 
         val path = target.resolve(dataFileName)
 
-        val jsonGenerator = objectMapper.factory.createGenerator(path.toFile().outputStream())
+        val jsonGenerator = objectMapper.createGenerator(path.toFile().outputStream())
         jsonGenerator.writeStartArray()
 
         val sequenceIds = dataStreamSequenceRepository.findSequenceIdsByStreamId(dataStreamIds)
@@ -433,7 +433,7 @@ class DataStreamService(
             }
         } catch (e: IllegalStateException) {
             LOGGER.error("State error while processing sequence ID: ${dataStreamSequence.id} - ${e.message}", e)
-        } catch (e: JsonProcessingException) {
+        } catch (e: JacksonException) {
             LOGGER.error("JSON serialization error for sequence ID: ${dataStreamSequence.id} - ${e.message}", e)
         } catch (e: DataAccessException) {
             LOGGER.error("Database access error for sequence ID: ${dataStreamSequence.id} - ${e.message}", e)

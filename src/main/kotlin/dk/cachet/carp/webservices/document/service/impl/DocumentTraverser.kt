@@ -1,9 +1,5 @@
 package dk.cachet.carp.webservices.document.service.impl
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.SerializationFeature
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import dk.cachet.carp.webservices.collection.domain.Collection
 import dk.cachet.carp.webservices.collection.repository.CollectionRepository
 import dk.cachet.carp.webservices.common.configuration.internationalisation.service.MessageBase
@@ -16,6 +12,9 @@ import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.springframework.stereotype.Service
 import org.springframework.web.servlet.HandlerMapping
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
+import tools.jackson.databind.json.JsonMapper
 import java.util.*
 
 /** The Data Class [CollectionWrapper]. */
@@ -274,11 +273,7 @@ class DocumentTraverser(
     private fun toJson(collectionWrapper: CollectionWrapper?): String? {
         if (collectionWrapper == null) return null
 
-        val mapper =
-            ObjectMapper().apply {
-                registerModule(JavaTimeModule())
-                configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
-            }
+        val mapper = JsonMapper.builder().build()
 
         return when (collectionWrapper.type) {
             CollectionWrapperType.Collection -> {

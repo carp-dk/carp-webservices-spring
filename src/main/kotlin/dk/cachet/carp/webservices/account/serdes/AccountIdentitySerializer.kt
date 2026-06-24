@@ -1,8 +1,5 @@
 package dk.cachet.carp.webservices.account.serdes
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.databind.JsonSerializer
-import com.fasterxml.jackson.databind.SerializerProvider
 import dk.cachet.carp.common.application.users.AccountIdentity
 import dk.cachet.carp.common.infrastructure.serialization.JSON
 import dk.cachet.carp.webservices.common.configuration.internationalisation.service.MessageBase
@@ -10,13 +7,16 @@ import dk.cachet.carp.webservices.common.exception.serialization.SerializationEx
 import kotlinx.serialization.encodeToString
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
+import tools.jackson.core.JsonGenerator
+import tools.jackson.databind.SerializationContext
+import tools.jackson.databind.ValueSerializer
 
 /**
  * The Class [AccountIdentitySerializer].
  * The [AccountIdentitySerializer] implements the serialization mechanism for the [AccountIdentity].
  */
 @Suppress("TooGenericExceptionCaught", "SwallowedException")
-class AccountIdentitySerializer(private val validationMessages: MessageBase) : JsonSerializer<AccountIdentity>() {
+class AccountIdentitySerializer(private val validationMessages: MessageBase) : ValueSerializer<AccountIdentity>() {
     companion object {
         private val LOGGER: Logger = LogManager.getLogger()
     }
@@ -30,9 +30,9 @@ class AccountIdentitySerializer(private val validationMessages: MessageBase) : J
      * @return The serialized account identity.
      */
     override fun serialize(
-        accountIdentity: AccountIdentity?,
-        jsonGenerator: JsonGenerator?,
-        serializers: SerializerProvider?,
+        accountIdentity: AccountIdentity,
+        jsonGenerator: JsonGenerator,
+        serializers: SerializationContext,
     ) {
         if (accountIdentity == null) {
             LOGGER.error("The core [AccountIdentity] request is null.")

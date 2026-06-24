@@ -1,9 +1,5 @@
 package dk.cachet.carp.webservices.account.serdes
 
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.core.TreeNode
-import com.fasterxml.jackson.databind.DeserializationContext
-import com.fasterxml.jackson.databind.JsonDeserializer
 import dk.cachet.carp.common.application.users.AccountIdentity
 import dk.cachet.carp.common.infrastructure.serialization.JSON
 import dk.cachet.carp.webservices.common.configuration.internationalisation.service.MessageBase
@@ -11,13 +7,16 @@ import dk.cachet.carp.webservices.common.exception.serialization.SerializationEx
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.springframework.util.StringUtils
+import tools.jackson.core.JsonParser
+import tools.jackson.databind.DeserializationContext
+import tools.jackson.databind.ValueDeserializer
 
 /**
  * The Class [AccountIdentityDeserializer].
  * The [AccountIdentityDeserializer] implements the deserialization logic for [AccountIdentity].
  */
 @Suppress("TooGenericExceptionCaught", "SwallowedException")
-class AccountIdentityDeserializer(private val validationMessage: MessageBase) : JsonDeserializer<AccountIdentity>() {
+class AccountIdentityDeserializer(private val validationMessage: MessageBase) : ValueDeserializer<AccountIdentity>() {
     companion object {
         private val LOGGER: Logger = LogManager.getLogger()
     }
@@ -32,12 +31,12 @@ class AccountIdentityDeserializer(private val validationMessage: MessageBase) : 
      * @return The deserialized account object.
      */
     override fun deserialize(
-        jsonParser: JsonParser?,
-        deserializationContext: DeserializationContext?,
+        jsonParser: JsonParser,
+        deserializationContext: DeserializationContext,
     ): AccountIdentity {
         val accountIdentity: String
         try {
-            accountIdentity = jsonParser?.codec?.readTree<TreeNode>(jsonParser).toString()
+            accountIdentity = deserializationContext.readTree(jsonParser).toString()
 
             if (!StringUtils.hasLength(accountIdentity)) {
                 LOGGER.error("The core [AccountIdentity] request cannot be blank or empty.")

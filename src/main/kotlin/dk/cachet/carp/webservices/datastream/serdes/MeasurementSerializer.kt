@@ -1,8 +1,5 @@
 package dk.cachet.carp.webservices.datastream.serdes
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.databind.JsonSerializer
-import com.fasterxml.jackson.databind.SerializerProvider
 import dk.cachet.carp.common.application.data.Data
 import dk.cachet.carp.data.application.Measurement
 import dk.cachet.carp.webservices.common.configuration.internationalisation.service.MessageBase
@@ -10,17 +7,20 @@ import dk.cachet.carp.webservices.common.exception.serialization.SerializationEx
 import dk.cachet.carp.webservices.common.input.WS_JSON
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
+import tools.jackson.core.JsonGenerator
+import tools.jackson.databind.SerializationContext
+import tools.jackson.databind.ValueSerializer
 
 @Suppress("TooGenericExceptionCaught", "SwallowedException")
-class MeasurementSerializer(private val validationMessages: MessageBase) : JsonSerializer<Measurement<Data>>() {
+class MeasurementSerializer(private val validationMessages: MessageBase) : ValueSerializer<Measurement<Data>>() {
     companion object {
         private val LOGGER: Logger = LogManager.getLogger()
     }
 
     override fun serialize(
-        value: Measurement<Data>?,
-        gen: JsonGenerator?,
-        serializers: SerializerProvider?,
+        value: Measurement<Data>,
+        gen: JsonGenerator,
+        serializers: SerializationContext,
     ) {
         if (value == null) {
             LOGGER.error("The dataStreamServiceRequest.measurement is null.")

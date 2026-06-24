@@ -1,9 +1,5 @@
 package dk.cachet.carp.webservices.datastream.serdes
 
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.core.TreeNode
-import com.fasterxml.jackson.databind.DeserializationContext
-import com.fasterxml.jackson.databind.JsonDeserializer
 import dk.cachet.carp.data.application.DataStreamBatch
 import dk.cachet.carp.webservices.common.configuration.internationalisation.service.MessageBase
 import dk.cachet.carp.webservices.common.exception.serialization.SerializationException
@@ -11,20 +7,23 @@ import dk.cachet.carp.webservices.common.input.WS_JSON
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.springframework.util.StringUtils
+import tools.jackson.core.JsonParser
+import tools.jackson.databind.DeserializationContext
+import tools.jackson.databind.ValueDeserializer
 
 @Suppress("TooGenericExceptionCaught", "SwallowedException")
-class DataStreamBatchDeserializer(private val validationMessages: MessageBase) : JsonDeserializer<DataStreamBatch>() {
+class DataStreamBatchDeserializer(private val validationMessages: MessageBase) : ValueDeserializer<DataStreamBatch>() {
     companion object {
         private val LOGGER: Logger = LogManager.getLogger()
     }
 
     override fun deserialize(
-        p: JsonParser?,
-        ctxt: DeserializationContext?,
+        p: JsonParser,
+        ctxt: DeserializationContext,
     ): DataStreamBatch {
         val dataStreamBatch: String
         try {
-            dataStreamBatch = p?.codec?.readTree<TreeNode>(p).toString()
+            dataStreamBatch = ctxt.readTree(p).toString()
 
             if (!StringUtils.hasLength(dataStreamBatch)) {
                 LOGGER.error("The dataStreamBatch cannot be blank or empty.")

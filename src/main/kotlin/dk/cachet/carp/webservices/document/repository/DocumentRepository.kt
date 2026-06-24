@@ -1,8 +1,5 @@
 package dk.cachet.carp.webservices.document.repository
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.node.ObjectNode
 import dk.cachet.carp.webservices.document.domain.Document
 import dk.cachet.carp.webservices.document.dto.UpdateDocumentRequestDto
 import org.springframework.context.annotation.Lazy
@@ -13,6 +10,9 @@ import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.databind.node.ObjectNode
 import java.util.*
 
 @Repository
@@ -85,8 +85,9 @@ class DocumentRepositoryImpl(
 
             document.data?.also {
                 val updatedData =
-                    ObjectMapper()
-                        .setDefaultMergeable(true)
+                    JsonMapper.builder()
+                        .defaultMergeable(true)
+                        .build()
                         .readerForUpdating(existingDocument.data)
                         .readValue<JsonNode>(it)
 
@@ -116,8 +117,9 @@ class DocumentRepositoryImpl(
 
                 document.data?.also {
                     val updatedData =
-                        ObjectMapper()
-                            .setDefaultMergeable(true)
+                        JsonMapper.builder()
+                            .defaultMergeable(true)
+                            .build()
                             .readerForUpdating(existingDocument.data)
                             .readValue<JsonNode>(it)
 

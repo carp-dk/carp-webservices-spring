@@ -1,6 +1,5 @@
 package dk.cachet.carp.webservices.security.authentication.oauth2.issuers.keycloak
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.common.application.users.AccountIdentity
 import dk.cachet.carp.common.application.users.EmailAccountIdentity
@@ -27,6 +26,7 @@ import org.springframework.http.codec.json.Jackson2JsonEncoder
 import org.springframework.stereotype.Service
 import org.springframework.web.reactive.function.client.*
 import org.springframework.web.util.UriBuilder
+import com.fasterxml.jackson.databind.ObjectMapper as Jackson2ObjectMapper
 
 // https://www.keycloak.org/docs-api/21.1.1/rest-api/
 @Service
@@ -37,7 +37,6 @@ class KeycloakFacade(
     @Value("\${keycloak.realm}") private val realm: String,
     @Value("\${keycloak.admin.client-id}") private val clientId: String,
     @Value("\${keycloak.admin.client-secret}") private val clientSecret: String,
-    private val objectMapper: ObjectMapper,
     private val environmentUtil: EnvironmentUtil,
 ) : IssuerFacade {
     companion object {
@@ -45,27 +44,29 @@ class KeycloakFacade(
         private const val INVITATION_LIFESPAN = 24 * 60 * 60 * 30 // 30 days
     }
 
+    private val jackson2Mapper = Jackson2ObjectMapper()
+
     private val serializationStrategies: ExchangeStrategies =
         ExchangeStrategies.builder()
             .codecs { configurer ->
                 configurer.defaultCodecs()
                     .jackson2JsonEncoder(
-                        Jackson2JsonEncoder(objectMapper, MediaType.APPLICATION_JSON),
+                        Jackson2JsonEncoder(jackson2Mapper, MediaType.APPLICATION_JSON),
                     )
                 configurer.defaultCodecs()
                     .jackson2JsonDecoder(
-                        Jackson2JsonDecoder(objectMapper, MediaType.APPLICATION_JSON),
+                        Jackson2JsonDecoder(jackson2Mapper, MediaType.APPLICATION_JSON),
                     )
                 configurer.defaultCodecs().jackson2JsonDecoder(
                     Jackson2JsonDecoder(
-                        objectMapper,
+                        jackson2Mapper,
                         MediaType.APPLICATION_NDJSON,
                         MediaType.APPLICATION_JSON,
                     ),
                 )
                 configurer.defaultCodecs().jackson2JsonEncoder(
                     Jackson2JsonEncoder(
-                        objectMapper,
+                        jackson2Mapper,
                         MediaType.APPLICATION_NDJSON,
                         MediaType.APPLICATION_JSON,
                     ),
