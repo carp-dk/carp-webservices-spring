@@ -1,7 +1,6 @@
 package dk.cachet.carp.webservices.export.command
 
 import dk.cachet.carp.common.application.UUID
-import dk.cachet.carp.studies.application.StudyStatus
 import dk.cachet.carp.webservices.account.service.AccountService
 import dk.cachet.carp.webservices.common.services.CoreServiceContainer
 import dk.cachet.carp.webservices.export.command.impl.ExportAnonymousParticipants
@@ -51,7 +50,7 @@ class ExportAnonymousParticipantsTest {
                                 }
                         coEvery { getStudyStatus(any()) } returns
                                 mockk {
-                                    StudyStatus.Live
+                                    every { canDeployToParticipants } returns true
                                 }
                     }
 
@@ -83,7 +82,7 @@ class ExportAnonymousParticipantsTest {
                                 }
                         coEvery { getStudyStatus(any()) } returns
                                 mockk {
-                                    StudyStatus.Live
+                                    every { canDeployToParticipants } returns true
                                 }
                     }
 
@@ -120,7 +119,7 @@ class ExportAnonymousParticipantsTest {
                                 }
                         coEvery { getStudyStatus(any()) } returns
                                 mockk {
-                                    StudyStatus.Live
+                                    every { canDeployToParticipants } returns true
                                 }
                     }
 
@@ -157,7 +156,7 @@ class ExportAnonymousParticipantsTest {
                                 }
                         coEvery { getStudyStatus(any()) } returns
                                 mockk {
-                                    StudyStatus.Configuring
+                                    every { canDeployToParticipants } returns false
                                 }
                     }
 

@@ -1,10 +1,10 @@
 package dk.cachet.carp.webservices.document.domain
 
-import com.fasterxml.jackson.databind.node.JsonNodeFactory
 import dk.cachet.carp.webservices.file.service.FileService
 import io.mockk.*
 import org.junit.jupiter.api.Nested
 import org.springframework.test.util.ReflectionTestUtils
+import tools.jackson.databind.node.JsonNodeFactory
 import kotlin.test.Test
 
 class DocumentTest {

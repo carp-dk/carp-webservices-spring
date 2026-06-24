@@ -1,7 +1,5 @@
 package dk.cachet.carp.webservices.datastream.service.core
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.common.application.data.DataType
 import dk.cachet.carp.common.infrastructure.test.StubDataPoint
@@ -21,6 +19,8 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
 import java.util.*
 import kotlin.test.assertFailsWith
 

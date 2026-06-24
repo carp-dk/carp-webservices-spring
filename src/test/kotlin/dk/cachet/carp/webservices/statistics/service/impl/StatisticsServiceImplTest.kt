@@ -1,6 +1,5 @@
 package dk.cachet.carp.webservices.statistics.service.impl
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import dk.cachet.carp.webservices.account.service.AccountService
 import dk.cachet.carp.webservices.common.input.ApplicationDataService
 import dk.cachet.carp.webservices.datastream.dto.DateQuantityPairDb
@@ -17,6 +16,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.ObjectMapper
 import java.sql.Date
 import java.time.Clock
 import java.time.Instant

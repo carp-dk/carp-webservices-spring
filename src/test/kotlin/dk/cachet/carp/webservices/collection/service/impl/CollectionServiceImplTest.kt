@@ -1,6 +1,5 @@
 package dk.cachet.carp.webservices.collection.service.impl
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import dk.cachet.carp.common.application.users.AccountIdentity
 import dk.cachet.carp.webservices.account.service.AccountService
 import dk.cachet.carp.webservices.collection.domain.Collection
@@ -16,6 +15,7 @@ import dk.cachet.carp.webservices.security.authorization.Claim
 import io.mockk.*
 import org.junit.jupiter.api.Nested
 import org.springframework.data.jpa.domain.Specification
+import tools.jackson.databind.ObjectMapper
 import java.util.*
 import kotlin.test.*
 

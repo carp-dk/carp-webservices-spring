@@ -1,8 +1,5 @@
 package dk.cachet.carp.webservices.deployment.repository
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.node.ObjectNode
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.webservices.common.configuration.internationalisation.service.MessageBase
 import dk.cachet.carp.webservices.deployment.domain.StudyDeployment
@@ -13,6 +10,9 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
 import org.springframework.data.domain.AuditorAware
 import org.springframework.jdbc.core.JdbcTemplate
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
+import tools.jackson.databind.node.ObjectNode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -93,11 +93,11 @@ class CoreDeploymentRepositoryTest {
             primaryDevice.put("__type", "dk.cachet.carp.common.application.devices.WebBrowser")
             primaryDevice.put("roleName", "ICAT Web Browser")
             primaryDevice.put("isPrimaryDevice", true)
-            primaryDevice.set<ObjectNode>("defaultSamplingConfiguration", om.createObjectNode())
+            primaryDevice.set("defaultSamplingConfiguration", om.createObjectNode())
 
             studyProtocolSnapshot.putArray("primaryDevices").add(primaryDevice)
 
-            studyDeployment.set<ObjectNode>("studyProtocolSnapshot", studyProtocolSnapshot)
+            studyDeployment.set("studyProtocolSnapshot", studyProtocolSnapshot)
 
             return studyDeployment
         }

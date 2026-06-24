@@ -2,7 +2,7 @@
 
 package dk.cachet.carp.webservices.protocol.service
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import tools.jackson.databind.ObjectMapper
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.protocols.application.ProtocolService as CoreProtocolService
 import dk.cachet.carp.protocols.application.StudyProtocolSnapshot

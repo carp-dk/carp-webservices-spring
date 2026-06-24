@@ -1,7 +1,5 @@
 package dk.cachet.carp.webservices.study.service.impl
 
-import com.fasterxml.jackson.core.type.TypeReference
-import com.fasterxml.jackson.databind.ObjectMapper
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.common.application.users.EmailAccountIdentity
 import dk.cachet.carp.deployments.application.StudyDeploymentStatus
@@ -23,6 +21,8 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import org.junit.jupiter.api.Nested
+import tools.jackson.core.type.TypeReference
+import tools.jackson.databind.ObjectMapper
 import kotlin.test.*
 
 class RecruitmentServiceWrapperTest {

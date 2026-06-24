@@ -1,9 +1,5 @@
 package dk.cachet.carp.webservices.statistics.controller
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.SerializationFeature
-import com.fasterxml.jackson.databind.module.SimpleModule
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import dk.cachet.carp.webservices.common.serialisers.ObjectMapperConfig
 import dk.cachet.carp.webservices.statistics.dto.DailyDataStreamUploadDto
 import dk.cachet.carp.webservices.statistics.dto.LocationCoordinatesDto
@@ -20,19 +16,20 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.databind.module.SimpleModule
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import com.fasterxml.jackson.databind.ObjectMapper as Jackson2ObjectMapper
 
 class StatisticsControllerTest {
     private val statisticsService: StatisticsService = mockk()
-    private val objectMapper =
-        ObjectMapper()
-            .registerModule(JavaTimeModule())
-            .registerModule(
-                SimpleModule().addSerializer(Instant::class.java, ObjectMapperConfig.KInstantSerializer.INSTANCE),
-            )
-            .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
+    private val instantModule = SimpleModule().addSerializer(
+        Instant::class.java,
+        ObjectMapperConfig.KInstantSerializer.INSTANCE
+    )
+    private val objectMapper = JsonMapper.builder().addModule(instantModule).build()
 
     private lateinit var mockMvc: MockMvc
 
@@ -41,7 +38,7 @@ class StatisticsControllerTest {
         mockMvc =
             MockMvcBuilders
                 .standaloneSetup(StatisticsController(statisticsService))
-                .setMessageConverters(MappingJackson2HttpMessageConverter(objectMapper))
+                .setMessageConverters(MappingJackson2HttpMessageConverter(Jackson2ObjectMapper()))
                 .build()
     }
 

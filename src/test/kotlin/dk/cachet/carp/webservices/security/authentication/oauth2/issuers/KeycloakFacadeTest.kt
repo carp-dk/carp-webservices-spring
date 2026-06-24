@@ -1,6 +1,5 @@
 package dk.cachet.carp.webservices.security.authentication.oauth2.issuers
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import dk.cachet.carp.webservices.common.environment.EnvironmentUtil
 import dk.cachet.carp.webservices.security.authentication.oauth2.issuers.keycloak.KeycloakFacade
 import io.mockk.mockk
@@ -13,14 +12,13 @@ class KeycloakFacadeTest {
     private val realm = "test"
     private val clientId = "test"
     private val clientSecret = "test"
-    private val objectMapper = mockk<ObjectMapper>()
     private val environmentUtil = mockk<EnvironmentUtil>()
 
     @Test
     fun `deleteAccount is not supported`() =
         runTest {
             assertThrows<UnsupportedOperationException> {
-                KeycloakFacade("", realm, clientId, clientSecret, objectMapper, environmentUtil).deleteAccount("test")
+                KeycloakFacade("", realm, clientId, clientSecret, environmentUtil).deleteAccount("test")
             }
         }
 }

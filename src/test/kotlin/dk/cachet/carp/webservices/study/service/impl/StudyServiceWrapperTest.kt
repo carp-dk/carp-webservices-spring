@@ -1,6 +1,5 @@
 package dk.cachet.carp.webservices.study.service.impl
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.deployments.application.users.StudyInvitation
 import dk.cachet.carp.protocols.application.StudyProtocolSnapshot
@@ -21,6 +20,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Nested
+import tools.jackson.databind.ObjectMapper
 import java.nio.file.Path
 import kotlin.test.*
 

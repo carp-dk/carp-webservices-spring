@@ -1,6 +1,5 @@
 package dk.cachet.carp.webservices.datastream.service.impl
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.data.infrastructure.DataStreamServiceDecorator
 import dk.cachet.carp.deployments.application.users.Participation
@@ -35,6 +34,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import org.springframework.web.multipart.MultipartFile
+import tools.jackson.databind.ObjectMapper
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.StringWriter
@@ -131,38 +131,52 @@ class DataStreamServiceTest {
             val jsonGenerator = objectMapper.createGenerator(writer)
 
             jsonGenerator.writeStartObject()
-            jsonGenerator.writeStringField(
-                "__type",
-                "dk.cachet.carp.data.infrastructure.DataStreamServiceRequest.AppendToDataStreams",
-            )
-            jsonGenerator.writeStringField("apiVersion", "1.1")
-            jsonGenerator.writeStringField("studyDeploymentId", UUID.randomUUID().toString())
+            jsonGenerator.writeName("__type")
+            jsonGenerator.writeString("dk.cachet.carp.data.infrastructure.DataStreamServiceRequest.AppendToDataStreams")
+            jsonGenerator.writeName("apiVersion")
+            jsonGenerator.writeString("1.1")
+            jsonGenerator.writeName("studyDeploymentId")
+            jsonGenerator.writeString(UUID.randomUUID().toString())
 
-            jsonGenerator.writeArrayFieldStart("batch")
+            jsonGenerator.writeName("batch")
+            jsonGenerator.writeStartArray()
             repeat(Random.nextInt(1, 5)) { // Generate 1 to 5 batch objects
                 jsonGenerator.writeStartObject()
 
-                jsonGenerator.writeObjectFieldStart("dataStream")
-                jsonGenerator.writeStringField("studyDeploymentId", UUID.randomUUID().toString())
-                jsonGenerator.writeStringField("deviceRoleName", "Primary Phone")
-                jsonGenerator.writeStringField("dataType", "dk.cachet.carp.heartbeat")
+                jsonGenerator.writeName("dataStream")
+                jsonGenerator.writeStartObject()
+                jsonGenerator.writeName("studyDeploymentId")
+                jsonGenerator.writeString(UUID.randomUUID().toString())
+                jsonGenerator.writeName("deviceRoleName")
+                jsonGenerator.writeString("Primary Phone")
+                jsonGenerator.writeName("dataType")
+                jsonGenerator.writeString("dk.cachet.carp.heartbeat")
                 jsonGenerator.writeEndObject()
 
-                jsonGenerator.writeNumberField("firstSequenceId", Random.nextInt(Int.MAX_VALUE))
+                jsonGenerator.writeName("firstSequenceId")
+                jsonGenerator.writeNumber(Random.nextInt(Int.MAX_VALUE))
 
-                jsonGenerator.writeArrayFieldStart("measurements")
+                jsonGenerator.writeName("measurements")
+                jsonGenerator.writeStartArray()
                 jsonGenerator.writeStartObject()
-                jsonGenerator.writeNumberField("sensorStartTime", Random.nextLong())
-                jsonGenerator.writeObjectFieldStart("data")
-                jsonGenerator.writeStringField("__type", "dk.cachet.carp.heartbeat")
-                jsonGenerator.writeNumberField("period", Random.nextInt())
-                jsonGenerator.writeStringField("deviceType", "dk.cachet.carp.common.application.devices.Smartphone")
-                jsonGenerator.writeStringField("deviceRoleName", "Primary Phone")
+                jsonGenerator.writeName("sensorStartTime")
+                jsonGenerator.writeNumber(Random.nextLong())
+                jsonGenerator.writeName("data")
+                jsonGenerator.writeStartObject()
+                jsonGenerator.writeName("__type")
+                jsonGenerator.writeString("dk.cachet.carp.heartbeat")
+                jsonGenerator.writeName("period")
+                jsonGenerator.writeNumber(Random.nextInt())
+                jsonGenerator.writeName("deviceType")
+                jsonGenerator.writeString("dk.cachet.carp.common.application.devices.Smartphone")
+                jsonGenerator.writeName("deviceRoleName")
+                jsonGenerator.writeString("Primary Phone")
                 jsonGenerator.writeEndObject()
                 jsonGenerator.writeEndObject()
                 jsonGenerator.writeEndArray()
 
-                jsonGenerator.writeArrayFieldStart("triggerIds")
+                jsonGenerator.writeName("triggerIds")
+                jsonGenerator.writeStartArray()
                 jsonGenerator.writeNumber(Random.nextInt())
                 jsonGenerator.writeEndArray()
 

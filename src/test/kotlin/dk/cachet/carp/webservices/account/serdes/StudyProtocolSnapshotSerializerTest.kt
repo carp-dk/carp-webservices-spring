@@ -1,6 +1,5 @@
 package dk.cachet.carp.webservices.account.serdes
 
-import com.fasterxml.jackson.core.JsonGenerator
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.protocols.application.StudyProtocolSnapshot
 import dk.cachet.carp.webservices.common.configuration.internationalisation.service.MessageBase
@@ -11,11 +10,14 @@ import io.mockk.verify
 import kotlinx.datetime.Clock
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.core.JsonGenerator
+import tools.jackson.databind.SerializationContext
 import kotlin.test.Test
 
 class StudyProtocolSnapshotSerializerTest {
     private val validationMessages: MessageBase = mockk<MessageBase>()
     private val jsonGenerator: JsonGenerator = mockk<JsonGenerator>()
+    private val serializationContext = mockk<SerializationContext>()
 
     @Nested
     inner class Serialize {
@@ -30,11 +32,11 @@ class StudyProtocolSnapshotSerializerTest {
                     name = "name",
                 )
             every { validationMessages.get(any()) } returns "err"
-            every { jsonGenerator.writeRawValue(any<String>()) } returns Unit
+            every { jsonGenerator.writeRawValue(any<String>()) } returns jsonGenerator
 
             val sut = StudyProtocolSnapshotSerializer(validationMessages)
 
-            sut.serialize(studyProtocolSnapshot, jsonGenerator, null)
+            sut.serialize(studyProtocolSnapshot, jsonGenerator, serializationContext)
 
             val expectedString =
                 """{"id":"${studyProtocolSnapshot.id}","createdOn":"${studyProtocolSnapshot
@@ -44,32 +46,17 @@ class StudyProtocolSnapshotSerializerTest {
         }
 
         @Test
-        fun `should throw SerializationException if StudyProtocolSnapshot is null`() {
-            val studyProtocolSnapshot = null
-            every { validationMessages.get(any()) } returns "err"
-
-            val sut = StudyProtocolSnapshotSerializer(validationMessages)
-
-            assertThrows<SerializationException> {
-                sut.serialize(studyProtocolSnapshot, jsonGenerator, null)
-            }
-
-            verify { validationMessages.get("protocol.snapshot.serialization.empty") }
-            verify(exactly = 0) { jsonGenerator.writeRawValue(any<String>()) }
-        }
-
-        @Test
         fun `should throw SerializationException if serialization fails`() {
             val invalidStudyProtocolSnapshot = mockk<StudyProtocolSnapshot>()
 
             every { validationMessages.get(any()) } returns "err"
             every { validationMessages.get(any(), any()) } returns "err"
-            every { jsonGenerator.writeRawValue(any<String>()) } returns Unit
+            every { jsonGenerator.writeRawValue(any<String>()) } returns jsonGenerator
 
             val sut = StudyProtocolSnapshotSerializer(validationMessages)
 
             assertThrows<SerializationException> {
-                sut.serialize(invalidStudyProtocolSnapshot, jsonGenerator, null)
+                sut.serialize(invalidStudyProtocolSnapshot, jsonGenerator, serializationContext)
             }
 
             verify { validationMessages.get("protocol.snapshot.serialization.error", any()) }

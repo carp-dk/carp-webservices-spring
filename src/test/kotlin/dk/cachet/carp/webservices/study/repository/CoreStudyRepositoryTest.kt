@@ -1,6 +1,5 @@
 package dk.cachet.carp.webservices.study.repository
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.deployments.application.users.StudyInvitation
 import dk.cachet.carp.studies.domain.StudySnapshot
@@ -20,6 +19,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Clock
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Nested
+import tools.jackson.databind.ObjectMapper
 import kotlin.test.*
 import dk.cachet.carp.studies.domain.Study as CoreStudy
 
