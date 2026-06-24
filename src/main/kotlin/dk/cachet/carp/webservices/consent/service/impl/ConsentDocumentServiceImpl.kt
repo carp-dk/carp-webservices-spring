@@ -1,6 +1,5 @@
 package dk.cachet.carp.webservices.consent.service.impl
 
-import com.fasterxml.jackson.databind.JsonNode
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.studies.application.users.ParticipantGroupStatus
 import dk.cachet.carp.webservices.common.configuration.internationalisation.service.MessageBase
@@ -16,6 +15,7 @@ import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import tools.jackson.databind.JsonNode
 import java.nio.file.Path
 
 /**

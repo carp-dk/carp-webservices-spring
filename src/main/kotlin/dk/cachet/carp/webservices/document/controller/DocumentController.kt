@@ -1,6 +1,5 @@
 package dk.cachet.carp.webservices.document.controller
 
-import com.fasterxml.jackson.databind.JsonNode
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.webservices.common.configuration.internationalisation.service.MessageBase
 import dk.cachet.carp.webservices.common.constants.PathVariableName
@@ -23,6 +22,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.*
+import tools.jackson.databind.JsonNode
 
 @RestController
 @RequestMapping(value = [DOCUMENT_BASE])

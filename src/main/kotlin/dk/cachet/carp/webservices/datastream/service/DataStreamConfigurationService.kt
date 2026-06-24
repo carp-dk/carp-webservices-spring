@@ -1,12 +1,12 @@
 package dk.cachet.carp.webservices.datastream.service
 
-import com.fasterxml.jackson.databind.JsonNode
 import dk.cachet.carp.data.application.DataStreamId
 import dk.cachet.carp.data.application.DataStreamsConfiguration
 import dk.cachet.carp.webservices.common.input.WS_JSON
 import dk.cachet.carp.webservices.datastream.repository.DataStreamConfigurationRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import tools.jackson.databind.JsonNode
 
 suspend fun validateConfig(
     dataStream: DataStreamId,

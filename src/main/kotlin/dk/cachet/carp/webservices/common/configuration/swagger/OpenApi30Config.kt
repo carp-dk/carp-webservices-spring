@@ -1,7 +1,5 @@
 package dk.cachet.carp.webservices.common.configuration.swagger
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import dk.cachet.carp.webservices.common.environment.EnvironmentUtil
 import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.OpenAPI
@@ -24,6 +22,8 @@ import org.springframework.core.io.Resource
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 import org.springframework.util.StreamUtils
 import org.springframework.util.StringUtils
+import tools.jackson.databind.ObjectMapper
+import tools.jackson.module.kotlin.readValue
 import java.nio.charset.Charset
 import java.util.*
 import kotlin.collections.ArrayList

@@ -1,7 +1,5 @@
 package dk.cachet.carp.webservices.study.repository
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.deployments.application.users.StudyInvitation
 import dk.cachet.carp.studies.domain.StudyRepository
@@ -23,6 +21,8 @@ import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
 import dk.cachet.carp.studies.domain.Study as CoreStudy
 
 @Service

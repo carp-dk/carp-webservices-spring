@@ -2,8 +2,8 @@ package dk.cachet.carp.webservices.security.authentication.oauth2.issuers.keyclo
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.databind.PropertyNamingStrategies.SnakeCaseStrategy
-import com.fasterxml.jackson.databind.annotation.JsonNaming
+import tools.jackson.databind.PropertyNamingStrategies.SnakeCaseStrategy
+import tools.jackson.databind.annotation.JsonNaming
 
 /**
  * A subset of the response representation of the

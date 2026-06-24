@@ -1,6 +1,5 @@
 package dk.cachet.carp.webservices.deployment.repository
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.deployments.domain.DeploymentRepository
 import dk.cachet.carp.deployments.domain.StudyDeploymentSnapshot
@@ -17,6 +16,7 @@ import org.springframework.data.domain.AuditorAware
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import tools.jackson.databind.ObjectMapper
 import java.sql.Timestamp
 import dk.cachet.carp.deployments.domain.StudyDeployment as CoreStudyDeployment
 

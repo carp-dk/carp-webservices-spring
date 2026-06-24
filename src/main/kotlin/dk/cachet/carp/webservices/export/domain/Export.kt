@@ -1,10 +1,10 @@
 package dk.cachet.carp.webservices.export.domain
 
-import com.fasterxml.jackson.databind.PropertyNamingStrategies
-import com.fasterxml.jackson.databind.annotation.JsonNaming
 import dk.cachet.carp.webservices.common.audit.Auditable
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
+import tools.jackson.databind.PropertyNamingStrategies
+import tools.jackson.databind.annotation.JsonNaming
 
 /**
  * The Data Class [Export].

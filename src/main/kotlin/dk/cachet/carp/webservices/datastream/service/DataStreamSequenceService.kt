@@ -1,12 +1,12 @@
 package dk.cachet.carp.webservices.datastream.service
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
 import dk.cachet.carp.common.application.data.Data
 import dk.cachet.carp.data.application.DataStreamId
 import dk.cachet.carp.data.application.MutableDataStreamSequence
 import dk.cachet.carp.webservices.datastream.domain.DataStreamSequence
 import dk.cachet.carp.webservices.datastream.domain.DataStreamSnapshot
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
 
 fun createSequence(
     dataStream: DataStreamId,

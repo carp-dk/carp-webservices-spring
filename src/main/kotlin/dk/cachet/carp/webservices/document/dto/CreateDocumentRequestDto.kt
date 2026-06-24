@@ -1,9 +1,9 @@
 package dk.cachet.carp.webservices.document.dto
 
-import com.fasterxml.jackson.databind.JsonNode
 import dk.cachet.carp.webservices.collection.domain.Collection
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
+import tools.jackson.databind.JsonNode
 
 data class CreateDocumentRequestDto(
     /** The [name] of the document. */

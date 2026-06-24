@@ -1,8 +1,8 @@
 package dk.cachet.carp.webservices.consent.service
 
-import com.fasterxml.jackson.databind.JsonNode
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.webservices.consent.domain.ConsentDocument
+import tools.jackson.databind.JsonNode
 
 /**
  * The Interface [ConsentDocumentService] for CRUD operations on consent documents.

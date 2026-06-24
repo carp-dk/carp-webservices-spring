@@ -1,12 +1,12 @@
 package dk.cachet.carp.webservices.file.repository
 
-import com.fasterxml.jackson.databind.JsonNode
 import dk.cachet.carp.webservices.file.domain.File
 import org.springframework.context.annotation.Lazy
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor
 import org.springframework.stereotype.Repository
 import org.springframework.web.multipart.MultipartFile
+import tools.jackson.databind.JsonNode
 import java.time.Instant
 
 @Repository

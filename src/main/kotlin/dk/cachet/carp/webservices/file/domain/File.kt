@@ -1,8 +1,5 @@
 package dk.cachet.carp.webservices.file.domain
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.PropertyNamingStrategies
-import com.fasterxml.jackson.databind.annotation.JsonNaming
 import dk.cachet.carp.webservices.common.audit.Auditable
 import io.hypersistence.utils.hibernate.type.json.JsonBinaryType
 import jakarta.persistence.*
@@ -10,6 +7,9 @@ import jakarta.validation.constraints.NotNull
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.annotations.Type
 import org.hibernate.type.SqlTypes
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.PropertyNamingStrategies
+import tools.jackson.databind.annotation.JsonNaming
 
 @Entity(name = "files")
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)

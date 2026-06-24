@@ -1,6 +1,5 @@
 package dk.cachet.carp.webservices.dataPoint.listener
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.gson.JsonParseException
 import dk.cachet.carp.webservices.common.exception.serialization.SerializationException
 import dk.cachet.carp.webservices.dataPoint.domain.DataPoint
@@ -10,6 +9,7 @@ import org.apache.logging.log4j.Logger
 import org.springframework.amqp.core.Message
 import org.springframework.amqp.rabbit.annotation.RabbitListener
 import org.springframework.stereotype.Component
+import tools.jackson.databind.ObjectMapper
 
 @Deprecated("DataPoint is deprecated. Use DataStream instead.")
 @Component

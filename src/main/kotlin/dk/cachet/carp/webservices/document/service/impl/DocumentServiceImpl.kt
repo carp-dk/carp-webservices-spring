@@ -1,6 +1,5 @@
 package dk.cachet.carp.webservices.document.service.impl
 
-import com.fasterxml.jackson.databind.JsonNode
 import cz.jirutka.rsql.parser.RSQLParser
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.webservices.collection.service.CollectionService
@@ -26,6 +25,7 @@ import org.apache.logging.log4j.Logger
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import tools.jackson.databind.JsonNode
 import java.nio.file.Path
 
 @Service

@@ -1,6 +1,5 @@
 package dk.cachet.carp.webservices.study.service.impl
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.common.application.users.AccountIdentity
 import dk.cachet.carp.common.application.users.AssignedTo
@@ -28,6 +27,7 @@ import kotlinx.datetime.Clock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.springframework.stereotype.Service
+import tools.jackson.databind.ObjectMapper
 import dk.cachet.carp.deployments.domain.StudyDeployment as CoreStudyDeployment
 
 @Service

@@ -1,11 +1,11 @@
 package dk.cachet.carp.webservices.document.service
 
-import com.fasterxml.jackson.databind.JsonNode
 import dk.cachet.carp.webservices.document.domain.Document
 import dk.cachet.carp.webservices.document.dto.CreateDocumentRequestDto
 import dk.cachet.carp.webservices.document.dto.UpdateDocumentRequestDto
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.data.domain.PageRequest
+import tools.jackson.databind.JsonNode
 
 /**
  * The Interface [DocumentService].

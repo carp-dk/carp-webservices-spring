@@ -1,12 +1,12 @@
 package dk.cachet.carp.webservices.datastream.domain
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.PropertyNamingStrategies
-import com.fasterxml.jackson.databind.annotation.JsonNaming
 import dk.cachet.carp.webservices.common.audit.Auditable
 import jakarta.persistence.*
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.PropertyNamingStrategies
+import tools.jackson.databind.annotation.JsonNaming
 import java.io.Serializable
 
 @Entity(name = "data_stream_sequence")

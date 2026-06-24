@@ -1,12 +1,12 @@
 package dk.cachet.carp.webservices.collection.domain
 
-import com.fasterxml.jackson.databind.PropertyNamingStrategies
-import com.fasterxml.jackson.databind.annotation.JsonNaming
 import dk.cachet.carp.webservices.common.audit.Auditable
 import dk.cachet.carp.webservices.document.domain.Document
 import jakarta.persistence.*
 import jakarta.validation.constraints.NotNull
 import org.hibernate.annotations.DynamicUpdate
+import tools.jackson.databind.PropertyNamingStrategies
+import tools.jackson.databind.annotation.JsonNaming
 import java.io.Serializable
 
 @DynamicUpdate

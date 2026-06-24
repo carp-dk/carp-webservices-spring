@@ -1,6 +1,5 @@
 package dk.cachet.carp.webservices.dataPoint.listener
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.gson.JsonParseException
 import dk.cachet.carp.webservices.dataPoint.domain.DataPoint
 import dk.cachet.carp.webservices.dataPoint.service.DataPointService
@@ -14,6 +13,7 @@ import org.springframework.context.annotation.Lazy
 import org.springframework.core.env.Environment
 import org.springframework.stereotype.Component
 import org.springframework.web.multipart.MultipartFile
+import tools.jackson.databind.ObjectMapper
 
 /**
  * The Class [DataPointBatchProcessorJob].

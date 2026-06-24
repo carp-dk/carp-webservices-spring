@@ -1,7 +1,5 @@
 package dk.cachet.carp.webservices.datastream.service.core
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.common.application.intersect
 import dk.cachet.carp.data.application.*
@@ -21,6 +19,8 @@ import kotlinx.coroutines.withContext
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.springframework.stereotype.Component
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
 
 @Component
 class CoreDataStreamService(

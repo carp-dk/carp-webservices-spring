@@ -2,9 +2,6 @@ package dk.cachet.carp.webservices.document.domain
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonMerge
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.PropertyNamingStrategies
-import com.fasterxml.jackson.databind.annotation.JsonNaming
 import dk.cachet.carp.webservices.SpringApplicationContext
 import dk.cachet.carp.webservices.collection.domain.Collection
 import dk.cachet.carp.webservices.common.audit.Auditable
@@ -17,6 +14,9 @@ import org.hibernate.type.SqlTypes
 import org.springframework.beans.factory.InitializingBean
 import org.springframework.context.annotation.DependsOn
 import org.springframework.stereotype.Component
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.PropertyNamingStrategies
+import tools.jackson.databind.annotation.JsonNaming
 
 /**
  * The Data Class [Document].

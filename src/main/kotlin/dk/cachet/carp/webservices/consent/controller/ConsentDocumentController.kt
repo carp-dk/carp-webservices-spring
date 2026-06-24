@@ -1,6 +1,5 @@
 package dk.cachet.carp.webservices.consent.controller
 
-import com.fasterxml.jackson.databind.JsonNode
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.webservices.common.constants.PathVariableName
 import dk.cachet.carp.webservices.consent.domain.ConsentDocument
@@ -10,6 +9,7 @@ import org.apache.logging.log4j.Logger
 import org.springframework.http.HttpStatus
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.*
+import tools.jackson.databind.JsonNode
 
 // todo should we delete?
 @Deprecated("This class is deprecated, use participantData instead")

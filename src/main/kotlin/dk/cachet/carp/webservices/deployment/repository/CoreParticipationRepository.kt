@@ -1,7 +1,5 @@
 package dk.cachet.carp.webservices.deployment.repository
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.deployments.domain.users.AccountParticipation
 import dk.cachet.carp.deployments.domain.users.ParticipantGroup
@@ -17,6 +15,8 @@ import org.springframework.data.domain.AuditorAware
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
 import java.sql.Timestamp
 import dk.cachet.carp.webservices.deployment.domain.ParticipantGroup as WSParticipantGroup
 

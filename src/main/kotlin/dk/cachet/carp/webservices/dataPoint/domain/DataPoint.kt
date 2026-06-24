@@ -1,7 +1,5 @@
 package dk.cachet.carp.webservices.dataPoint.domain
 
-import com.fasterxml.jackson.databind.PropertyNamingStrategies
-import com.fasterxml.jackson.databind.annotation.JsonNaming
 import dk.cachet.carp.webservices.common.audit.Auditable
 import dk.cachet.carp.webservices.dataPoint.dto.DataPointHeaderDto
 import io.hypersistence.utils.hibernate.type.json.JsonBinaryType
@@ -10,6 +8,8 @@ import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.annotations.Type
 import org.hibernate.type.SqlTypes
 import org.springframework.data.jpa.domain.support.AuditingEntityListener
+import tools.jackson.databind.PropertyNamingStrategies
+import tools.jackson.databind.annotation.JsonNaming
 import java.io.Serializable
 import java.util.*
 

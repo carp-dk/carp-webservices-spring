@@ -1,11 +1,11 @@
 package dk.cachet.carp.webservices.dataPoint.dto
 
-import com.fasterxml.jackson.databind.PropertyNamingStrategies
-import com.fasterxml.jackson.databind.annotation.JsonNaming
 import com.google.gson.annotations.SerializedName
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotNull
 import org.jetbrains.annotations.Nullable
+import tools.jackson.databind.PropertyNamingStrategies
+import tools.jackson.databind.annotation.JsonNaming
 
 @Deprecated("DataPoint is deprecated. Use DataStream instead.")
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)

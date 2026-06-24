@@ -1,8 +1,8 @@
 package dk.cachet.carp.webservices.document.dto
 
-import com.fasterxml.jackson.databind.JsonNode
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
+import tools.jackson.databind.JsonNode
 
 /**
  * The Data Class [UpdateDocumentRequestDto].
