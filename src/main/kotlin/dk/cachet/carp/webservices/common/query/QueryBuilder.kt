@@ -12,7 +12,7 @@ import java.util.stream.Collectors
  * The Class [QueryBuilder].
  * The [QueryBuilder] implements the RSQL Query Specification functionality to build a nested query.
  */
-class QueryBuilder<T> {
+class QueryBuilder<T : Any> {
     private fun createSpecification(node: Node): Specification<T>? {
         if (node is LogicalNode) {
             return createSpecification(node)

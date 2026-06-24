@@ -10,7 +10,7 @@ import org.springframework.data.jpa.domain.Specification
  * The Class [QueryVisitor].
  * The [QueryVisitor] implements the RSQL Specification visitor interface.
  */
-class QueryVisitor<T> : RSQLVisitor<Specification<T>, Void> {
+class QueryVisitor<T : Any> : RSQLVisitor<Specification<T>, Void> {
     // The [QueryBuilder] to build the query builder.
     private val builder: QueryBuilder<T> = QueryBuilder()
 

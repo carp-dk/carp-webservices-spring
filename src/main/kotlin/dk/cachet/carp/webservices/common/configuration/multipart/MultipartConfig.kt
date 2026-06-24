@@ -2,7 +2,6 @@ package dk.cachet.carp.webservices.common.configuration.multipart
 
 import jakarta.servlet.MultipartConfigElement
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.web.servlet.MultipartConfigFactory
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.util.unit.DataSize
@@ -21,11 +20,6 @@ class MultipartConfig(
      * @return The [MultipartConfigFactory] created multipart configuration element.
      */
     @Bean
-    fun multipartConfigElement(): MultipartConfigElement {
-        val factory = MultipartConfigFactory()
-        factory.setMaxFileSize(maxFileSize)
-        factory.setMaxRequestSize(maxRequestSize)
-
-        return factory.createMultipartConfig()
-    }
+    fun multipartConfigElement(): MultipartConfigElement =
+        MultipartConfigElement("", maxFileSize.toBytes(), maxRequestSize.toBytes(), 0)
 }

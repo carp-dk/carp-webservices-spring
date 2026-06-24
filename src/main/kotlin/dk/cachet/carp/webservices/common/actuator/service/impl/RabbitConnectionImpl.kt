@@ -3,8 +3,8 @@ package dk.cachet.carp.webservices.common.actuator.service.impl
 import dk.cachet.carp.webservices.common.actuator.service.IRabbitConnection
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
-import org.springframework.boot.actuate.amqp.RabbitHealthIndicator
-import org.springframework.boot.actuate.health.Status
+import org.springframework.boot.amqp.health.RabbitHealthIndicator
+import org.springframework.boot.health.contributor.Status
 import org.springframework.context.ApplicationContext
 import org.springframework.stereotype.Service
 

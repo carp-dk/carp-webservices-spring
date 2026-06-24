@@ -21,7 +21,7 @@ class SpringApplicationContext : ApplicationContextAware {
     companion object {
         private var context: ApplicationContext? = null
 
-        fun <T> getBean(clazz: Class<T>): T {
+        fun <T : Any> getBean(clazz: Class<T>): T {
             return context!!.getBean(clazz)
         }
     }

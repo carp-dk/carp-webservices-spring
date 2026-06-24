@@ -8,7 +8,6 @@ import jakarta.mail.MessagingException
 import jakarta.mail.internet.MimeMessage
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
-import org.eclipse.angus.mail.smtp.SMTPSendFailedException
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.core.env.Environment
 import org.springframework.mail.MailSendException
@@ -90,13 +89,6 @@ class EmailSenderImpl(
 
             this.mailSender.send(mimeMessage)
         } catch (ex: MailSendException) {
-            LOGGER.warn("Email message not sent.", ex)
-            notificationService.sendAlertOrGeneralNotification(
-                "Email message not sent. Exception: $ex.",
-                TeamsChannel.SERVER_ERRORS,
-            )
-            return EmailSendResult.FAILURE.status
-        } catch (ex: SMTPSendFailedException) {
             LOGGER.warn("Email message not sent.", ex)
             notificationService.sendAlertOrGeneralNotification(
                 "Email message not sent. Exception: $ex.",

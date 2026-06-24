@@ -14,40 +14,40 @@ import org.springframework.core.env.Environment
 @Suppress("TooManyFunctions")
 class Queue(environment: Environment) {
     /** DataPoint queues */
-    val dataPointProcessingQueue = environment.getProperty("rabbit.data-point.processing.queue")
-    val dataPointDirectExchange = environment.getProperty("rabbit.data-point.processing.direct-ex")
-    val dataPointProcessingDlq = environment.getProperty("rabbit.data-point.processing.dlq")
-    val dataPointProcessingDlx = environment.getProperty("rabbit.data-point.processing.dlx")
-    val dataPointProcessingPlq = environment.getProperty("rabbit.data-point.processing.plq")
-    val dataPointProcessingPlx = environment.getProperty("rabbit.data-point.processing.plx")
+    val dataPointProcessingQueue = environment.getProperty("rabbit.data-point.processing.queue")!!
+    val dataPointDirectExchange = environment.getProperty("rabbit.data-point.processing.direct-ex")!!
+    val dataPointProcessingDlq = environment.getProperty("rabbit.data-point.processing.dlq")!!
+    val dataPointProcessingDlx = environment.getProperty("rabbit.data-point.processing.dlx")!!
+    val dataPointProcessingPlq = environment.getProperty("rabbit.data-point.processing.plq")!!
+    val dataPointProcessingPlx = environment.getProperty("rabbit.data-point.processing.plx")!!
 
     /** Email queues */
-    val emailSendingQueue = environment.getProperty("rabbit.email.sending.queue")
-    val emailSendingDirectExchange = environment.getProperty("rabbit.email.sending.direct-ex")
-    val emailSendingDlq = environment.getProperty("rabbit.email.sending.dlq")
-    val emailSendingDlx = environment.getProperty("rabbit.email.sending.dlx")
-    val emailSendingPlq = environment.getProperty("rabbit.email.sending.plq")
-    val emailSendingPlx = environment.getProperty("rabbit.email.sending.plx")
+    val emailSendingQueue = environment.getProperty("rabbit.email.sending.queue")!!
+    val emailSendingDirectExchange = environment.getProperty("rabbit.email.sending.direct-ex")!!
+    val emailSendingDlq = environment.getProperty("rabbit.email.sending.dlq")!!
+    val emailSendingDlx = environment.getProperty("rabbit.email.sending.dlx")!!
+    val emailSendingPlq = environment.getProperty("rabbit.email.sending.plq")!!
+    val emailSendingPlx = environment.getProperty("rabbit.email.sending.plx")!!
 
     /** 3rd party queues */
-    val thirdPartyQueue = environment.getProperty("rabbit.third-party.processing.queue")
-    val thirdPartyDirectExchange = environment.getProperty("rabbit.third-party.processing.direct-ex")
-    val thirdPartyDlq = environment.getProperty("rabbit.third-party.processing.dlq")
-    val thirdPartyDlx = environment.getProperty("rabbit.third-party.processing.dlx")
-    val thirdPartyPlq = environment.getProperty("rabbit.third-party.processing.plq")
-    val thirdPartyPlx = environment.getProperty("rabbit.third-party.processing.plx")
+    val thirdPartyQueue = environment.getProperty("rabbit.third-party.processing.queue")!!
+    val thirdPartyDirectExchange = environment.getProperty("rabbit.third-party.processing.direct-ex")!!
+    val thirdPartyDlq = environment.getProperty("rabbit.third-party.processing.dlq")!!
+    val thirdPartyDlx = environment.getProperty("rabbit.third-party.processing.dlx")!!
+    val thirdPartyPlq = environment.getProperty("rabbit.third-party.processing.plq")!!
+    val thirdPartyPlx = environment.getProperty("rabbit.third-party.processing.plx")!!
 
     /** Study queues */
-    val studiesQueue = environment.getProperty("rabbit.study.queue")
-    val studiesDirectExchange = environment.getProperty("rabbit.study.direct-ex")
-    val studiesDlq = environment.getProperty("rabbit.study.dlq")
-    val studiesDlx = environment.getProperty("rabbit.study.dlx")
+    val studiesQueue = environment.getProperty("rabbit.study.queue")!!
+    val studiesDirectExchange = environment.getProperty("rabbit.study.direct-ex")!!
+    val studiesDlq = environment.getProperty("rabbit.study.dlq")!!
+    val studiesDlx = environment.getProperty("rabbit.study.dlx")!!
 
     /** Deployment queues */
-    val deploymentsQueue = environment.getProperty("rabbit.deployment.queue")
-    val deploymentsDirectExchange = environment.getProperty("rabbit.deployment.direct-ex")
-    val deploymentsDlq = environment.getProperty("rabbit.deployment.dlq")
-    val deploymentsDlx = environment.getProperty("rabbit.deployment.dlx")
+    val deploymentsQueue = environment.getProperty("rabbit.deployment.queue")!!
+    val deploymentsDirectExchange = environment.getProperty("rabbit.deployment.direct-ex")!!
+    val deploymentsDlq = environment.getProperty("rabbit.deployment.dlq")!!
+    val deploymentsDlx = environment.getProperty("rabbit.deployment.dlx")!!
 
     /**
      * Exchange declarations

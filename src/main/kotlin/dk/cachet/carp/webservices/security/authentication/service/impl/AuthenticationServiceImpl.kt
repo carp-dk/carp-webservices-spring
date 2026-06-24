@@ -20,10 +20,10 @@ import kotlin.reflect.typeOf
 class AuthenticationServiceImpl(
     private val participantRepository: CoreParticipantRepository,
 ) : AuthenticationService {
-    override fun getId(): UUID = UUID(getJwtAuthenticationToken().token.subject)
+    override fun getId(): UUID = UUID(getJwtAuthenticationToken().token.subject!!)
 
     override fun getRole(): Role {
-        val role = getJwtAuthenticationToken().authorities.map { Role.fromString(it.authority) }.maxOfOrNull { it }
+        val role = getJwtAuthenticationToken().authorities.map { Role.fromString(it.authority!!) }.maxOfOrNull { it }
 
         check(role != null && role != Role.UNKNOWN) { "No role found for the current authentication." }
 
@@ -32,7 +32,7 @@ class AuthenticationServiceImpl(
 
     override fun getClaims(): Collection<Claim> =
         getJwtAuthenticationToken().authorities
-            .mapNotNull { Claim.fromGrantedAuthority(it.authority) }
+            .mapNotNull { Claim.fromGrantedAuthority(it.authority!!) }
             .flatMap { claim ->
                 // if the study has `Claim.ManageStudy` or `Claim.LimitedManageStudy`, then
                 // also add `Claim.InDeployment` for all deployments in the study
@@ -63,7 +63,7 @@ class AuthenticationServiceImpl(
 
     override fun getClaims(claims: Collection<KClass<out Claim>>): Collection<Claim> {
         val userClaims = getJwtAuthenticationToken().authorities
-            .mapNotNull { Claim.fromGrantedAuthority(it.authority) }
+            .mapNotNull { Claim.fromGrantedAuthority(it.authority!!) }
         return claims.flatMap { claim ->
             when (claim) {
                 Claim.InDeployment::class -> {

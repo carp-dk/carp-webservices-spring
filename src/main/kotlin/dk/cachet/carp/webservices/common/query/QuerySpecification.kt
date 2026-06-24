@@ -48,7 +48,7 @@ enum class QueryOperation(private val operator: ComparisonOperator) {
  * @param operator ComparisonOperator? The operator used in the query, e.g. ==, >=, <=, !=, etc.
  * @param arguments List? The list or arguments to query against the property.
  */
-class QuerySpecification<T>(
+class QuerySpecification<T : Any>(
     private var property: String?,
     private val operator: ComparisonOperator?,
     private val arguments: List<String>?,
@@ -68,7 +68,7 @@ class QuerySpecification<T>(
     @Suppress("LongMethod", "CyclomaticComplexMethod")
     override fun toPredicate(
         root: Root<T>,
-        @Nullable query: CriteriaQuery<*>?,
+        query: CriteriaQuery<*>,
         builder: CriteriaBuilder,
     ): Predicate? {
         // If this is a nested query, explode the string into its constituent parts and build an Expression.
