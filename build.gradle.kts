@@ -53,8 +53,8 @@ allprojects {
 kotlin {
     jvmToolchain(17)
     compilerOptions {
-        apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
-        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
+        apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2)
+        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2)
     }
 }
 
@@ -76,8 +76,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:${property("kotlinDatetimeVersion")}")
 
     // JACKSON
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:${property("jacksonVersion")}")
-    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${property("jacksonVersion")}")
+    implementation("tools.jackson.module:jackson-module-kotlin")
 
     // CARP CORE
     implementation("dk.cachet.carp.common:carp.common-jvm:${property("carpCoreVersion")}")
@@ -87,7 +86,6 @@ dependencies {
     implementation("dk.cachet.carp.data:carp.data.core-jvm:${property("carpCoreVersion")}")
 
     // SPRING STARTERS
-    implementation("org.springframework.boot:spring-boot-maven-plugin:${property("springBootVersion")}")
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-amqp")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa") {
@@ -177,6 +175,7 @@ detekt {
     allRules = false
     dependencies {
         detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:${property("detektVersion")}")
+        detektPlugins("dk.cachet.detekt.extensions:detekt-verify-implementation:1.2.8")
     }
 }
 
@@ -185,6 +184,14 @@ tasks.withType<Detekt>().configureEach {
     config.from(files("$rootDir/detekt.yml"))
     ignoreFailures = false
     buildUponDefaultConfig = true
+}
+
+configurations.matching { it.name.startsWith("detekt") || it.name.startsWith("ktlint") }.configureEach {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "org.jetbrains.kotlin") {
+            useVersion("2.0.21")
+        }
+    }
 }
 
 configure<KtlintExtension> {

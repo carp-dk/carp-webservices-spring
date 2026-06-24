@@ -3,6 +3,8 @@ complexity:
     ignorePrivate: true
 
 formatting:
+  ArgumentListWrapping:
+    active: false
   Filename:
     active: false
   FunctionStartOfBodySpacing:
