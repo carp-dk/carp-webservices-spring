@@ -8,8 +8,6 @@ import dk.cachet.carp.webservices.security.authorization.Claim
 import dk.cachet.carp.webservices.security.authorization.Role
 import dk.cachet.carp.webservices.security.authorization.service.AuthorizationService
 import org.springframework.stereotype.Service
-import kotlin.contracts.ExperimentalContracts
-import kotlin.contracts.contract
 
 @Service
 class AuthorizationServiceImpl(
@@ -103,15 +101,10 @@ class AuthorizationServiceImpl(
 
     private fun isAdmin() = authenticationService.getRole() == Role.SYSTEM_ADMIN
 
-    @OptIn(ExperimentalContracts::class)
     private inline fun require(
         value: Boolean,
         lazyMessage: () -> Any,
     ) {
-        contract {
-            returns() implies value
-        }
-
         if (!value) {
             val message = lazyMessage()
             throw ForbiddenException(message.toString())

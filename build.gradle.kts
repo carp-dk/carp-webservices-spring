@@ -52,6 +52,10 @@ allprojects {
 
 kotlin {
     jvmToolchain(17)
+    compilerOptions {
+        apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
+        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
+    }
 }
 
 java {
@@ -65,9 +69,7 @@ dependencies {
 //    implementation(platform("org.springframework.cloud:spring-cloud-dependencies:${property("springCloudVersion")}"))
 
     // KOTLIN
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:${property("kotlinVersion")}")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${property("serializationJSONVersion")}")
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${property("kotlinCoroutinesVersion")}")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor:${property("kotlinCoroutinesVersion")}")
