@@ -35,6 +35,6 @@ class ApplicationDataService(
     fun extractApplicationName(applicationData: String?): String? {
         if (applicationData.isNullOrBlank()) return null
         val applicationDataNode = runCatching { objectMapper.readTree(applicationData) }.getOrNull() ?: return null
-        return applicationDataNode.path("applicationName").asText().takeIf { it.isNotBlank() }
+        return applicationDataNode.path("applicationName").asString().takeIf { it.isNotBlank() }
     }
 }

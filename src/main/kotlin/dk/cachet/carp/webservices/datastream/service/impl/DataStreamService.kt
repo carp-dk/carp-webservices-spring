@@ -224,7 +224,7 @@ class DataStreamService(
 
         return try {
             val node = objectMapper.readTree(applicationData)?.path("protocolApiLevel")
-            node?.asText()?.trim()?.takeIf { it.isNotEmpty() }
+            node?.asString()?.trim()?.takeIf { it.isNotEmpty() }
         } catch (e: JacksonException) {
             LOGGER.warn("Failed to parse protocolApiLevel from applicationData for study $studyId.", e)
             null

@@ -86,8 +86,8 @@ class StudyServiceWrapperTest {
                 }
 
                 val invitationData = objectMapper.readTree(invitationSlot.captured.applicationData)
-                assertEquals(studyId.stringRepresentation, invitationData.path("studyId").asText())
-                assertEquals("My App", invitationData.path("applicationName").asText())
+                assertEquals(studyId.stringRepresentation, invitationData.path("studyId").asString())
+                assertEquals("My App", invitationData.path("applicationName").asString())
             }
         }
 
@@ -138,8 +138,8 @@ class StudyServiceWrapperTest {
                 }
 
                 val invitationData = objectMapper.readTree(invitationSlot.captured.applicationData)
-                assertEquals(studyId.stringRepresentation, invitationData.path("studyId").asText())
-                assertEquals("not-set", invitationData.path("applicationName").asText())
+                assertEquals(studyId.stringRepresentation, invitationData.path("studyId").asString())
+                assertEquals("not-set", invitationData.path("applicationName").asString())
             }
         }
 
