@@ -14,14 +14,12 @@ import dk.cachet.carp.webservices.common.serialisers.serdes.UUIDDeserializer
 import dk.cachet.carp.webservices.common.serialisers.serdes.UUIDSerializer
 import dk.cachet.carp.webservices.datastream.serdes.*
 import kotlinx.datetime.Instant
+import org.springframework.boot.jackson.autoconfigure.JsonMapperBuilderCustomizer
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.context.annotation.Primary
 import tools.jackson.core.JsonGenerator
-import tools.jackson.databind.ObjectMapper
 import tools.jackson.databind.SerializationContext
 import tools.jackson.databind.ValueSerializer
-import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.module.SimpleModule
 import tools.jackson.module.kotlin.KotlinModule
 
@@ -72,17 +70,10 @@ class ObjectMapperConfig(validationMessages: MessageBase) : SimpleModule() {
         }
     }
 
-    /**
-     * The function [objectMapper] provides functionality for reading and writing JSON, either to and from
-     * basic POJOs (Plain Old Java Objects), or to and from a general-purpose JSON Tree Model.
-     *
-     * @return The [ObjectMapper] to register the object serialization.
-     */
     @Bean
-    @Primary
-    fun objectMapper(): ObjectMapper =
-        JsonMapper.builder()
-            .addModule(KotlinModule.Builder().build())
-            .addModule(this)
-            .build()
+    fun carpJsonMapperCustomizer(): JsonMapperBuilderCustomizer =
+        JsonMapperBuilderCustomizer { builder ->
+            builder.addModule(KotlinModule.Builder().build())
+            builder.addModule(this)
+        }
 }

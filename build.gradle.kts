@@ -123,8 +123,8 @@ dependencies {
     implementation("commons-io:commons-io:${property("commonsIOVersion")}")
 
     // HIBERNATE
-    implementation("org.hibernate:hibernate-core:${property("hibernateVersion")}")
-    implementation("io.hypersistence:hypersistence-utils-hibernate-63:${property("hibernateTypesVersion")}")
+    
+    implementation("io.hypersistence:hypersistence-utils-hibernate-73:${property("hibernateTypesVersion")}")
 
     // POSTGRESQL
     runtimeOnly("org.postgresql:postgresql")
