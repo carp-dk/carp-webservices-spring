@@ -14,9 +14,7 @@ import dk.cachet.carp.webservices.common.query.QueryUtil
 import dk.cachet.carp.webservices.common.query.QueryVisitor
 import dk.cachet.carp.webservices.security.authentication.service.AuthenticationService
 import dk.cachet.carp.webservices.security.authorization.Claim
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.springframework.stereotype.Service
@@ -32,8 +30,6 @@ class CollectionServiceImpl(
     private val validationMessages: MessageBase,
     private val objectMapper: ObjectMapper,
 ) : CollectionService {
-    private val backgroundWorker = CoroutineScope(Dispatchers.IO)
-
     companion object {
         private val LOGGER: Logger = LogManager.getLogger()
     }
@@ -47,9 +43,7 @@ class CollectionServiceImpl(
         LOGGER.info("Collection deleted, id: $id")
 
         val identity = authenticationService.getCarpIdentity()
-        backgroundWorker.launch {
-            accountService.revoke(identity, setOf(Claim.CollectionOwner(collection.id)))
-        }
+        runBlocking { accountService.revoke(identity, setOf(Claim.CollectionOwner(collection.id))) }
     }
 
     override fun update(
@@ -86,9 +80,7 @@ class CollectionServiceImpl(
         LOGGER.info("Collection saved, id: ${saved.id}")
 
         val identity = authenticationService.getCarpIdentity()
-        backgroundWorker.launch {
-            accountService.grant(identity, setOf(Claim.CollectionOwner(saved.id)))
-        }
+        runBlocking { accountService.grant(identity, setOf(Claim.CollectionOwner(saved.id))) }
 
         return saved
     }
