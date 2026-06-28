@@ -21,22 +21,22 @@ import org.springframework.context.annotation.PropertySource
 import org.springframework.context.annotation.PropertySources
 import org.springframework.http.MediaType
 import org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED_VALUE
-import org.springframework.http.codec.json.Jackson2JsonDecoder
-import org.springframework.http.codec.json.Jackson2JsonEncoder
+import org.springframework.http.codec.json.JacksonJsonDecoder
+import org.springframework.http.codec.json.JacksonJsonEncoder
 import org.springframework.stereotype.Service
 import org.springframework.web.reactive.function.client.*
 import org.springframework.web.util.UriBuilder
-import com.fasterxml.jackson.databind.ObjectMapper as Jackson2ObjectMapper
+import tools.jackson.databind.json.JsonMapper
 
 // https://www.keycloak.org/docs-api/21.1.1/rest-api/
 @Service
 @PropertySources(PropertySource(value = ["classpath:config/application.yml"]))
 @Suppress("TooManyFunctions")
 class KeycloakFacade(
-    @Value("\${keycloak.auth-server-url}") private val authServerUrl: String,
-    @Value("\${keycloak.realm}") private val realm: String,
-    @Value("\${keycloak.admin.client-id}") private val clientId: String,
-    @Value("\${keycloak.admin.client-secret}") private val clientSecret: String,
+    @param:Value("\${keycloak.auth-server-url}") private val authServerUrl: String,
+    @param:Value("\${keycloak.realm}") private val realm: String,
+    @param:Value("\${keycloak.admin.client-id}") private val clientId: String,
+    @param:Value("\${keycloak.admin.client-secret}") private val clientSecret: String,
     private val environmentUtil: EnvironmentUtil,
 ) : IssuerFacade {
     companion object {
@@ -44,29 +44,28 @@ class KeycloakFacade(
         private const val INVITATION_LIFESPAN = 24 * 60 * 60 * 30 // 30 days
     }
 
-    private val jackson2Mapper = Jackson2ObjectMapper()
-
+    private val mapper = JsonMapper()
     private val serializationStrategies: ExchangeStrategies =
         ExchangeStrategies.builder()
             .codecs { configurer ->
                 configurer.defaultCodecs()
-                    .jackson2JsonEncoder(
-                        Jackson2JsonEncoder(jackson2Mapper, MediaType.APPLICATION_JSON),
+                    .jacksonJsonEncoder(
+                        JacksonJsonEncoder(mapper, MediaType.APPLICATION_JSON),
                     )
                 configurer.defaultCodecs()
-                    .jackson2JsonDecoder(
-                        Jackson2JsonDecoder(jackson2Mapper, MediaType.APPLICATION_JSON),
+                    .jacksonJsonDecoder(
+                        JacksonJsonDecoder(mapper, MediaType.APPLICATION_JSON),
                     )
-                configurer.defaultCodecs().jackson2JsonDecoder(
-                    Jackson2JsonDecoder(
-                        jackson2Mapper,
+                configurer.defaultCodecs().jacksonJsonDecoder(
+                    JacksonJsonDecoder(
+                        mapper,
                         MediaType.APPLICATION_NDJSON,
                         MediaType.APPLICATION_JSON,
                     ),
                 )
-                configurer.defaultCodecs().jackson2JsonEncoder(
-                    Jackson2JsonEncoder(
-                        jackson2Mapper,
+                configurer.defaultCodecs().jacksonJsonEncoder(
+                    JacksonJsonEncoder(
+                        mapper,
                         MediaType.APPLICATION_NDJSON,
                         MediaType.APPLICATION_JSON,
                     ),
