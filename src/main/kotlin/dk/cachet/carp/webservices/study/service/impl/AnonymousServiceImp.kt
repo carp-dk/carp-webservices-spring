@@ -36,7 +36,7 @@ class AnonymousServiceImp(
     services: CoreServiceContainer,
     private val deploymentRepository: CoreDeploymentRepository,
     private val recruitmentRepository: RecruitmentRepository,
-    private val participantGroupRepository: CoreParticipationRepository
+    private val participantGroupRepository: CoreParticipationRepository,
 ) : AnonymousService {
     val studyService = services.studyService
 
@@ -105,17 +105,18 @@ class AnonymousServiceImp(
                     studyDeploymentToSave.snapshot = objectMapper.readTree(snapshot)
 
                     // ParticipantGroup
-                    val group = dk.cachet.carp.deployments.domain.users.ParticipantGroup.fromNewDeployment(
-                        uuid,
-                        study.protocolSnapshot!!.toObject()
-                    )
+                    val group =
+                        dk.cachet.carp.deployments.domain.users.ParticipantGroup.fromNewDeployment(
+                            uuid,
+                            study.protocolSnapshot!!.toObject(),
+                        )
 
                     for (invitation in invitations) {
                         val participation =
                             Participation(
                                 uuid,
                                 invitation.assignedRoles,
-                                invitation.participantId
+                                invitation.participantId,
                             )
                         val assignedDevices =
                             study
@@ -136,7 +137,7 @@ class AnonymousServiceImp(
                             account,
                             studyInvitation,
                             participation,
-                            assignedDevices.toSet()
+                            assignedDevices.toSet(),
                         )
                     }
 
@@ -150,7 +151,7 @@ class AnonymousServiceImp(
                         participant,
                         uuid to stagedGroup,
                         studyDeploymentToSave,
-                        participation
+                        participation,
                     )
                 }
             }.awaitAll()

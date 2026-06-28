@@ -2,7 +2,6 @@ package dk.cachet.carp.webservices.account.serdes
 
 import dk.cachet.carp.common.application.users.AccountIdentity
 import dk.cachet.carp.webservices.common.configuration.internationalisation.service.MessageBase
-import dk.cachet.carp.webservices.common.exception.serialization.SerializationException
 import io.mockk.*
 import org.junit.jupiter.api.Nested
 import tools.jackson.databind.json.JsonMapper

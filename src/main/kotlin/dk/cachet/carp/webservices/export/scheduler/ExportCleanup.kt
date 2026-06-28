@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component
 @Component
 class ExportCleanup(
     private val exportService: ExportService,
-    @Value("\${cleanup.exports.retention-days}") private val days: Int,
+    @param:Value("\${cleanup.exports.retention-days}") private val days: Int,
 ) {
     companion object {
         private val LOGGER: Logger = LogManager.getLogger()

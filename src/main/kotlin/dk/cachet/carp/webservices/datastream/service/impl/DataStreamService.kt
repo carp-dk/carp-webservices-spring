@@ -231,7 +231,10 @@ class DataStreamService(
         }
     }
 
-    private fun compareVersions(left: String, right: String): Int? {
+    private fun compareVersions(
+        left: String,
+        right: String,
+    ): Int? {
         val leftParts = parseSemver(left) ?: return null
         val rightParts = parseSemver(right) ?: return null
 

@@ -123,7 +123,7 @@ dependencies {
     implementation("commons-io:commons-io:${property("commonsIOVersion")}")
 
     // HIBERNATE
-    
+
     implementation("io.hypersistence:hypersistence-utils-hibernate-73:${property("hibernateTypesVersion")}")
 
     // POSTGRESQL

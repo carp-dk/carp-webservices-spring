@@ -173,17 +173,18 @@ class AccountServiceImpl(
         val username = UUID.randomUUID()
         val identity = UsernameAccountIdentity(username.toString())
         val account = issuerFacade.createAccount(Account.fromAccountIdentity(identity))
-        val uri = issuerFacade.recoverAccount(
-            account,
-            clientId,
-            redirectUri,
-            expirationSeconds,
-        ).let {
-            if (subdomain != null) {
-                it.replace("://", "://$subdomain.")
+        val uri =
+            issuerFacade.recoverAccount(
+                account,
+                clientId,
+                redirectUri,
+                expirationSeconds,
+            ).let {
+                if (subdomain != null) {
+                    it.replace("://", "://$subdomain.")
+                }
+                it
             }
-            it
-        }
 
         return Pair(
             identity,

@@ -84,8 +84,11 @@ class StatisticsServiceImpl(
                     .mapNotNull { coordinates ->
                         val latitude = coordinates.latitude
                         val longitude = coordinates.longitude
-                        if (latitude == null || longitude == null) null
-                        else LocationCoordinatesDto(latitude, longitude)
+                        if (latitude == null || longitude == null) {
+                            null
+                        } else {
+                            LocationCoordinatesDto(latitude, longitude)
+                        }
                     }
             val distinctCoordinates = mappedCoordinates.distinct()
 

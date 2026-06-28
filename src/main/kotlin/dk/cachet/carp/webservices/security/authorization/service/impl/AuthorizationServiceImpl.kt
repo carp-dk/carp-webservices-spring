@@ -31,7 +31,7 @@ class AuthorizationServiceImpl(
 
         require(
             authenticationService.getClaims(claims.mapTo(HashSet()) { it::class }).containsAll(claims.toList()),
-            lazyMessage
+            lazyMessage,
         )
     }
 

@@ -12,12 +12,11 @@ import java.net.URI
 
 @Configuration
 class S3Config(
-    @Value("\${s3.space.key}") private val key: String,
-    @Value("\${s3.space.secret}") private val secret: String,
-    @Value("\${s3.space.region}") private val region: String,
-    @Value(
-        "\${s3.space.endpoint}",
-    ) private val endpoint: String, // without bucketname in front e.g. https://fra1.digitaloceanspaces.com
+    @param:Value("\${s3.space.key}") private val key: String,
+    @param:Value("\${s3.space.secret}") private val secret: String,
+    @param:Value("\${s3.space.region}") private val region: String,
+    // without bucketname in front e.g. https://fra1.digitaloceanspaces.com
+    @param:Value("\${s3.space.endpoint}") private val endpoint: String,
 ) {
     @Bean
     fun s3Client(): S3Client {

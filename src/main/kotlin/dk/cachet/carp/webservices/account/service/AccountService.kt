@@ -62,6 +62,6 @@ interface AccountService {
         expirationSeconds: Long?,
         clientId: String,
         redirectUri: String?,
-        subdomain: String?
+        subdomain: String?,
     ): Pair<UsernameAccountIdentity, String>
 }

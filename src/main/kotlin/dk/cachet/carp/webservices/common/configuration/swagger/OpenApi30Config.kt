@@ -32,9 +32,9 @@ import kotlin.collections.ArrayList
 // https://stackoverflow.com/a/73622024/13179591
 @Configuration
 class OpenApi30Config(
-    @Value("\${spring.application.name}") private val moduleName: String,
-    @Value("\${spring.application.version}") private val apiVersion: String,
-    @Value("classpath:openapi/description.txt") private val docResource: Resource,
+    @param:Value("\${spring.application.name}") private val moduleName: String,
+    @param:Value("\${spring.application.version}") private val apiVersion: String,
+    @param:Value("classpath:openapi/description.txt") private val docResource: Resource,
     private val objectMapper: ObjectMapper,
     private val environmentUtil: EnvironmentUtil,
 ) {
@@ -69,11 +69,11 @@ class OpenApi30Config(
                                             environmentUtil.keycloakUrl
                                                 .plus("/realms/")
                                                 .plus(environmentUtil.realm)
-                                                .plus("/protocol/openid-connect/token")
-                                        )
-                                )
-                            )
-                    )
+                                                .plus("/protocol/openid-connect/token"),
+                                        ),
+                                ),
+                            ),
+                    ),
                 // Keycloak 17 may fix logout issue with authorizationCode flow till then password flow
 //                    .addSecuritySchemes(
 //                        SCHEME,

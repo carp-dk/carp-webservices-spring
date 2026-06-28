@@ -4,7 +4,6 @@ import cz.jirutka.rsql.parser.ast.ComparisonOperator
 import cz.jirutka.rsql.parser.ast.RSQLOperators
 import jakarta.persistence.criteria.*
 import org.springframework.data.jpa.domain.Specification
-import org.springframework.lang.Nullable
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException

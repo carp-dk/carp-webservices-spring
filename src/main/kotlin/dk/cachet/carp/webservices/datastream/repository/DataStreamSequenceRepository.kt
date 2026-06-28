@@ -82,9 +82,7 @@ interface DataStreamSequenceRepository : JpaRepository<DataStreamSequence, Int> 
                 ORDER BY DATE(created_at AT TIME ZONE 'UTC')
             """,
     )
-    fun getDailyUploadCountsSince(
-        from: Instant,
-    ): List<DateQuantityPairDb>
+    fun getDailyUploadCountsSince(from: Instant): List<DateQuantityPairDb>
 
     @Query(
         nativeQuery = true,

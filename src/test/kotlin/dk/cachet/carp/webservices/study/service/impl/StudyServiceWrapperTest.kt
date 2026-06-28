@@ -69,12 +69,13 @@ class StudyServiceWrapperTest {
                 coEvery { coreStudyService.setInvitation(studyId, capture(invitationSlot)) } returns mockk()
                 coEvery { coreStudyService.goLive(studyId) } returns result
 
-                val sut = StudyServiceWrapper(
-                    accountService,
-                    studyRepository,
-                    applicationDataService,
-                    services,
-                )
+                val sut =
+                    StudyServiceWrapper(
+                        accountService,
+                        studyRepository,
+                        applicationDataService,
+                        services,
+                    )
                 val invokeResult = sut.invoke(request)
 
                 assertEquals(result, invokeResult)
@@ -121,12 +122,13 @@ class StudyServiceWrapperTest {
                 coEvery { coreStudyService.setInvitation(studyId, capture(invitationSlot)) } returns mockk()
                 coEvery { coreStudyService.goLive(studyId) } returns result
 
-                val sut = StudyServiceWrapper(
-                    accountService,
-                    studyRepository,
-                    applicationDataService,
-                    services,
-                )
+                val sut =
+                    StudyServiceWrapper(
+                        accountService,
+                        studyRepository,
+                        applicationDataService,
+                        services,
+                    )
                 val invokeResult = sut.invoke(request)
 
                 assertEquals(result, invokeResult)
@@ -159,12 +161,13 @@ class StudyServiceWrapperTest {
                         mockStudySnapshot,
                     )
                 coEvery { studyRepository.getStudySnapshotById(mockStudyId) } returns mockStudySnapshot
-                val sut = StudyServiceWrapper(
-                    accountService,
-                    studyRepository,
-                    applicationDataService,
-                    services,
-                )
+                val sut =
+                    StudyServiceWrapper(
+                        accountService,
+                        studyRepository,
+                        applicationDataService,
+                        services,
+                    )
 
                 val result = sut.exportDataOrThrow(mockStudyId, mockDeploymentIds, mockTarget)
 
@@ -208,12 +211,13 @@ class StudyServiceWrapperTest {
                         mockStudy11, mockStudy12, mockStudy21,
                     )
 
-                val sut = StudyServiceWrapper(
-                    accountService,
-                    studyRepository,
-                    applicationDataService,
-                    services,
-                )
+                val sut =
+                    StudyServiceWrapper(
+                        accountService,
+                        studyRepository,
+                        applicationDataService,
+                        services,
+                    )
 
                 val result = sut.getStudiesOverview(mockAccountId)
 
@@ -229,12 +233,13 @@ class StudyServiceWrapperTest {
             runTest {
                 val mockAccountId = UUID.randomUUID()
                 coEvery { accountService.findByUUID(mockAccountId) } returns null
-                val sut = StudyServiceWrapper(
-                    accountService,
-                    studyRepository,
-                    applicationDataService,
-                    services,
-                )
+                val sut =
+                    StudyServiceWrapper(
+                        accountService,
+                        studyRepository,
+                        applicationDataService,
+                        services,
+                    )
 
                 assertFailsWith<IllegalArgumentException> {
                     sut.getStudiesOverview(mockAccountId)
@@ -252,12 +257,13 @@ class StudyServiceWrapperTest {
                 coEvery { mockAccount.carpClaims } returns setOf(mockClaim1)
                 coEvery { studyRepository.findAllByStudyIds(any()) } returns emptyList()
 
-                val sut = StudyServiceWrapper(
-                    accountService,
-                    studyRepository,
-                    applicationDataService,
-                    services,
-                )
+                val sut =
+                    StudyServiceWrapper(
+                        accountService,
+                        studyRepository,
+                        applicationDataService,
+                        services,
+                    )
 
                 val result = sut.getStudiesOverview(mockAccountId)
 
@@ -292,12 +298,13 @@ class StudyServiceWrapperTest {
                 coEvery { accountService.findByUUID(mockAccountId) } returns mockAccount
                 coEvery { studyRepository.findAllByStudyIds(listOf(mockStudyId1)) } returns listOf(mockStudy11)
 
-                val sut = StudyServiceWrapper(
-                    accountService,
-                    studyRepository,
-                    applicationDataService,
-                    services,
-                )
+                val sut =
+                    StudyServiceWrapper(
+                        accountService,
+                        studyRepository,
+                        applicationDataService,
+                        services,
+                    )
 
                 val result = sut.getStudiesOverview(mockAccountId)
 
@@ -348,12 +355,13 @@ class StudyServiceWrapperTest {
                         mockStudy11, mockStudy12, mockStudy21,
                     )
 
-                val sut = StudyServiceWrapper(
-                    accountService,
-                    studyRepository,
-                    applicationDataService,
-                    services,
-                )
+                val sut =
+                    StudyServiceWrapper(
+                        accountService,
+                        studyRepository,
+                        applicationDataService,
+                        services,
+                    )
 
                 val result = sut.getStudiesOverview(mockAccountId)
 

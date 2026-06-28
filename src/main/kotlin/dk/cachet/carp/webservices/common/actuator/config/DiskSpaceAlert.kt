@@ -25,8 +25,8 @@ class DiskSpaceAlert(
     private val diskSpace: IDiskSpaceStatus,
     private val notificationService: INotificationService,
     private val emailNotificationService: EmailService,
-    @Value("\${alert.admin-email}") private val alertEmail: String,
-    @Value("\${alert.subject}") private val alertWarning: String,
+    @param:Value("\${alert.admin-email}") private val alertEmail: String,
+    @param:Value("\${alert.subject}") private val alertWarning: String,
 ) {
     companion object {
         private val LOGGER: Logger = LogManager.getLogger()

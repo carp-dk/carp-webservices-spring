@@ -43,16 +43,16 @@ class ExportAnonymousParticipantsTest {
         @Test
         fun `should return false if there is no protocol`() {
             every { services.studyService } returns
-                    mockk {
-                        coEvery { getStudyDetails(any()) } returns
-                                mockk {
-                                    every { protocolSnapshot } returns null
-                                }
-                        coEvery { getStudyStatus(any()) } returns
-                                mockk {
-                                    every { canDeployToParticipants } returns true
-                                }
-                    }
+                mockk {
+                    coEvery { getStudyDetails(any()) } returns
+                        mockk {
+                            every { protocolSnapshot } returns null
+                        }
+                    coEvery { getStudyStatus(any()) } returns
+                        mockk {
+                            every { canDeployToParticipants } returns true
+                        }
+                }
 
             val command =
                 ExportAnonymousParticipants(
@@ -72,19 +72,19 @@ class ExportAnonymousParticipantsTest {
         @Test
         fun `should return false if the participant role is not in the protocol`() {
             every { services.studyService } returns
-                    mockk {
-                        coEvery { getStudyDetails(any()) } returns
+                mockk {
+                    coEvery { getStudyDetails(any()) } returns
+                        mockk {
+                            every { protocolSnapshot } returns
                                 mockk {
-                                    every { protocolSnapshot } returns
-                                            mockk {
-                                                every { participantRoles } returns emptySet()
-                                            }
+                                    every { participantRoles } returns emptySet()
                                 }
-                        coEvery { getStudyStatus(any()) } returns
-                                mockk {
-                                    every { canDeployToParticipants } returns true
-                                }
-                    }
+                        }
+                    coEvery { getStudyStatus(any()) } returns
+                        mockk {
+                            every { canDeployToParticipants } returns true
+                        }
+                }
 
             val command =
                 ExportAnonymousParticipants(
@@ -104,24 +104,24 @@ class ExportAnonymousParticipantsTest {
         @Test
         fun `should return false if the amount of accounts is not in the range`() {
             every { services.studyService } returns
-                    mockk {
-                        coEvery { getStudyDetails(any()) } returns
+                mockk {
+                    coEvery { getStudyDetails(any()) } returns
+                        mockk {
+                            every { protocolSnapshot } returns
                                 mockk {
-                                    every { protocolSnapshot } returns
+                                    every { participantRoles } returns
+                                        setOf(
                                             mockk {
-                                                every { participantRoles } returns
-                                                        setOf(
-                                                            mockk {
-                                                                every { role } returns payload.participantRoleName
-                                                            },
-                                                        )
-                                            }
+                                                every { role } returns payload.participantRoleName
+                                            },
+                                        )
                                 }
-                        coEvery { getStudyStatus(any()) } returns
-                                mockk {
-                                    every { canDeployToParticipants } returns true
-                                }
-                    }
+                        }
+                    coEvery { getStudyStatus(any()) } returns
+                        mockk {
+                            every { canDeployToParticipants } returns true
+                        }
+                }
 
             val command =
                 ExportAnonymousParticipants(
@@ -141,24 +141,24 @@ class ExportAnonymousParticipantsTest {
         @Test
         fun `should return false if the study is not live`() {
             every { services.studyService } returns
-                    mockk {
-                        coEvery { getStudyDetails(any()) } returns
+                mockk {
+                    coEvery { getStudyDetails(any()) } returns
+                        mockk {
+                            every { protocolSnapshot } returns
                                 mockk {
-                                    every { protocolSnapshot } returns
+                                    every { participantRoles } returns
+                                        setOf(
                                             mockk {
-                                                every { participantRoles } returns
-                                                        setOf(
-                                                            mockk {
-                                                                every { role } returns payload.participantRoleName
-                                                            },
-                                                        )
-                                            }
+                                                every { role } returns payload.participantRoleName
+                                            },
+                                        )
                                 }
-                        coEvery { getStudyStatus(any()) } returns
-                                mockk {
-                                    every { canDeployToParticipants } returns false
-                                }
-                    }
+                        }
+                    coEvery { getStudyStatus(any()) } returns
+                        mockk {
+                            every { canDeployToParticipants } returns false
+                        }
+                }
 
             val command =
                 ExportAnonymousParticipants(

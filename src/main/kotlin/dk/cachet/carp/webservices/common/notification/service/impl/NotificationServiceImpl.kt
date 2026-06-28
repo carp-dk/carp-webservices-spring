@@ -23,10 +23,10 @@ import java.io.IOException
 class NotificationServiceImpl(
     private val environment: EnvironmentUtil,
     private val validationMessages: MessageBase,
-    @Value("\${teams.webhook.client}") private val teamsClientChannel: String,
-    @Value("\${teams.webhook.server}") private val teamsServerChannel: String,
-    @Value("\${teams.webhook.heartbeat}") private val teamsHeartbeatChannel: String,
-    @Value("\${teams.webhook.dev}") private val teamsDevChannel: String,
+    @param:Value("\${teams.webhook.client}") private val teamsClientChannel: String,
+    @param:Value("\${teams.webhook.server}") private val teamsServerChannel: String,
+    @param:Value("\${teams.webhook.heartbeat}") private val teamsHeartbeatChannel: String,
+    @param:Value("\${teams.webhook.dev}") private val teamsDevChannel: String,
 ) : INotificationService {
     companion object {
         private val LOGGER: Logger = LogManager.getLogger()

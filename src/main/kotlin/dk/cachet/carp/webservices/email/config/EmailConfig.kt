@@ -14,15 +14,14 @@ import org.springframework.mail.javamail.JavaMailSenderImpl
 @PropertySources(PropertySource(value = ["classpath:config/application.yml"]))
 @Suppress("LongParameterList")
 class EmailConfig(
-    @Value("\${spring.mail.host}") private val host: String,
-    @Value("\${spring.mail.port}") private val port: Int,
-    @Value("\${spring.mail.username:}") private val username: String?,
-    @Value("\${spring.mail.password:}") private val password: String?,
-    @Value("\${spring.mail.properties.mail.smtp.auth:false}") private val smtpAuth: Boolean,
-    @Value("\${spring.mail.properties.mail.smtp.starttls.enable:false}") private val startTls: Boolean,
-    @Value("\${spring.mail.properties.mail.transport.protocol:smtp}") private val protocol: String,
+    @param:Value("\${spring.mail.host}") private val host: String,
+    @param:Value("\${spring.mail.port}") private val port: Int,
+    @param:Value("\${spring.mail.username:}") private val username: String?,
+    @param:Value("\${spring.mail.password:}") private val password: String?,
+    @param:Value("\${spring.mail.properties.mail.smtp.auth:false}") private val smtpAuth: Boolean,
+    @param:Value("\${spring.mail.properties.mail.smtp.starttls.enable:false}") private val startTls: Boolean,
+    @param:Value("\${spring.mail.properties.mail.transport.protocol:smtp}") private val protocol: String,
 ) {
-
     @Bean
     fun mailConfig(): JavaMailSender {
         val mailSender = JavaMailSenderImpl()

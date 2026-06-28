@@ -15,17 +15,17 @@ import javax.sql.DataSource
 @ConfigurationProperties(prefix = "spring.datasource")
 @Suppress("LongParameterList")
 class DataSourceConfiguration(
-    @Value("\${spring.datasource.url}") private val datasourceUrl: String,
-    @Value("\${spring.datasource.driver-class-name}") private val dbDriverClassName: String,
-    @Value("\${spring.datasource.username}") private val dbUsername: String,
-    @Value("\${spring.datasource.password}") private val dbPassword: String,
-    @Value("\${spring.datasource.hikari.pool-name}") private val carpHikariPool: String,
-    @Value("\${spring.datasource.hikari.maximum-pool-size}") private val maxPoolSize: Number,
-    @Value("\${spring.datasource.hikari.max-lifetime}") private val maxLifetime: Number,
-    @Value("\${spring.datasource.hikari.minimum-idle}") private val minimumIdle: Number,
-    @Value("\${spring.datasource.hikari.connection-timeout}") private val connectionTimeout: Number,
-    @Value("\${spring.datasource.hikari.leak-detection-threshold}") private val leakDetectionThreshold: Number,
-    @Value("\${spring.datasource.hikari.idle-timeout}") private val idleTimeout: Number,
+    @param:Value("\${spring.datasource.url}") private val datasourceUrl: String,
+    @param:Value("\${spring.datasource.driver-class-name}") private val dbDriverClassName: String,
+    @param:Value("\${spring.datasource.username}") private val dbUsername: String,
+    @param:Value("\${spring.datasource.password}") private val dbPassword: String,
+    @param:Value("\${spring.datasource.hikari.pool-name}") private val carpHikariPool: String,
+    @param:Value("\${spring.datasource.hikari.maximum-pool-size}") private val maxPoolSize: Number,
+    @param:Value("\${spring.datasource.hikari.max-lifetime}") private val maxLifetime: Number,
+    @param:Value("\${spring.datasource.hikari.minimum-idle}") private val minimumIdle: Number,
+    @param:Value("\${spring.datasource.hikari.connection-timeout}") private val connectionTimeout: Number,
+    @param:Value("\${spring.datasource.hikari.leak-detection-threshold}") private val leakDetectionThreshold: Number,
+    @param:Value("\${spring.datasource.hikari.idle-timeout}") private val idleTimeout: Number,
 ) : HikariConfig() {
     companion object DefaultDataSourceProperties {
         private const val SOCKET_TIMEOUT_MINUTES: Long = 15

@@ -21,14 +21,14 @@ import tools.jackson.databind.module.SimpleModule
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import com.fasterxml.jackson.databind.ObjectMapper as Jackson2ObjectMapper
 
 class StatisticsControllerTest {
     private val statisticsService: StatisticsService = mockk()
-    private val instantModule = SimpleModule().addSerializer(
-        Instant::class.java,
-        ObjectMapperConfig.KInstantSerializer.INSTANCE
-    )
+    private val instantModule =
+        SimpleModule().addSerializer(
+            Instant::class.java,
+            ObjectMapperConfig.KInstantSerializer.INSTANCE,
+        )
     private val objectMapper = JsonMapper.builder().addModule(instantModule).build()
 
     private lateinit var mockMvc: MockMvc
@@ -38,7 +38,7 @@ class StatisticsControllerTest {
         mockMvc =
             MockMvcBuilders
                 .standaloneSetup(StatisticsController(statisticsService))
-                .setMessageConverters(MappingJackson2HttpMessageConverter(Jackson2ObjectMapper()))
+                .setMessageConverters(MappingJackson2HttpMessageConverter())
                 .build()
     }
 

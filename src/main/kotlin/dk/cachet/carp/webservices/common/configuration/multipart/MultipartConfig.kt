@@ -12,8 +12,8 @@ import org.springframework.util.unit.DataSize
  */
 @Configuration
 class MultipartConfig(
-    @Value("\${spring.servlet.multipart.max-file-size}") private val maxFileSize: DataSize,
-    @Value("\${spring.servlet.multipart.max-request-size}") private val maxRequestSize: DataSize,
+    @param:Value("\${spring.servlet.multipart.max-file-size}") private val maxFileSize: DataSize,
+    @param:Value("\${spring.servlet.multipart.max-request-size}") private val maxRequestSize: DataSize,
 ) {
     /**
      * The function [multipartConfigElement] set the max file size of the request body.

@@ -64,7 +64,8 @@ class CoreDeploymentRepository(
             val timestamp = Timestamp.from(java.time.Instant.now())
             val auditor = auditorAware.currentAuditor.orElse("system")
             val sql =
-                "INSERT INTO deployments (created_at, created_by, updated_at, updated_by, snapshot) VALUES (?,?,?,?,?::jsonb)"
+                "INSERT INTO deployments (created_at, created_by, updated_at, updated_by, snapshot) " +
+                    "VALUES (?,?,?,?,?::jsonb)"
             jdbcTemplate.batchUpdate(sql, studyDeployments, studyDeployments.size) { ps, deployment ->
                 ps.setObject(1, timestamp)
                 ps.setObject(2, auditor)

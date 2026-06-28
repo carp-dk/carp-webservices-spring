@@ -81,9 +81,10 @@ class StudyServiceWrapper(
         when (request) {
             is StudyServiceRequest.GoLive -> {
                 val details = core.getStudyDetails(request.studyId)
-                val applicationName = applicationDataService.extractApplicationName(
-                    details.protocolSnapshot?.applicationData
-                )
+                val applicationName =
+                    applicationDataService.extractApplicationName(
+                        details.protocolSnapshot?.applicationData,
+                    )
                 val applicationJson =
                     buildJsonObject {
                         put("studyId", JsonPrimitive(request.studyId.stringRepresentation))

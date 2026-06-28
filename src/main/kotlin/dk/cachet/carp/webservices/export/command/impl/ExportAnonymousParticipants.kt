@@ -153,9 +153,10 @@ class ExportAnonymousParticipants(
                     createAnonymousParticipant(
                         users,
                     ).forEach { participant ->
-                        writer.write(
-                            "${participant.username},${participant.studyDeploymentId},\"${participant.magicLink}\",${participant.expiryDate}",
-                        )
+                        val row =
+                            "${participant.username},${participant.studyDeploymentId}," +
+                                "\"${participant.magicLink}\",${participant.expiryDate}"
+                        writer.write(row)
                         writer.newLine()
                     }
                     users.clear()
@@ -165,9 +166,10 @@ class ExportAnonymousParticipants(
                 createAnonymousParticipant(
                     users,
                 ).forEach { participant ->
-                    writer.write(
-                        "${participant.username},${participant.studyDeploymentId},\"${participant.magicLink}\",${participant.expiryDate}",
-                    )
+                    val row =
+                        "${participant.username},${participant.studyDeploymentId}," +
+                            "\"${participant.magicLink}\",${participant.expiryDate}"
+                    writer.write(row)
                     writer.newLine()
                 }
             }
