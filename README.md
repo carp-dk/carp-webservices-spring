@@ -28,7 +28,7 @@ Essentially, the CARP Webservices uses a modular-monolith architecture, written 
 
 ## Overview
 
-- Target: Java version 17.
+- Target: Java version 21.
 - Spring Boot is the main framework with [Web MVC](https://docs.spring.io/spring-framework/docs/3.2.x/spring-framework-reference/html/mvc.html).
 - Application security is implemented using [Spring Security](https://spring.io/projects/spring-security) OAuth2.
 - Dependency management and application building are handled by [Gradle](https://gradle.org/).
@@ -108,7 +108,7 @@ Follow these steps to deploy CAWS:
 
 ## Local development
   
-- Make sure you have Docker (and Java 17) installed on your system.
+- Make sure you have Docker (and Java 21) installed on your system.
 - Ensure Docker is able to mount the volume specified under carp-ws (/data/carp/storage/local); you may need to configure Docker File Sharing options to enable this
 - Clone the project and run `bash deployment.sh`
 - Create a .local.env file and copy over the contents of the [.env file](stack.env) to it and fill in the missing values.

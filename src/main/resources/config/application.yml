@@ -281,5 +281,5 @@ info:
     description: This is CARP Webservices API.
     version: ${spring.application.version}
     java:
-      version: 17
+      version: 21
     environment: ${spring.profiles.active}
