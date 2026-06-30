@@ -1,8 +1,6 @@
 package dk.cachet.carp.webservices.dataPoint.repository
 
 import dk.cachet.carp.webservices.dataPoint.domain.DataPoint
-import dk.cachet.carp.webservices.file.service.impl.FileStorageImpl
-import org.springframework.context.annotation.Lazy
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
@@ -12,15 +10,13 @@ import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
-import org.springframework.web.multipart.MultipartFile
 import java.util.*
 
 @Deprecated("DataPoint is deprecated. Use DataStream instead.")
 @Repository
 interface DataPointRepository :
     JpaRepository<DataPoint, String>,
-    JpaSpecificationExecutor<DataPoint>,
-    DataPointRepositoryCustom {
+    JpaSpecificationExecutor<DataPoint> {
     companion object {
         /**
          * A nested interface, mainly used as a projection class for the [getStatistics] function.
@@ -90,47 +86,4 @@ interface DataPointRepository :
     fun deleteAllByDeploymentIds(
         @Param(value = "deploymentIds") deploymentIds: Collection<String>,
     )
-
-    override fun save(
-        dataPoint: DataPoint,
-        uploadedFile: MultipartFile?,
-    ): DataPoint
-}
-
-/**
- * The [DataPointRepositoryCustom] interface implements a repository for
- * [DataPoint] to insert data with the given [dataPoint] and [uploadedFile].
- */
-@Deprecated("DataPoint is deprecated. Use DataStream instead.")
-interface DataPointRepositoryCustom {
-    fun save(
-        dataPoint: DataPoint,
-        uploadedFile: MultipartFile?,
-    ): DataPoint
-}
-
-/**
- * The [DataPointRepositoryImpl] implements the [DataPointRepositoryCustom] to insert the new data points.
- */
-@Deprecated("DataPoint is deprecated. Use DataStream instead.")
-@Repository
-class DataPointRepositoryImpl(
-    @Lazy private val dataPointRepository: DataPointRepository,
-    private val fileStorage: FileStorageImpl,
-) : DataPointRepositoryCustom {
-    /**
-     * The function [save] inserts data with the given [dataPoint] and [uploadedFile].
-     * @param dataPoint The [dataPoint] to be inserted.
-     * @param uploadedFile The [uploadedFile] to be uploaded.
-     * @return A [DataPoint] containing the data point inserted.
-     */
-    override fun save(
-        dataPoint: DataPoint,
-        uploadedFile: MultipartFile?,
-    ): DataPoint {
-        if (uploadedFile !== null) {
-            dataPoint.storageName = fileStorage.store(uploadedFile)
-        }
-        return dataPointRepository.save(dataPoint)
-    }
 }

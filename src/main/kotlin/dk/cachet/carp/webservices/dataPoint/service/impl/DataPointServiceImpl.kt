@@ -3,13 +3,10 @@ package dk.cachet.carp.webservices.dataPoint.service.impl
 import cz.jirutka.rsql.parser.RSQLParser
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.webservices.common.configuration.internationalisation.service.MessageBase
-import dk.cachet.carp.webservices.common.exception.responses.BadRequestException
 import dk.cachet.carp.webservices.common.exception.responses.ResourceNotFoundException
 import dk.cachet.carp.webservices.common.query.QueryUtil.validateQuery
 import dk.cachet.carp.webservices.common.query.QueryVisitor
 import dk.cachet.carp.webservices.dataPoint.domain.DataPoint
-import dk.cachet.carp.webservices.dataPoint.dto.CreateDataPointRequestDto
-import dk.cachet.carp.webservices.dataPoint.listener.DataPointBatchProcessorJob
 import dk.cachet.carp.webservices.dataPoint.repository.DataPointRepository
 import dk.cachet.carp.webservices.dataPoint.service.DataPointService
 import dk.cachet.carp.webservices.deployment.dto.DeploymentStatisticsResponseDto
@@ -17,8 +14,6 @@ import dk.cachet.carp.webservices.deployment.dto.StatisticsDto
 import dk.cachet.carp.webservices.export.service.ResourceExporter
 import dk.cachet.carp.webservices.security.authentication.service.AuthenticationService
 import dk.cachet.carp.webservices.security.authorization.Role
-import io.micrometer.core.instrument.Counter
-import io.micrometer.core.instrument.MeterRegistry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.logging.log4j.LogManager
@@ -26,36 +21,19 @@ import org.apache.logging.log4j.Logger
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import org.springframework.web.multipart.MultipartFile
 import java.nio.file.Path
-import java.time.LocalDate
 
 @Deprecated("DataPoint is deprecated. Use DataStream instead.")
 @Service
 @Transactional
 class DataPointServiceImpl(
     private val dataPointRepository: DataPointRepository,
-    private val dataPointBatchProcessorJob: DataPointBatchProcessorJob,
     private val authenticationService: AuthenticationService,
     private val validateMessage: MessageBase,
-    meterRegistry: MeterRegistry,
 ) : DataPointService, ResourceExporter<DataPoint> {
     companion object {
         private val LOGGER: Logger = LogManager.getLogger()
-        private const val CREATED_ENTITY_COUNTER_NAME = "datapoints.created"
-        private const val DATE_TAG = "date"
     }
-
-    /**
-     * TODO: needs to be revisited, not sure if micrometer is even working at all.
-     * Micrometer counter for measuring how many entities are created in a day.
-     */
-    private val createdEntityCounter =
-        Counter
-            .builder(CREATED_ENTITY_COUNTER_NAME)
-            .description("keeps track of datapoints created on a given day")
-            .tags(DATE_TAG, LocalDate.now().toString())
-            .register(meterRegistry)
 
     override suspend fun getAll(
         deploymentId: String,
@@ -194,53 +172,6 @@ class DataPointServiceImpl(
             throw ResourceNotFoundException(validateMessage.get("datapoint.not_found", id))
         }
         return optionalDataPoint.get()
-    }
-
-    override fun create(
-        deploymentId: String,
-        file: MultipartFile?,
-        request: CreateDataPointRequestDto,
-    ): DataPoint {
-        val id = authenticationService.getId()
-        val dataPoint =
-            DataPoint().apply {
-                this.deploymentId = deploymentId
-                carpHeader = request.carpHeader
-                carpBody = request.carpBody
-                storageName = request.storageName
-                createdBy = id.stringRepresentation
-                updatedBy = id.stringRepresentation
-            }
-
-        val saved = dataPointRepository.save(dataPoint, file)
-        LOGGER.info("Datapoint created, id: ${saved.id}")
-        createdEntityCounter.increment()
-        return saved
-    }
-
-    override fun create(dataPoint: DataPoint): DataPoint {
-        val saved = dataPointRepository.save(dataPoint, null)
-        LOGGER.info("Datapoint created, id: ${saved.id}")
-        createdEntityCounter.increment()
-        return saved
-    }
-
-    override fun createMany(
-        file: MultipartFile,
-        deploymentId: String,
-    ) {
-        val id = authenticationService.getId()
-        val dataPoints: Array<DataPoint> =
-            dataPointBatchProcessorJob.parseBatchFile(file)
-                ?: throw BadRequestException(validateMessage.get("datapoint.file.batch.failed"))
-        dataPoints.forEach { d ->
-            run {
-                d.deploymentId = deploymentId
-                d.createdBy = id.stringRepresentation
-                d.updatedBy = id.stringRepresentation
-            }
-        }
-        dataPointBatchProcessorJob.process(dataPoints)
     }
 
     override fun delete(id: Int) {

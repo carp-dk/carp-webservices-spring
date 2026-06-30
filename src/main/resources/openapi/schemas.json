@@ -3070,25 +3070,6 @@
       }
     }
   },
-  "CreateDataPointRequestDto": {
-    "required": [
-      "carp_body",
-      "carp_header"
-    ],
-    "type": "object",
-    "properties": {
-      "carp_header": {
-        "$ref": "#/components/schemas/DataPointHeaderDto"
-      },
-      "carp_body": {
-        "type": "object",
-        "additionalProperties": true
-      },
-      "storage_name": {
-        "type": "string"
-      }
-    }
-  },
   "DataPointHeaderDto": {
     "required": [
       "data_format",
@@ -3532,7 +3513,7 @@
       },
       "triggers": {
         "type": "object",
-          "additionalProperties": true
+        "additionalProperties": true
       },
       "taskControls": {
         "uniqueItems": true,

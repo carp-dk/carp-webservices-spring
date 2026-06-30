@@ -165,15 +165,6 @@ springdoc:
   enable-kotlin: false
 
 rabbit:
-  data-point:
-    processing:
-      queue: data-point-processing-${spring.profiles.active}
-      direct-ex: data-point-direct-${spring.profiles.active}
-      dlq: ${rabbit.data-point.processing.queue}.dlq
-      dlx: ${rabbit.data-point.processing.queue}.dlx
-      plq: ${rabbit.data-point.processing.queue}.plq
-      plx: ${rabbit.data-point.processing.queue}.plx
-
   email:
     sending:
       queue: email-sending-queue-${spring.profiles.active}
@@ -182,15 +173,6 @@ rabbit:
       dlx: ${rabbit.email.sending.queue}.dlx
       plq: ${rabbit.email.sending.queue}.plq
       plx: ${rabbit.email.sending.queue}.plx
-
-  third-party:
-    processing:
-      queue: third-party-queue-${spring.profiles.active}
-      direct-ex: third-party-direct-exchange-${spring.profiles.active}
-      dlq: ${rabbit.third-party.processing.queue}.dlq
-      dlx: ${rabbit.third-party.processing.queue}.dlx
-      plq: ${rabbit.third-party.processing.queue}.plq
-      plx: ${rabbit.third-party.processing.queue}.plx
 
   study:
     queue: study-queue-${spring.profiles.active}
