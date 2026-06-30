@@ -3,11 +3,6 @@ server:
   max-http-request-header-size: 48KB
   tomcat:
     uri-encoding: UTF-8
-  servlet:
-    encoding:
-      charset: UTF-8
-      enabled: true
-      force: true
   forward-headers-strategy: native
 
 spring:
@@ -19,6 +14,10 @@ spring:
       enabled: true
       max-file-size: 30MB
       max-request-size: 30MB
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
   output:
     ansi:
       enabled: always
