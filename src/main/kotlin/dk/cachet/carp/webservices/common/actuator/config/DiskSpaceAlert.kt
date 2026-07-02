@@ -21,6 +21,7 @@ import java.util.*
 @Configuration
 @EnableScheduling
 @ConditionalOnProperty(value = ["disk.space.alert.enabled"], havingValue = "true")
+@ConditionalOnProperty(name = ["spring.task.scheduling.enabled"], havingValue = "true", matchIfMissing = true)
 class DiskSpaceAlert(
     private val diskSpace: IDiskSpaceStatus,
     private val notificationService: INotificationService,

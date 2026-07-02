@@ -161,6 +161,8 @@ dependencies {
     testImplementation("com.c4-soft.springaddons:spring-addons-starter-oidc-test:${property("springAddonsVersion")}")
     testImplementation("com.ninja-squad:springmockk:${property("springMockkVersion")}")
     testImplementation("com.squareup.okhttp3:mockwebserver:${property("okhttpVersion")}")
+    testImplementation("org.testcontainers:testcontainers-junit-jupiter")
+    testImplementation("org.testcontainers:testcontainers-postgresql")
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude("org.junit.vintage", "junit-vintage-engine")

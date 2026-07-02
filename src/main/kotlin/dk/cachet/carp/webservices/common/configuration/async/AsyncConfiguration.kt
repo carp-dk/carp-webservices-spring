@@ -2,6 +2,7 @@ package dk.cachet.carp.webservices.common.configuration.async
 
 import dk.cachet.carp.webservices.common.exception.async.AsyncExceptionHandler
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.scheduling.TaskScheduler
@@ -17,6 +18,7 @@ import java.util.concurrent.ThreadPoolExecutor
 @Configuration
 @EnableAsync
 @EnableScheduling
+@ConditionalOnProperty(name = ["spring.task.scheduling.enabled"], havingValue = "true", matchIfMissing = true)
 class AsyncConfiguration : AsyncConfigurer {
     companion object {
         private const val MAX_POOL_SIZE = 4

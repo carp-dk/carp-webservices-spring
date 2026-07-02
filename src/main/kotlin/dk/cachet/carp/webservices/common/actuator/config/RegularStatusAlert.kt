@@ -5,6 +5,7 @@ import dk.cachet.carp.webservices.common.notification.domain.TeamsChannel
 import dk.cachet.carp.webservices.common.notification.service.INotificationService
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
 import org.springframework.scheduling.annotation.EnableScheduling
@@ -16,6 +17,7 @@ import org.springframework.scheduling.annotation.Scheduled
 @Profile("!local & !staging & !testing & !development")
 @Configuration
 @EnableScheduling
+@ConditionalOnProperty(name = ["spring.task.scheduling.enabled"], havingValue = "true", matchIfMissing = true)
 class RegularStatusAlert(
     private val ping: IPingConnection,
     private val rabbit: IRabbitConnection,

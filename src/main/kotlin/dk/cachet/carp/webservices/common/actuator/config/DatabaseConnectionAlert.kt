@@ -19,6 +19,7 @@ import org.springframework.scheduling.annotation.Scheduled
 @Configuration
 @EnableScheduling
 @ConditionalOnProperty(value = ["database.connection.alert.enabled"], havingValue = "true")
+@ConditionalOnProperty(name = ["spring.task.scheduling.enabled"], havingValue = "true", matchIfMissing = true)
 class DatabaseConnectionAlert(
     private var database: IDatabaseConnection,
     private val notificationService: INotificationService,
