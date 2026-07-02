@@ -48,7 +48,6 @@ data class Document(
     @JoinColumn(name = "documentId")
     var collections: List<Collection>? = null,
     /** The document [data] object request. */
-    @JsonMerge
     @field:JsonMerge
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")

@@ -47,14 +47,14 @@ configurations {
 
 allprojects {
     group = "dk.cachet"
-    version = "2.3.1"
+    version = "2.4.0"
 }
 
 kotlin {
     jvmToolchain(21)
     compilerOptions {
-        apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2)
-        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2)
+        apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_4)
+        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_4)
     }
 }
 

@@ -25,7 +25,7 @@ class RecruitmentRepositoryImplTest {
             query
         }
         every { query.setParameter(any<String>(), any()) } returns query
-        every { query.resultList } returns listOf(arrayOf("""{"id":"p1"}""", true, "deployment-1"))
+        every { query.resultList } returns listOf(arrayOf<Any?>("""{"id":"p1"}""", true, "deployment-1"))
 
         val sut = RecruitmentRepositoryImpl(entityManager)
 
@@ -88,7 +88,7 @@ class RecruitmentRepositoryImplTest {
             query
         }
         every { query.setParameter(any<String>(), any()) } returns query
-        every { query.resultList } returns listOf(arrayOf("""{"id":"p1"}""", false, null))
+        every { query.resultList } returns listOf(arrayOf<Any?>("""{"id":"p1"}""", false, null))
 
         val sut = RecruitmentRepositoryImpl(entityManager)
 
