@@ -34,7 +34,7 @@ class StudyRequestSerializer : ApplicationRequestSerializer<StudyServiceRequest<
             is StudyServiceRequest.GetStudyDetails ->
                 json.encodeToString(serializer<StudyDetails>(), content as StudyDetails)
             is StudyServiceRequest.GetStudiesOverview ->
-                json.encodeToString(serializer<List<StudyDetails>>(), content as List<StudyDetails>)
+                json.encodeToString(serializer<List<StudyStatus>>(), content as List<StudyStatus>)
             is StudyServiceRequest.Remove ->
                 json.encodeToString(serializer<Boolean>(), content as Boolean)
             else -> content

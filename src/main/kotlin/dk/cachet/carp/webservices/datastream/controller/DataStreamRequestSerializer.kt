@@ -1,5 +1,6 @@
 package dk.cachet.carp.webservices.datastream.controller
 
+import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.common.application.services.ApplicationService
 import dk.cachet.carp.common.infrastructure.services.ApplicationServiceRequest
 import dk.cachet.carp.data.application.DataStreamBatch
@@ -12,6 +13,7 @@ import kotlinx.serialization.serializer
  * This is used to deserialize requests to the application service and serialize responses from the application service.
  */
 class DataStreamRequestSerializer : ApplicationRequestSerializer<DataStreamServiceRequest<*>>() {
+    @Suppress("UNCHECKED_CAST")
     override fun <TService : ApplicationService<TService, *>> serializeResponse(
         request: ApplicationServiceRequest<TService, *>,
         content: Any?,
@@ -23,6 +25,8 @@ class DataStreamRequestSerializer : ApplicationRequestSerializer<DataStreamServi
             is DataStreamServiceRequest.AppendToDataStreams,
             is DataStreamServiceRequest.CloseDataStreams,
             -> json.encodeToString(serializer<Unit>(), content as Unit)
+            is DataStreamServiceRequest.RemoveDataStreams ->
+                json.encodeToString(serializer<Set<UUID>>(), content as Set<UUID>)
             else -> content
         }
     }

@@ -102,6 +102,19 @@ class DataStreamRequestSerializerTest {
         }
 
         @Test
+        fun `DataStreamRequestSerializerTest works with DataStreamServiceRequest_RemoveDataStreams`() {
+            runTest {
+                val mockRequest: DataStreamServiceRequest.RemoveDataStreams = mockk()
+                val deploymentId = UUID.randomUUID()
+                val serializer = DataStreamRequestSerializer()
+
+                val result = serializer.serializeResponse(mockRequest, setOf(deploymentId)) as String
+
+                assertEquals("[\"$deploymentId\"]", result)
+            }
+        }
+
+        @Test
         fun `should return content if request is not recognized`() {
             runTest {
                 val mockRequest: StudyServiceRequest.CreateStudy = mockk()
