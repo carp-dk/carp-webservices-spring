@@ -5,6 +5,7 @@ import dk.cachet.carp.common.application.data.DataType
 import dk.cachet.carp.common.infrastructure.test.StubDataPoint
 import dk.cachet.carp.data.application.DataStreamId
 import dk.cachet.carp.data.application.DataStreamsConfiguration
+import dk.cachet.carp.webservices.common.input.WS_JSON
 import dk.cachet.carp.webservices.datastream.domain.DataStreamConfiguration
 import dk.cachet.carp.webservices.datastream.repository.DataStreamConfigurationRepository
 import dk.cachet.carp.webservices.datastream.repository.DataStreamIdRepository
@@ -13,6 +14,7 @@ import dk.cachet.carp.webservices.datastream.service.createStubSequence
 import dk.cachet.carp.webservices.datastream.service.impl.MutableDataStreamBatchDecorator
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
@@ -22,6 +24,7 @@ import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
 import java.util.*
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class CoreDataStreamServiceTest {
@@ -163,6 +166,52 @@ class CoreDataStreamServiceTest {
                 assertThrows<IllegalArgumentException> {
                     sut.getDataStream(dataStreamId, 0, null)
                 }
+            }
+    }
+
+    @Nested
+    inner class GetDataStreamsStatus {
+        @Test
+        fun `loads stream IDs and maximum sequence IDs in batches`() =
+            runTest {
+                val deploymentId = UUID.randomUUID()
+                val expectedStream = DataStreamId(deploymentId, "phone", DataType("dk.cachet", "steps"))
+                val configuration =
+                    DataStreamsConfiguration(
+                        deploymentId,
+                        setOf(DataStreamsConfiguration.ExpectedDataStream("phone", DataType("dk.cachet", "steps"))),
+                    )
+                val storedStream =
+                    dk.cachet.carp.webservices.datastream.domain.DataStreamId(
+                        id = 42,
+                        studyDeploymentId = deploymentId.stringRepresentation,
+                        deviceRoleName = "phone",
+                        name = "steps",
+                        nameSpace = "dk.cachet",
+                    )
+                val maximum = mockk<DataStreamSequenceRepository.MaximumSequenceId>()
+                every { maximum.dataStreamId } returns 42
+                every { maximum.lastSequenceId } returns 99
+                every { configRepository.findById(deploymentId.stringRepresentation) } returns
+                    Optional.of(
+                        DataStreamConfiguration(
+                            deploymentId.stringRepresentation,
+                            ObjectMapper().readTree(
+                                WS_JSON.encodeToString(DataStreamsConfiguration.serializer(), configuration),
+                            ),
+                        ),
+                    )
+                every { dataStreamIdRepository.getAllByDeploymentId(deploymentId.stringRepresentation) } returns
+                    listOf(storedStream)
+                every { dataStreamSequenceRepository.findMaxLastSequenceIdsByDataStreamIds(listOf(42)) } returns
+                    listOf(maximum)
+
+                val result = sut.getDataStreamsStatus(deploymentId)
+
+                assertEquals(expectedStream, result.single().dataStream)
+                assertEquals(99, result.single().lastSequenceId)
+                coVerify(exactly = 1) { dataStreamIdRepository.getAllByDeploymentId(any()) }
+                coVerify(exactly = 1) { dataStreamSequenceRepository.findMaxLastSequenceIdsByDataStreamIds(any()) }
             }
     }
 

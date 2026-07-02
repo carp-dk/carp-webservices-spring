@@ -9,7 +9,7 @@ import dk.cachet.carp.common.application.toEpochMicroseconds
 import dk.cachet.carp.data.application.*
 import dk.cachet.carp.data.infrastructure.dataStreamId
 import dk.cachet.carp.data.infrastructure.measurement
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 val now = Clock.System.now()
 val stubSyncPoint = SyncPoint(now, now.toEpochMicroseconds())

@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service
 @Service
 class ProtocolFactoryServiceAuthorizer :
     ApplicationServiceAuthorizer<ProtocolFactoryService, ProtocolFactoryServiceRequest<*>> {
-    override fun ProtocolFactoryServiceRequest<*>.authorize() {
+    override suspend fun ProtocolFactoryServiceRequest<*>.authorize() {
         when (this) {
             is ProtocolFactoryServiceRequest.CreateCustomProtocol -> Unit
         }

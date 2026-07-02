@@ -12,6 +12,17 @@ interface RecruitmentRepository : JpaRepository<Recruitment, Int>, RecruitmentRe
     @Query(value = "SELECT * FROM recruitments WHERE snapshot->>'studyId' = ?1", nativeQuery = true)
     fun findRecruitmentByStudyId(studyId: String): Recruitment?
 
+    @Query(
+        value =
+            """
+            SELECT *
+            FROM recruitments
+            WHERE (snapshot->'participantGroups') @> jsonb_build_object(CAST(:groupId AS text), '{}'::jsonb)
+            """,
+        nativeQuery = true,
+    )
+    fun findRecruitmentByParticipantGroupId(groupId: String): Recruitment?
+
     @Modifying
     @Transactional
     @Query(

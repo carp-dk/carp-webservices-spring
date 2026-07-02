@@ -9,13 +9,13 @@ import dk.cachet.carp.webservices.common.input.WS_JSON
 import dk.cachet.carp.webservices.protocol.domain.Protocol
 import io.mockk.*
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.ObjectMapper
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.Instant
 
 class CoreProtocolRepositoryTest {
     private val protocolRepository = mockk<ProtocolRepository>()
@@ -255,6 +255,26 @@ class CoreProtocolRepositoryTest {
                 assertEquals(2, result.size)
             }
         }
+
+        @Test
+        fun `should preserve nanoseconds in version history`() =
+            runTest {
+                val createdAt = java.time.Instant.ofEpochSecond(123, 456_789_123)
+                val protocol =
+                    mockk<Protocol> {
+                        every { versionTag } returns "1.0"
+                        every { this@mockk.createdAt } returns createdAt
+                    }
+                every { protocolRepository.findByParams(any(), any()) } returns listOf(protocol)
+                val sut = CoreProtocolRepository(protocolRepository, validationMessages, objectMapper)
+
+                val result = sut.getVersionHistoryFor(UUID.randomUUID())
+
+                assertEquals(
+                    Instant.fromEpochSeconds(createdAt.epochSecond, createdAt.nano.toLong()),
+                    result.single().date,
+                )
+            }
 
         @Test
         fun `should throw if no protocols are found`() {

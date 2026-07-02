@@ -61,6 +61,9 @@ class RecruitmentRequestSerializer : ApplicationRequestSerializer<RecruitmentSer
             is RecruitmentServiceRequest.GetParticipants ->
                 json.encodeToString(serializer<List<Participant>>(), content as List<Participant>)
             is RecruitmentServiceRequest.InviteNewParticipantGroup,
+            is RecruitmentServiceRequest.CreateParticipantGroup,
+            is RecruitmentServiceRequest.UpdateParticipantGroup,
+            is RecruitmentServiceRequest.InviteParticipantGroup,
             is RecruitmentServiceRequest.StopParticipantGroup,
             ->
                 json.encodeToString(serializer<ParticipantGroupStatus>(), content as ParticipantGroupStatus)

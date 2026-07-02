@@ -7,12 +7,12 @@ import dk.cachet.carp.webservices.common.exception.serialization.SerializationEx
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import kotlinx.datetime.Clock
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.core.JsonGenerator
 import tools.jackson.databind.SerializationContext
 import kotlin.test.Test
+import kotlin.time.Clock
 
 class StudyProtocolSnapshotSerializerTest {
     private val validationMessages: MessageBase = mockk<MessageBase>()

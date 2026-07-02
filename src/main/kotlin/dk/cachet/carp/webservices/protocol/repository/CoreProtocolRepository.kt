@@ -10,7 +10,6 @@ import dk.cachet.carp.webservices.common.input.WS_JSON
 import dk.cachet.carp.webservices.protocol.domain.Protocol
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.Instant
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.springframework.stereotype.Service
@@ -129,7 +128,11 @@ class CoreProtocolRepository(
                 validationMessages.get("protocol.version_history.not_found", id.stringRepresentation)
             }
             protocols.map {
-                ProtocolVersion(it.versionTag, Instant.fromEpochMilliseconds(it.createdAt!!.toEpochMilli()))
+                val createdAt = checkNotNull(it.createdAt)
+                ProtocolVersion(
+                    it.versionTag,
+                    kotlin.time.Instant.fromEpochSeconds(createdAt.epochSecond, createdAt.nano.toLong()),
+                )
             }
         }
 

@@ -1,5 +1,6 @@
 package dk.cachet.carp.webservices.study.repository
 
+import dk.cachet.carp.common.application.ApplicationData
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.deployments.application.users.StudyInvitation
 import dk.cachet.carp.studies.domain.StudySnapshot
@@ -16,11 +17,11 @@ import dk.cachet.carp.webservices.study.domain.Study
 import io.mockk.*
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Clock
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Nested
 import tools.jackson.databind.ObjectMapper
 import kotlin.test.*
+import kotlin.time.Clock
 import dk.cachet.carp.studies.domain.Study as CoreStudy
 
 class CoreStudyRepositoryTest {
@@ -54,7 +55,7 @@ class CoreStudyRepositoryTest {
                             StudyInvitation(
                                 "name",
                                 "description",
-                                UUID.randomUUID().stringRepresentation,
+                                ApplicationData(UUID.randomUUID().stringRepresentation),
                             ),
                         protocolSnapshot = null,
                         isLive = false,
@@ -108,7 +109,12 @@ class CoreStudyRepositoryTest {
                         ownerId = mockUUID2,
                         name = "name",
                         description = "description",
-                        invitation = StudyInvitation("name", "description", UUID.randomUUID().stringRepresentation),
+                        invitation =
+                            StudyInvitation(
+                                "name",
+                                "description",
+                                ApplicationData(UUID.randomUUID().stringRepresentation),
+                            ),
                         protocolSnapshot = null,
                         isLive = false,
                     )
@@ -160,7 +166,12 @@ class CoreStudyRepositoryTest {
                         ownerId = mockUUID2,
                         name = "name",
                         description = "description",
-                        invitation = StudyInvitation("name", "description", UUID.randomUUID().stringRepresentation),
+                        invitation =
+                            StudyInvitation(
+                                "name",
+                                "description",
+                                ApplicationData(UUID.randomUUID().stringRepresentation),
+                            ),
                         protocolSnapshot = null,
                         isLive = false,
                     )
@@ -247,7 +258,12 @@ class CoreStudyRepositoryTest {
                         ownerId = mockUUID,
                         name = "name",
                         description = "description",
-                        invitation = StudyInvitation("name", "description", UUID.randomUUID().stringRepresentation),
+                        invitation =
+                            StudyInvitation(
+                                "name",
+                                "description",
+                                ApplicationData(UUID.randomUUID().stringRepresentation),
+                            ),
                         protocolSnapshot = null,
                         isLive = false,
                     )
@@ -261,7 +277,11 @@ class CoreStudyRepositoryTest {
                         name = "name",
                         description = "description",
                         invitation =
-                            StudyInvitation("name", "description", UUID.randomUUID().stringRepresentation),
+                            StudyInvitation(
+                                "name",
+                                "description",
+                                ApplicationData(UUID.randomUUID().stringRepresentation),
+                            ),
                         protocolSnapshot = null,
                         isLive = false,
                     )
@@ -504,7 +524,7 @@ class CoreStudyRepositoryTest {
                             StudyInvitation(
                                 "name",
                                 "description",
-                                UUID.randomUUID().stringRepresentation,
+                                ApplicationData(UUID.randomUUID().stringRepresentation),
                             ),
                         protocolSnapshot = null,
                         isLive = false,
@@ -571,7 +591,7 @@ class CoreStudyRepositoryTest {
                         StudyInvitation(
                             "name",
                             "description",
-                            UUID.randomUUID().stringRepresentation,
+                            ApplicationData(UUID.randomUUID().stringRepresentation),
                         ),
                     protocolSnapshot = null,
                     isLive = false,
@@ -589,7 +609,7 @@ class CoreStudyRepositoryTest {
                         StudyInvitation(
                             "name",
                             "description",
-                            UUID.randomUUID().stringRepresentation,
+                            ApplicationData(UUID.randomUUID().stringRepresentation),
                         ),
                     protocolSnapshot = null,
                     isLive = false,

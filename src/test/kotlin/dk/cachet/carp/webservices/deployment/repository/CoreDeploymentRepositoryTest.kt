@@ -79,7 +79,7 @@ class CoreDeploymentRepositoryTest {
             studyDeployment.put("createdOn", "2024-10-23T08:41:07.850883Z")
             studyDeployment.put("version", 0)
             studyDeployment.put("startedOn", "2024-10-23T08:41:07.850883Z")
-            studyDeployment.put("isStopped", false)
+            studyDeployment.putNull("stoppedOn")
             studyDeployment.putArray("participants")
 
             val studyProtocolSnapshot = om.createObjectNode()

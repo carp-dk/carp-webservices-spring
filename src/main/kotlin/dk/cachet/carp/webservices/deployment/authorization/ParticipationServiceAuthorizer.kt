@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service
 class ParticipationServiceAuthorizer(
     private val auth: AuthorizationService,
 ) : ApplicationServiceAuthorizer<ParticipationService, ParticipationServiceRequest<*>> {
-    override fun ParticipationServiceRequest<*>.authorize() {
+    override suspend fun ParticipationServiceRequest<*>.authorize() {
         when (this) {
             is ParticipationServiceRequest.GetActiveParticipationInvitations ->
                 auth.requireOwner(accountId)

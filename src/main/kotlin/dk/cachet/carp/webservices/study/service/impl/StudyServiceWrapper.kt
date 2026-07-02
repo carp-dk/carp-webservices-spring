@@ -1,5 +1,6 @@
 package dk.cachet.carp.webservices.study.service.impl
 
+import dk.cachet.carp.common.application.ApplicationData
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.deployments.application.users.StudyInvitation
 import dk.cachet.carp.studies.domain.StudySnapshot
@@ -57,7 +58,11 @@ class StudyServiceWrapper(
                     StudyOverview(
                         studyId = status.studyId,
                         name = status.name,
-                        createdOn = status.createdOn,
+                        createdOn =
+                            kotlinx.datetime.Instant.fromEpochSeconds(
+                                status.createdOn.epochSeconds,
+                                status.createdOn.nanosecondsOfSecond.toLong(),
+                            ),
                         studyProtocolId = status.studyProtocolId,
                         canSetInvitation = status.canSetInvitation,
                         canSetStudyProtocol = status.canSetStudyProtocol,
@@ -93,7 +98,11 @@ class StudyServiceWrapper(
 
                 core.setInvitation(
                     request.studyId,
-                    StudyInvitation(details.invitation.name, details.invitation.description, applicationJson),
+                    StudyInvitation(
+                        details.invitation.name,
+                        details.invitation.description,
+                        ApplicationData(applicationJson),
+                    ),
                 )
                 core.invoke(request)
             }

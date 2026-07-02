@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service
 class DataStreamServiceAuthorizer(
     private val auth: AuthorizationService,
 ) : ApplicationServiceAuthorizer<DataStreamService, DataStreamServiceRequest<*>> {
-    override fun DataStreamServiceRequest<*>.authorize() =
+    override suspend fun DataStreamServiceRequest<*>.authorize() =
         when (this) {
             is DataStreamServiceRequest.OpenDataStreams ->
                 auth.require(Claim.InDeployment(configuration.studyDeploymentId))
@@ -19,6 +19,8 @@ class DataStreamServiceAuthorizer(
                 auth.require(Claim.InDeployment(studyDeploymentId))
             is DataStreamServiceRequest.GetDataStream ->
                 auth.require(Claim.InDeployment(dataStream.studyDeploymentId))
+            is DataStreamServiceRequest.GetDataStreamsStatus ->
+                auth.require(Claim.InDeployment(studyDeploymentId))
             is DataStreamServiceRequest.CloseDataStreams ->
                 auth.require(studyDeploymentIds.map { Claim.InDeployment(it) }.toSet())
             is DataStreamServiceRequest.RemoveDataStreams ->
@@ -30,6 +32,7 @@ class DataStreamServiceAuthorizer(
             is DataStreamServiceRequest.OpenDataStreams,
             is DataStreamServiceRequest.AppendToDataStreams,
             is DataStreamServiceRequest.GetDataStream,
+            is DataStreamServiceRequest.GetDataStreamsStatus,
             is DataStreamServiceRequest.CloseDataStreams,
             is DataStreamServiceRequest.RemoveDataStreams,
             -> Unit

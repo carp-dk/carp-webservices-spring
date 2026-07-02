@@ -4,6 +4,7 @@ import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.common.application.services.ApplicationService
 import dk.cachet.carp.common.infrastructure.services.ApplicationServiceRequest
 import dk.cachet.carp.data.application.DataStreamBatch
+import dk.cachet.carp.data.application.DataStreamStatus
 import dk.cachet.carp.data.infrastructure.DataStreamServiceRequest
 import dk.cachet.carp.webservices.common.serialisers.ApplicationRequestSerializer
 import kotlinx.serialization.serializer
@@ -21,6 +22,8 @@ class DataStreamRequestSerializer : ApplicationRequestSerializer<DataStreamServi
         return when (request) {
             is DataStreamServiceRequest.GetDataStream ->
                 json.encodeToString(DataStreamBatch.serializer(), content as DataStreamBatch)
+            is DataStreamServiceRequest.GetDataStreamsStatus ->
+                json.encodeToString(serializer<List<DataStreamStatus>>(), content as List<DataStreamStatus>)
             is DataStreamServiceRequest.OpenDataStreams,
             is DataStreamServiceRequest.AppendToDataStreams,
             is DataStreamServiceRequest.CloseDataStreams,

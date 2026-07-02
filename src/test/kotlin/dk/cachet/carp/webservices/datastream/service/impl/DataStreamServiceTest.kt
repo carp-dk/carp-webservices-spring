@@ -1,5 +1,6 @@
 package dk.cachet.carp.webservices.datastream.service.impl
 
+import dk.cachet.carp.common.application.ApplicationData
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.data.infrastructure.DataStreamServiceDecorator
 import dk.cachet.carp.deployments.application.users.Participation
@@ -213,7 +214,7 @@ class DataStreamServiceTest {
             val mockedProtocolSnapshot =
                 level?.let {
                     mockk<StudyProtocolSnapshot> {
-                        every { applicationData } returns """{"protocolApiLevel":"$it"}"""
+                        every { applicationData } returns ApplicationData("""{"protocolApiLevel":"$it"}""")
                     }
                 }
             val studyDetails =

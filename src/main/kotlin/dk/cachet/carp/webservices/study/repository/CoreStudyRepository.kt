@@ -1,5 +1,6 @@
 package dk.cachet.carp.webservices.study.repository
 
+import dk.cachet.carp.common.application.ApplicationData
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.deployments.application.users.StudyInvitation
 import dk.cachet.carp.studies.domain.StudyRepository
@@ -63,7 +64,7 @@ class CoreStudyRepository(
                 StudyInvitation(
                     study.invitation.name,
                     study.invitation.description,
-                    applicationJson,
+                    ApplicationData(applicationJson),
                 )
 
             val snapshot = WS_JSON.encodeToString(StudySnapshot.serializer(), study.getSnapshot())

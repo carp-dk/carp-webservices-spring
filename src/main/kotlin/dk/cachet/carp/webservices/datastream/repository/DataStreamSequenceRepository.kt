@@ -14,6 +14,23 @@ import java.time.Instant
 
 @Repository
 interface DataStreamSequenceRepository : JpaRepository<DataStreamSequence, Int> {
+    interface MaximumSequenceId {
+        val dataStreamId: Int
+        val lastSequenceId: Long?
+    }
+
+    @Query(
+        """
+        SELECT dss.dataStreamId AS dataStreamId, MAX(dss.lastSequenceId) AS lastSequenceId
+        FROM data_stream_sequence dss
+        WHERE dss.dataStreamId IN :dataStreamIds
+        GROUP BY dss.dataStreamId
+        """,
+    )
+    fun findMaxLastSequenceIdsByDataStreamIds(
+        @Param("dataStreamIds") dataStreamIds: Collection<Int>,
+    ): List<MaximumSequenceId>
+
     @Query(
         nativeQuery = true,
         value =

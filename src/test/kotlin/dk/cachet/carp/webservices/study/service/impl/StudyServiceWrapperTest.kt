@@ -1,5 +1,6 @@
 package dk.cachet.carp.webservices.study.service.impl
 
+import dk.cachet.carp.common.application.ApplicationData
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.deployments.application.users.StudyInvitation
 import dk.cachet.carp.protocols.application.StudyProtocolSnapshot
@@ -17,12 +18,12 @@ import dk.cachet.carp.webservices.security.authorization.Claim
 import dk.cachet.carp.webservices.study.repository.CoreStudyRepository
 import io.mockk.*
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Nested
 import tools.jackson.databind.ObjectMapper
 import java.nio.file.Path
 import kotlin.test.*
+import kotlin.time.Instant
 
 class StudyServiceWrapperTest {
     private val accountService: AccountService = mockk()
@@ -51,7 +52,7 @@ class StudyServiceWrapperTest {
                         name = "Study",
                         createdOn = Instant.fromEpochMilliseconds(0),
                         description = "desc",
-                        invitation = StudyInvitation("invite", "desc", """{"legacy":"value"}"""),
+                        invitation = StudyInvitation("invite", "desc", ApplicationData("""{"legacy":"value"}""")),
                         protocolSnapshot =
                             StudyProtocolSnapshot(
                                 id = UUID.randomUUID(),
@@ -59,7 +60,7 @@ class StudyServiceWrapperTest {
                                 version = 1,
                                 ownerId = UUID.randomUUID(),
                                 name = "protocol",
-                                applicationData = """{"applicationName":"My App"}""",
+                                applicationData = ApplicationData("""{"applicationName":"My App"}"""),
                             ),
                     )
                 val result = mockk<StudyStatus>()
@@ -86,7 +87,7 @@ class StudyServiceWrapperTest {
                     coreStudyService.goLive(studyId)
                 }
 
-                val invitationData = objectMapper.readTree(invitationSlot.captured.applicationData)
+                val invitationData = objectMapper.readTree(invitationSlot.captured.applicationData?.data)
                 assertEquals(studyId.stringRepresentation, invitationData.path("studyId").asString())
                 assertEquals("My App", invitationData.path("applicationName").asString())
             }
@@ -104,7 +105,7 @@ class StudyServiceWrapperTest {
                         name = "Study",
                         createdOn = Instant.fromEpochMilliseconds(0),
                         description = "desc",
-                        invitation = StudyInvitation("invite", "desc", """{"legacy":"value"}"""),
+                        invitation = StudyInvitation("invite", "desc", ApplicationData("""{"legacy":"value"}""")),
                         protocolSnapshot =
                             StudyProtocolSnapshot(
                                 id = UUID.randomUUID(),
@@ -112,7 +113,7 @@ class StudyServiceWrapperTest {
                                 version = 1,
                                 ownerId = UUID.randomUUID(),
                                 name = "protocol",
-                                applicationData = """{}""",
+                                applicationData = ApplicationData("""{}"""),
                             ),
                     )
                 val result = mockk<StudyStatus>()
@@ -139,7 +140,7 @@ class StudyServiceWrapperTest {
                     coreStudyService.goLive(studyId)
                 }
 
-                val invitationData = objectMapper.readTree(invitationSlot.captured.applicationData)
+                val invitationData = objectMapper.readTree(invitationSlot.captured.applicationData?.data)
                 assertEquals(studyId.stringRepresentation, invitationData.path("studyId").asString())
                 assertEquals("not-set", invitationData.path("applicationName").asString())
             }
@@ -311,7 +312,7 @@ class StudyServiceWrapperTest {
                 assertEquals(1, result.size)
                 assertEquals(mockStudyId1, result[0].studyId)
                 assertEquals("Study 1", result[0].name)
-                assertEquals(Instant.fromEpochSeconds(0), result[0].createdOn)
+                assertEquals(Instant.fromEpochSeconds(0).toString(), result[0].createdOn.toString())
                 assertEquals(mockStudyStatus11.studyProtocolId, result[0].studyProtocolId)
                 assertTrue(result[0].canSetInvitation)
                 assertTrue(result[0].canSetStudyProtocol)

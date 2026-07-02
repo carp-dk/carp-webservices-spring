@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service
 class StudyServiceAuthorizer(
     private val auth: AuthorizationService,
 ) : ApplicationServiceAuthorizer<StudyService, StudyServiceRequest<*>> {
-    override fun StudyServiceRequest<*>.authorize() =
+    override suspend fun StudyServiceRequest<*>.authorize() =
         when (this) {
             is StudyServiceRequest.CreateStudy -> {
                 auth.require(Role.RESEARCHER)

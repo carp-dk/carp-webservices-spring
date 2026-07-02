@@ -1,5 +1,6 @@
 package dk.cachet.carp.webservices.common.input
 
+import dk.cachet.carp.common.application.ApplicationData
 import org.springframework.stereotype.Service
 import tools.jackson.databind.ObjectMapper
 import tools.jackson.databind.node.ObjectNode
@@ -9,9 +10,9 @@ class ApplicationDataService(
     private val objectMapper: ObjectMapper,
 ) {
     fun mergeApplicationData(
-        existingData: String?,
+        existingData: ApplicationData?,
         fieldsToMerge: Map<String, String>,
-    ): String {
+    ): ApplicationData {
         fun createMergedNode() =
             objectMapper
                 .createObjectNode()
@@ -19,18 +20,23 @@ class ApplicationDataService(
                     fieldsToMerge.forEach { (key, value) -> put(key, value) }
                 }
 
-        if (existingData.isNullOrBlank()) return createMergedNode().toString()
+        if (existingData?.data.isNullOrBlank()) return ApplicationData(createMergedNode().toString())
 
-        val existingNode = runCatching { objectMapper.readTree(existingData) }.getOrNull()
+        val existingNode = runCatching { objectMapper.readTree(existingData.data) }.getOrNull()
         if (existingNode is ObjectNode) {
             fieldsToMerge.forEach { (key, value) -> existingNode.put(key, value) }
-            return existingNode.toString()
+            return ApplicationData(existingNode.toString())
         }
 
-        return createMergedNode()
-            .put("legacyApplicationData", existingData)
-            .toString()
+        return ApplicationData(
+            createMergedNode()
+                .put("legacyApplicationData", existingData.data)
+                .toString(),
+        )
     }
+
+    fun extractApplicationName(applicationData: ApplicationData?): String? =
+        extractApplicationName(applicationData?.data)
 
     fun extractApplicationName(applicationData: String?): String? {
         if (applicationData.isNullOrBlank()) return null

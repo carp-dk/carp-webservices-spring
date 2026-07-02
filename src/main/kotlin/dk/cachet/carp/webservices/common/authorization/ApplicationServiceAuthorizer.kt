@@ -10,11 +10,11 @@ interface ApplicationServiceAuthorizer<
     TService : ApplicationService<TService, *>,
     TRequest : ApplicationServiceRequest<TService, *>,
     > {
-    fun TRequest.authorize()
+    suspend fun TRequest.authorize()
 
     suspend fun TRequest.changeClaimsOnSuccess(result: Any?)
 
-    fun authorizeRequest(request: TRequest) = request.authorize()
+    suspend fun authorizeRequest(request: TRequest) = request.authorize()
 
     suspend fun grantClaimsOnSuccessfulRequest(
         request: TRequest,

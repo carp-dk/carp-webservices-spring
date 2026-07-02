@@ -15,7 +15,7 @@ class DeploymentServiceAuthorizer(
     private val authorizationService: AuthorizationService,
     private val authenticationService: AuthenticationService,
 ) : ApplicationServiceAuthorizer<DeploymentService, DeploymentServiceRequest<*>> {
-    override fun DeploymentServiceRequest<*>.authorize() =
+    override suspend fun DeploymentServiceRequest<*>.authorize() =
         when (this) {
             // Participants should be able to deploy themselves if needed,
             // we shouldn't restrict study deployment creation to researchers/researcher assistants only

@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service
 class ProtocolServiceAuthorizer(
     private val auth: AuthorizationService,
 ) : ApplicationServiceAuthorizer<ProtocolService, ProtocolServiceRequest<*>> {
-    override fun ProtocolServiceRequest<*>.authorize() =
+    override suspend fun ProtocolServiceRequest<*>.authorize() =
         when (this) {
             is ProtocolServiceRequest.Add -> {
                 auth.require(Role.RESEARCHER)

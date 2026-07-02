@@ -51,6 +51,12 @@ class CoreParticipantRepository(
             mapWSRecruitmentToCore(existingRecruitment)
         }
 
+    override suspend fun getRecruitmentWithParticipantGroup(groupId: UUID): CoreRecruitment? =
+        withContext(Dispatchers.IO) {
+            recruitmentRepository.findRecruitmentByParticipantGroupId(groupId.stringRepresentation)
+                ?.let(::mapWSRecruitmentToCore)
+        }
+
     override suspend fun removeStudy(studyId: UUID): Boolean =
         withContext(Dispatchers.IO) {
             getRecruitment(studyId) ?: return@withContext false

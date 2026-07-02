@@ -5,9 +5,9 @@ import dk.cachet.carp.studies.application.StudyStatus
 import dk.cachet.carp.studies.infrastructure.StudyServiceRequest
 import dk.cachet.carp.webservices.common.serialisers.ApplicationRequestSerializer
 import io.mockk.mockk
-import kotlinx.datetime.Instant
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.time.Instant
 
 class StudyRequestSerializerTest {
     @Test

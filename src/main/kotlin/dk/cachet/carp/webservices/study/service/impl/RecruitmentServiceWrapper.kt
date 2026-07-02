@@ -151,7 +151,13 @@ class RecruitmentServiceWrapper(
                     .takeIf { it.isNotEmpty() }
                     ?.let { deploymentIds ->
                         deploymentCore.getStudyDeploymentStatusList(deploymentIds)
-                            .associate { status -> status.studyDeploymentId.stringRepresentation to status.createdOn }
+                            .associate { status ->
+                                status.studyDeploymentId.stringRepresentation to
+                                    Instant.fromEpochSeconds(
+                                        status.createdOn.epochSeconds,
+                                        status.createdOn.nanosecondsOfSecond.toLong(),
+                                    )
+                            }
                     } ?: emptyMap()
 
             val content =

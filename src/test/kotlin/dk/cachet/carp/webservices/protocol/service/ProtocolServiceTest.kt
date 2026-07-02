@@ -2,6 +2,7 @@
 
 package dk.cachet.carp.webservices.protocol.service
 
+import dk.cachet.carp.common.application.ApplicationData
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.protocols.application.StudyProtocolSnapshot
 import dk.cachet.carp.protocols.infrastructure.ProtocolServiceDecorator
@@ -13,13 +14,13 @@ import dk.cachet.carp.webservices.protocol.repository.ProtocolRepository
 import dk.cachet.carp.webservices.protocol.service.impl.ProtocolServiceWrapper
 import io.mockk.*
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import tools.jackson.databind.ObjectMapper
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.time.Instant
 import dk.cachet.carp.protocols.application.ProtocolService as CoreProtocolService
 
 class ProtocolServiceTest {
@@ -62,7 +63,7 @@ class ProtocolServiceTest {
                         version = 1,
                         ownerId = UUID.randomUUID(),
                         name = "Protocol",
-                        applicationData = """{"applicationName":"My App"}""",
+                        applicationData = ApplicationData("""{"applicationName":"My App"}"""),
                     )
                 val request = ProtocolServiceRequest.Add(protocol, "v1.2.3")
                 val updatedProtocolSlot = slot<StudyProtocolSnapshot>()
@@ -73,7 +74,7 @@ class ProtocolServiceTest {
                 val sut = ProtocolServiceWrapper(accountService, protocolRepository, applicationDataService, services)
 
                 assertEquals(result, sut.invoke(request))
-                val applicationDataNode = objectMapper.readTree(updatedProtocolSlot.captured.applicationData)
+                val applicationDataNode = objectMapper.readTree(updatedProtocolSlot.captured.applicationData?.data)
                 assertEquals("My App", applicationDataNode.path("applicationName").asString())
                 assertEquals("v1.2.3", applicationDataNode.path("protocolVersionTag").asString())
             }
@@ -88,7 +89,7 @@ class ProtocolServiceTest {
                         version = 1,
                         ownerId = UUID.randomUUID(),
                         name = "Protocol",
-                        applicationData = "legacy-string",
+                        applicationData = ApplicationData("legacy-string"),
                     )
                 val request = ProtocolServiceRequest.AddVersion(protocol, "v9")
                 val updatedProtocolSlot = slot<StudyProtocolSnapshot>()
@@ -99,7 +100,7 @@ class ProtocolServiceTest {
                 val sut = ProtocolServiceWrapper(accountService, protocolRepository, applicationDataService, services)
 
                 assertEquals(result, sut.invoke(request))
-                val applicationDataNode = objectMapper.readTree(updatedProtocolSlot.captured.applicationData)
+                val applicationDataNode = objectMapper.readTree(updatedProtocolSlot.captured.applicationData?.data)
                 assertEquals("v9", applicationDataNode.path("protocolVersionTag").asString())
                 assertEquals("legacy-string", applicationDataNode.path("legacyApplicationData").asString())
             }

@@ -7,10 +7,10 @@ import dk.cachet.carp.webservices.common.input.WS_JSON
 import dk.cachet.carp.webservices.study.domain.Recruitment
 import io.mockk.*
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Clock
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.*
+import kotlin.time.Clock
 import dk.cachet.carp.studies.domain.users.Recruitment as CoreRecruitment
 
 class CoreParticipantRepositoryTest {

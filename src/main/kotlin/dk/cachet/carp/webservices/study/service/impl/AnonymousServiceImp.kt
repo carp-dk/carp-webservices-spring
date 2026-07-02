@@ -11,6 +11,7 @@ import dk.cachet.carp.deployments.domain.StudyDeploymentSnapshot
 import dk.cachet.carp.deployments.domain.users.ParticipantGroupSnapshot
 import dk.cachet.carp.deployments.domain.users.getAssignedDeviceRoleNames
 import dk.cachet.carp.studies.application.StudyDetails
+import dk.cachet.carp.studies.application.users.AssignedParticipantRoles
 import dk.cachet.carp.studies.application.users.Participant
 import dk.cachet.carp.studies.domain.users.StagedParticipantGroup
 import dk.cachet.carp.webservices.common.input.WS_JSON
@@ -23,11 +24,11 @@ import dk.cachet.carp.webservices.security.config.SecurityCoroutineContext
 import dk.cachet.carp.webservices.study.repository.RecruitmentRepository
 import dk.cachet.carp.webservices.study.service.AnonymousService
 import kotlinx.coroutines.*
-import kotlinx.datetime.Clock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.springframework.stereotype.Service
 import tools.jackson.databind.ObjectMapper
+import kotlin.time.Clock
 import dk.cachet.carp.deployments.domain.StudyDeployment as CoreStudyDeployment
 
 @Service
@@ -72,7 +73,7 @@ class AnonymousServiceImp(
                     // Deployment
                     val stagedGroup =
                         StagedParticipantGroup(uuid).apply {
-                            addParticipants(setOf(uuid))
+                            addParticipants(setOf(AssignedParticipantRoles(uuid, AssignedTo.Roles(setOf(roleName)))))
                             markAsDeployed()
                         }
 

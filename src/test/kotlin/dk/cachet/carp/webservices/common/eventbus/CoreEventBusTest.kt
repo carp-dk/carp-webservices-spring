@@ -1,5 +1,6 @@
 package dk.cachet.carp.webservices.common.eventbus
 
+import dk.cachet.carp.common.application.ApplicationData
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.deployments.application.DeploymentService
 import dk.cachet.carp.deployments.application.users.StudyInvitation
@@ -10,13 +11,13 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.springframework.core.env.Environment
 import kotlin.test.Test
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 class CoreEventBusTest {
     private val rabbitTemplate: RabbitTemplate = mockk()
@@ -47,7 +48,7 @@ class CoreEventBusTest {
                                     StudyInvitation(
                                         name = "dsa",
                                         description = "dsa",
-                                        applicationData = "",
+                                        applicationData = ApplicationData(""),
                                     ),
                                 protocolSnapshot = null,
                             ),

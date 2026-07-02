@@ -12,15 +12,16 @@ class RecruitmentRepositoryImpl(
         private const val DEPLOYED_PARTICIPANTS_CTE =
             """
             WITH deployed_participants AS (
-                SELECT DISTINCT ON (participant_id)
-                    participant_id,
+                SELECT DISTINCT ON (role_assignment->>'participantId')
+                    role_assignment->>'participantId' AS participant_id,
                     group_id AS deployment_id
                 FROM public.recruitments,
                      jsonb_each(snapshot->'participantGroups') groups(group_id, group_value),
-                     jsonb_array_elements_text(group_value->'_participantIds') participant_ids(participant_id)
+                     jsonb_array_elements(group_value->'_roleAssignments') role_assignments(role_assignment)
                 WHERE snapshot->>'studyId' = :studyId
                 AND group_value->>'isDeployed' = 'true'
-                ORDER BY participant_id, group_id
+                AND (role_assignment->>'participantId') IS NOT NULL
+                ORDER BY role_assignment->>'participantId', group_id
             )
             """
     }

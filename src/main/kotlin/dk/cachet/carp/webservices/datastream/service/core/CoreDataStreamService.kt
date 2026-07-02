@@ -1,6 +1,7 @@
 package dk.cachet.carp.webservices.datastream.service.core
 
 import dk.cachet.carp.common.application.UUID
+import dk.cachet.carp.common.application.data.DataType
 import dk.cachet.carp.common.application.intersect
 import dk.cachet.carp.data.application.*
 import dk.cachet.carp.webservices.common.input.WS_JSON
@@ -161,6 +162,45 @@ class CoreDataStreamService(
             // Build and return the DataStreamBatch
             buildDataStreamBatch(dataStream, dataStreamSequences, sequenceRange)
         }
+
+    override suspend fun getDataStreamsStatus(studyDeploymentId: UUID): List<DataStreamStatus> =
+        withContext(Dispatchers.IO) {
+            val configuration =
+                configRepository.findById(studyDeploymentId.stringRepresentation).orElseThrow {
+                    IllegalArgumentException("No data streams were opened for study deployment $studyDeploymentId.")
+                }
+            val coreConfiguration = mapToCoreConfig(checkNotNull(configuration.config))
+            val storedIds =
+                dataStreamIdRepository.getAllByDeploymentId(studyDeploymentId.stringRepresentation)
+                    .associateBy { it.toCoreDataStreamId() }
+            val maximumSequenceIds =
+                if (storedIds.isEmpty()) {
+                    emptyMap()
+                } else {
+                    dataStreamSequenceRepository
+                        .findMaxLastSequenceIdsByDataStreamIds(storedIds.values.map { it.id })
+                        .associate { it.dataStreamId to it.lastSequenceId }
+                }
+
+            coreConfiguration.expectedDataStreamIds.map { dataStream ->
+                val storedId =
+                    checkNotNull(storedIds[dataStream]) {
+                        "Configured data stream $dataStream is missing from storage."
+                    }
+                DataStreamStatus(
+                    dataStream = dataStream,
+                    lastSequenceId = maximumSequenceIds[storedId.id],
+                    isOpen = !configuration.closed,
+                )
+            }
+        }
+
+    private fun dk.cachet.carp.webservices.datastream.domain.DataStreamId.toCoreDataStreamId() =
+        DataStreamId(
+            studyDeploymentId = UUID(checkNotNull(studyDeploymentId)),
+            deviceRoleName = checkNotNull(deviceRoleName),
+            dataType = DataType(checkNotNull(nameSpace), checkNotNull(name)),
+        )
 
     // Validation helper methods
     private fun validateSequenceRange(

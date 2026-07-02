@@ -219,7 +219,7 @@ class DataStreamService(
 
     private suspend fun getProtocolApiLevel(studyId: UUID): String? {
         val protocolSnapshot = studyService.getStudyDetails(studyId).protocolSnapshot
-        val applicationData = protocolSnapshot?.applicationData?.trim().orEmpty()
+        val applicationData = protocolSnapshot?.applicationData?.data?.trim().orEmpty()
         if (applicationData.isEmpty()) return null
 
         return try {
