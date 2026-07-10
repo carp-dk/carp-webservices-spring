@@ -58,6 +58,18 @@ Notes:
 - In this repository, the recommended migration entrypoint is a one-off `docker compose run --rm --no-deps carp-ws`
   container with the migration arguments appended to the image entrypoint.
 
+## Recommended execution path
+
+Use the Docker or Compose path as the primary execution path for dev, test, and production.
+
+Reason:
+
+- it provides the normal runtime environment for the application
+- it avoids local terminal-specific startup issues
+- it matches the production deployment model more closely
+
+The local `bootRun` path is useful as a fallback for local testing only.
+
 ## 1. Backup
 
 Create a backup inside the PostgreSQL container, then copy it out.
@@ -95,6 +107,22 @@ from core_data_migration_runs
 order by id desc
 limit 5;
 ```
+
+### Local bootRun fallback
+
+For local terminal testing outside Docker, the application may need extra flags beyond the migration arguments above.
+
+Use this only as a local fallback path:
+
+```shell
+./gradlew bootRun --args='--spring.main.web-application-type=none --spring.profiles.active=local --spring.task.scheduling.enabled=false --spring.rabbitmq.listener.simple.auto-startup=false --spring.autoconfigure.exclude=com.c4_soft.springaddons.security.oidc.starter.reactive.client.ReactiveSpringAddonsOAuth2AuthorizedClientBeans,com.c4_soft.springaddons.security.oidc.starter.reactive.client.ReactiveSpringAddonsOidcClientWithLoginBeans,com.c4_soft.springaddons.security.oidc.starter.reactive.resourceserver.ReactiveSpringAddonsOidcResourceServerBeans --carp.core-1-3-migration.mode=inventory'
+```
+
+Notes for local `bootRun`:
+
+- `--spring.profiles.active=local` is required when the app is started outside Docker or Compose.
+- The reactive Spring Addons exclusions were needed for local non-web startup during testing.
+- Do not assume these extra flags are needed in Docker unless a containerized run proves otherwise.
 
 ## 3. Dry-run
 
@@ -208,6 +236,14 @@ Expected results:
 - `legacy_deployments = 0`
 - `legacy_recruitments = 0`
 - `failures = 0`
+
+Verification behavior for pre-existing invalid rows:
+
+- `verify` skips rows where `deployments.snapshot` or `recruitments.snapshot` is `NULL`
+- skipped counts are written into `core_data_migration_runs.report` as:
+  - `skippedNullDeploymentCount`
+  - `skippedNullRecruitmentCount`
+- verification still fails for any non-null snapshot which cannot be deserialized with Core 1.3
 
 ## 7. Start the upgraded application
 

@@ -1,6 +1,7 @@
 package dk.cachet.carp.webservices.migration
 
 import org.apache.logging.log4j.LogManager
+import org.flywaydb.core.Flyway
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.boot.SpringApplication
@@ -28,6 +29,7 @@ class Core13DataMigrationRunner(
     @Suppress("TooGenericExceptionCaught")
     override fun run(args: ApplicationArguments) {
         val options = MigrationOptions.from(environment)
+        ensureMigrationMetadataSchema()
         val runId = startOrResumeRun(options)
         LOGGER.info("Starting CARP Core 1.3 data migration run {} in {} mode.", runId, options.mode)
 
@@ -45,6 +47,26 @@ class Core13DataMigrationRunner(
             failRun(runId, exception)
             throw exception
         }
+    }
+
+    private fun ensureMigrationMetadataSchema() {
+        val trackingTableExists =
+            jdbcTemplate.queryForObject(
+                "SELECT to_regclass('public.core_data_migration_runs') IS NOT NULL",
+                Boolean::class.java,
+            ) == true
+        if (trackingTableExists) return
+
+        val configuredFlyway = applicationContext.getBeanProvider(Flyway::class.java).ifAvailable
+        if (configuredFlyway != null) {
+            configuredFlyway.migrate()
+            return
+        }
+
+        val dataSource = requireNotNull(jdbcTemplate.dataSource) {
+            "JdbcTemplate dataSource is required to initialize migration metadata schema."
+        }
+        Flyway.configure().dataSource(dataSource).load().migrate()
     }
 
     private fun migrate(
@@ -68,6 +90,30 @@ class Core13DataMigrationRunner(
             )
         check(legacyDeployments == 0L) { "$legacyDeployments legacy deployment snapshots remain." }
         check(legacyRecruitments == 0L) { "$legacyRecruitments legacy recruitment snapshots remain." }
+
+        val nullDeploymentSnapshots = count("SELECT COUNT(*) FROM deployments WHERE snapshot IS NULL")
+        val nullRecruitmentSnapshots = count("SELECT COUNT(*) FROM recruitments WHERE snapshot IS NULL")
+        if (nullDeploymentSnapshots > 0 || nullRecruitmentSnapshots > 0) {
+            val reportUpdateSql =
+                "UPDATE core_data_migration_runs " +
+                    "SET report = COALESCE(report, '{}'::jsonb) || " +
+                    "jsonb_build_object(" +
+                    "'skippedNullDeploymentCount', ?, " +
+                    "'skippedNullRecruitmentCount', ?" +
+                    ") " +
+                    "WHERE id = ?"
+            jdbcTemplate.update(
+                reportUpdateSql,
+                nullDeploymentSnapshots,
+                nullRecruitmentSnapshots,
+                runId,
+            )
+            LOGGER.warn(
+                "Skipping verification of rows with null snapshots: deployments={}, recruitments={}.",
+                nullDeploymentSnapshots,
+                nullRecruitmentSnapshots,
+            )
+        }
 
         var progress = loadProgress(runId)
         progress = processDeployments(runId, progress, options, legacyOnly = false)
@@ -188,8 +234,9 @@ class Core13DataMigrationRunner(
         batchSize: Int,
         legacyOnly: Boolean,
     ): List<SnapshotRow> {
+        val nonNullClause = if (legacyOnly) "" else "AND snapshot IS NOT NULL"
         return jdbcTemplate.query(
-            deploymentBatchQuery(legacyOnly),
+            deploymentBatchQuery(legacyOnly, nonNullClause),
             { result, _ ->
                 SnapshotRow(
                     result.getInt("id"),
@@ -210,9 +257,10 @@ class Core13DataMigrationRunner(
     ): List<SnapshotRow> {
         val legacyClause =
             if (legacyOnly) "AND jsonb_path_exists(snapshot, '$.participantGroups.*._participantIds')" else ""
+        val nonNullClause = if (legacyOnly) "" else "AND snapshot IS NOT NULL"
         return jdbcTemplate.query(
             "SELECT id, snapshot::text, updated_at, pg_column_size(snapshot) AS jsonb_size FROM recruitments " +
-                "WHERE id > ? $legacyClause ORDER BY id LIMIT ? FOR UPDATE",
+                "WHERE id > ? $legacyClause $nonNullClause ORDER BY id LIMIT ? FOR UPDATE",
             { result, _ ->
                 SnapshotRow(
                     result.getInt("id"),
@@ -479,8 +527,11 @@ private enum class MigrationMode {
 
 internal const val LEGACY_DEPLOYMENT_PREDICATE = "jsonb_exists(snapshot, 'isStopped')"
 
-internal fun deploymentBatchQuery(legacyOnly: Boolean): String {
+internal fun deploymentBatchQuery(
+    legacyOnly: Boolean,
+    extraClause: String = "",
+): String {
     val legacyClause = if (legacyOnly) "AND $LEGACY_DEPLOYMENT_PREDICATE" else ""
     return "SELECT id, snapshot::text, updated_at, pg_column_size(snapshot) AS jsonb_size FROM deployments " +
-        "WHERE id > ? $legacyClause ORDER BY id LIMIT ? FOR UPDATE"
+        "WHERE id > ? $legacyClause $extraClause ORDER BY id LIMIT ? FOR UPDATE"
 }
