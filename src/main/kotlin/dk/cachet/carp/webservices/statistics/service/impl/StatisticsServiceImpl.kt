@@ -44,7 +44,7 @@ class StatisticsServiceImpl(
         val startDate = today.minusDays(DAILY_UPLOAD_WINDOW_DAYS - 1)
         val dbCounts =
             dataStreamSequenceRepository.getDailyUploadCountsSince(startDate.atStartOfDay().toInstant(ZoneOffset.UTC))
-                .associate { it.date.toLocalDate().toString() to it.quantity }
+                .associate { it.date.toString() to it.quantity }
 
         return (0L until DAILY_UPLOAD_WINDOW_DAYS).map { offset ->
             val date = startDate.plusDays(offset)

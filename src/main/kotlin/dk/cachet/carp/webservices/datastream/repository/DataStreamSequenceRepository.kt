@@ -144,7 +144,7 @@ interface DataStreamSequenceRepository : JpaRepository<DataStreamSequence, Int> 
             """
                 SELECT 
                     (measurement->'data'->>'completedAt')::timestamp AS date,
-                    measurement->'data'->>'taskName' AS task_name,
+                    measurement->'data'->>'taskName' AS task,
                     COUNT(*) AS quantity
                 FROM public.data_stream_sequence ds,
                      LATERAL jsonb_array_elements(ds.snapshot->'measurements') AS measurement
@@ -153,7 +153,7 @@ interface DataStreamSequenceRepository : JpaRepository<DataStreamSequence, Int> 
                     AND measurement->'data'->>'taskType' = :taskType
                     AND (measurement->'data'->>'completedAt')::timestamp > :from
                     AND (measurement->'data'->>'completedAt')::timestamp < :to
-                GROUP BY date, task_name
+                GROUP BY date, task
                 ORDER BY date DESC 
             """,
     )
@@ -170,7 +170,7 @@ interface DataStreamSequenceRepository : JpaRepository<DataStreamSequence, Int> 
             """
                 SELECT 
                     (measurement->'data'->>'completedAt')::timestamp AS date,
-                    measurement->'data'->>'taskName' AS task_name,
+                    measurement->'data'->>'taskName' AS task,
                     COUNT(*) AS quantity
                 FROM public.data_stream_sequence ds,
                      LATERAL jsonb_array_elements(ds.snapshot->'measurements') AS measurement
@@ -178,7 +178,7 @@ interface DataStreamSequenceRepository : JpaRepository<DataStreamSequence, Int> 
                     AND measurement->'data'->>'__type' = :completedAppTaskType
                     AND (measurement->'data'->>'completedAt')::timestamp > :from
                     AND (measurement->'data'->>'completedAt')::timestamp < :to
-                GROUP BY date, task_name
+                GROUP BY date, task
                 ORDER BY date DESC 
             """,
     )

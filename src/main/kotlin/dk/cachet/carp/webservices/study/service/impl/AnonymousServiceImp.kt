@@ -25,7 +25,6 @@ import dk.cachet.carp.webservices.study.repository.RecruitmentRepository
 import dk.cachet.carp.webservices.study.service.AnonymousService
 import kotlinx.coroutines.*
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import org.springframework.stereotype.Service
 import tools.jackson.databind.ObjectMapper
 import kotlin.time.Clock
@@ -175,7 +174,7 @@ class AnonymousServiceImp(
             val study = studyService.getStudyDetails(studyId)
 
             val (participants, groups, deployments, participation) = buildParticipants(pair, roleName, study)
-            val participantGroupString = Json.encodeToString(groups)
+            val participantGroupString = WS_JSON.encodeToString(groups)
             recruitmentRepository.bulkAddParticipantsAndGroups(
                 studyId.stringRepresentation,
                 objectMapper.writeValueAsString(participants),

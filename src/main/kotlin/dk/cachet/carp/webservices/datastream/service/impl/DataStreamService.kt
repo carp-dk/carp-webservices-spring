@@ -8,6 +8,7 @@ import dk.cachet.carp.webservices.common.services.CoreServiceContainer
 import dk.cachet.carp.webservices.datastream.domain.DataStreamSequence
 import dk.cachet.carp.webservices.datastream.domain.DateTaskQuantityTriple
 import dk.cachet.carp.webservices.datastream.dto.DataStreamsSummaryDto
+import dk.cachet.carp.webservices.datastream.dto.DateTaskQuantityTripleDb
 import dk.cachet.carp.webservices.datastream.repository.DataStreamIdRepository
 import dk.cachet.carp.webservices.datastream.repository.DataStreamSequenceRepository
 import dk.cachet.carp.webservices.datastream.service.DataStreamService
@@ -27,6 +28,7 @@ import tools.jackson.core.JsonGenerator
 import tools.jackson.databind.ObjectMapper
 import java.io.IOException
 import java.nio.file.Path
+import java.time.ZoneOffset
 
 @Service
 class DataStreamService(
@@ -142,13 +144,7 @@ class DataStreamService(
                     to = to.toJavaInstant(),
                     taskType = type,
                 )
-            }.map {
-                DateTaskQuantityTriple(
-                    date = Instant.fromEpochMilliseconds(it.date.time),
-                    task = it.task,
-                    quantity = it.quantity,
-                )
-            }
+            }.map { it.toDomain() }
 
         return DataStreamsSummaryDto(
             data = dateTaskQuantityTriples,
@@ -197,13 +193,7 @@ class DataStreamService(
                     to = to.toJavaInstant(),
                     completedAppTaskType = getCompletedAppTaskTypeV2(type),
                 )
-            }.map {
-                DateTaskQuantityTriple(
-                    date = Instant.fromEpochMilliseconds(it.date.time),
-                    task = it.task,
-                    quantity = it.quantity,
-                )
-            }
+            }.map { it.toDomain() }
 
         return DataStreamsSummaryDto(
             data = dateTaskQuantityTriples,
@@ -499,3 +489,13 @@ class DataStreamService(
         ).toSet().toList()
     }
 }
+
+private fun DateTaskQuantityTripleDb.toDomain(): DateTaskQuantityTriple =
+    DateTaskQuantityTriple(
+        // date is a zone-less LocalDateTime (Hibernate 7 maps the SQL ::timestamp column to it).
+        // Interpreting it as UTC is correct only because the deployment runs in UTC — a
+        // long-standing invariant. Don't swap this for systemDefault().
+        date = date.toInstant(ZoneOffset.UTC).toKotlinInstant(),
+        task = task,
+        quantity = quantity,
+    )

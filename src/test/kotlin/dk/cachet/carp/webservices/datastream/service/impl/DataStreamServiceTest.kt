@@ -40,7 +40,8 @@ import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.StringWriter
 import java.nio.file.Path
-import java.sql.Timestamp
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlin.random.Random
@@ -303,12 +304,12 @@ class DataStreamServiceTest {
                 val mockListOfDateTaskQuantityTripleDbs =
                     listOf(
                         DateTaskQuantityTripleDb(
-                            date = Timestamp(1000L),
+                            date = LocalDateTime.ofEpochSecond(1, 0, ZoneOffset.UTC),
                             "survey1",
                             2,
                         ),
                         DateTaskQuantityTripleDb(
-                            date = Timestamp(2000L),
+                            date = LocalDateTime.ofEpochSecond(2, 0, ZoneOffset.UTC),
                             "survey1",
                             2,
                         ),
@@ -317,7 +318,7 @@ class DataStreamServiceTest {
                 val mockedListOfDateTaskQuantityTriples =
                     mockListOfDateTaskQuantityTripleDbs.map {
                         DateTaskQuantityTriple(
-                            date = Instant.fromEpochMilliseconds(it.date.time),
+                            date = Instant.fromEpochMilliseconds(it.date.toInstant(ZoneOffset.UTC).toEpochMilli()),
                             task = it.task,
                             quantity = it.quantity,
                         )
@@ -374,7 +375,7 @@ class DataStreamServiceTest {
                 val mockListOfDateTaskQuantityTripleDbs =
                     listOf(
                         DateTaskQuantityTripleDb(
-                            date = Timestamp(1000L),
+                            date = LocalDateTime.ofEpochSecond(1, 0, ZoneOffset.UTC),
                             "survey",
                             2,
                         ),
@@ -383,7 +384,7 @@ class DataStreamServiceTest {
                 val mockedListOfDateTaskQuantityTriples =
                     mockListOfDateTaskQuantityTripleDbs.map {
                         DateTaskQuantityTriple(
-                            date = Instant.fromEpochMilliseconds(it.date.time),
+                            date = Instant.fromEpochMilliseconds(it.date.toInstant(ZoneOffset.UTC).toEpochMilli()),
                             task = it.task,
                             quantity = it.quantity,
                         )
@@ -470,12 +471,12 @@ class DataStreamServiceTest {
                 val mockListOfDateTaskQuantityTripleDbs =
                     listOf(
                         DateTaskQuantityTripleDb(
-                            date = Timestamp(1000L),
+                            date = LocalDateTime.ofEpochSecond(1, 0, ZoneOffset.UTC),
                             "survey1",
                             2,
                         ),
                         DateTaskQuantityTripleDb(
-                            date = Timestamp(2000L),
+                            date = LocalDateTime.ofEpochSecond(2, 0, ZoneOffset.UTC),
                             "survey1",
                             2,
                         ),
@@ -484,7 +485,7 @@ class DataStreamServiceTest {
                 val mockedListOfDateTaskQuantityTriples =
                     mockListOfDateTaskQuantityTripleDbs.map {
                         DateTaskQuantityTriple(
-                            date = Instant.fromEpochMilliseconds(it.date.time),
+                            date = Instant.fromEpochMilliseconds(it.date.toInstant(ZoneOffset.UTC).toEpochMilli()),
                             task = it.task,
                             quantity = it.quantity,
                         )
@@ -670,12 +671,12 @@ class DataStreamServiceTest {
                 val mockListOfDateTaskQuantityTripleDbs =
                     listOf(
                         DateTaskQuantityTripleDb(
-                            date = Timestamp(1000L),
+                            date = LocalDateTime.ofEpochSecond(1, 0, ZoneOffset.UTC),
                             "survey1",
                             2,
                         ),
                         DateTaskQuantityTripleDb(
-                            date = Timestamp(2000L),
+                            date = LocalDateTime.ofEpochSecond(2, 0, ZoneOffset.UTC),
                             "survey1",
                             2,
                         ),
@@ -684,7 +685,7 @@ class DataStreamServiceTest {
                 val mockedListOfDateTaskQuantityTriples =
                     mockListOfDateTaskQuantityTripleDbs.map {
                         DateTaskQuantityTriple(
-                            date = Instant.fromEpochMilliseconds(it.date.time),
+                            date = Instant.fromEpochMilliseconds(it.date.toInstant(ZoneOffset.UTC).toEpochMilli()),
                             task = it.task,
                             quantity = it.quantity,
                         )

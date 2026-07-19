@@ -17,9 +17,9 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.ObjectMapper
-import java.sql.Date
 import java.time.Clock
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneOffset
 import kotlin.test.assertEquals
 import kotlinx.datetime.Instant as KInstant
@@ -132,9 +132,9 @@ class StatisticsServiceImplTest {
             dataStreamSequenceRepository.getDailyUploadCountsSince(Instant.parse("2025-02-15T00:00:00Z"))
         } returns
             listOf(
-                DateQuantityPairDb(Date.valueOf("2025-02-16"), 2),
-                DateQuantityPairDb(Date.valueOf("2025-02-18"), 5),
-                DateQuantityPairDb(Date.valueOf("2025-02-21"), 7),
+                DateQuantityPairDb(LocalDate.parse("2025-02-16"), 2),
+                DateQuantityPairDb(LocalDate.parse("2025-02-18"), 5),
+                DateQuantityPairDb(LocalDate.parse("2025-02-21"), 7),
             )
         every { studyRepository.getLiveStudyCountsByApplicationData() } returns
             listOf(
