@@ -63,22 +63,6 @@ java {
     targetCompatibility = JavaVersion.VERSION_21
 }
 
-dependencyManagement {
-    dependencies {
-        // carp.core 1.3 (studies/deployments/protocols/data/common) requires
-        // kotlinx-serialization 1.11.0. Spring Boot 4.0.7's dependency-management BOM
-        // recommends kotlinx-serialization-bom 1.9.0, which otherwise wins over this project's
-        // own declared version. Pin the whole family — not just -json — so -core does not stay
-        // at 1.9.0 while -json moves to 1.11.0; json 1.11.0 calls core 1.11.0 internals that are
-        // absent in 1.9.0 (NoSuchMethodError at runtime). Override so the app runs against what
-        // carp.core was actually built against.
-        dependency("org.jetbrains.kotlinx:kotlinx-serialization-core:${property("serializationJSONVersion")}")
-        dependency("org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:${property("serializationJSONVersion")}")
-        dependency("org.jetbrains.kotlinx:kotlinx-serialization-json:${property("serializationJSONVersion")}")
-        dependency("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:${property("serializationJSONVersion")}")
-    }
-}
-
 dependencies {
     // BOM
     implementation(platform("org.springframework.boot:spring-boot-dependencies:${property("springBootVersion")}"))

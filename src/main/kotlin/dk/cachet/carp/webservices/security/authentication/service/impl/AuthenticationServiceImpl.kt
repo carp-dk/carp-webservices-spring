@@ -109,12 +109,20 @@ class AuthenticationServiceImpl(
 
     override fun getCarpIdentity(): AccountIdentity {
         val authentication = getJwtAuthenticationToken()
-        val isEmailVerified: Boolean = authentication.token.getClaim("email_verified")
+        // Spring Security 7.1 made ClaimAccessor.getClaim nullable (T?); a missing claim now returns
+        // null instead of NPE-ing on a platform type, so handle absence explicitly.
+        val isEmailVerified: Boolean = authentication.token.getClaim<Boolean>("email_verified") ?: false
 
         return if (isEmailVerified) {
-            AccountIdentity.fromEmailAddress(authentication.token.getClaim("email"))
+            AccountIdentity.fromEmailAddress(
+                requireNotNull(authentication.token.getClaim<String>("email")) { "JWT is missing the 'email' claim" },
+            )
         } else {
-            AccountIdentity.fromUsername(authentication.token.getClaim("preferred_username"))
+            AccountIdentity.fromUsername(
+                requireNotNull(authentication.token.getClaim<String>("preferred_username")) {
+                    "JWT is missing the 'preferred_username' claim"
+                },
+            )
         }
     }
 
