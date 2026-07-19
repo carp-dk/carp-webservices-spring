@@ -71,8 +71,9 @@ dependencies {
     // KOTLIN
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${property("serializationJSONVersion")}")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${property("kotlinCoroutinesVersion")}")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor:${property("kotlinCoroutinesVersion")}")
+    // kotlinx-coroutines version is managed by the Spring Boot BOM (kotlin-coroutines.version)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:${property("kotlinDatetimeVersion")}")
 
     // JACKSON
@@ -156,7 +157,8 @@ dependencies {
     testImplementation(kotlin("test-junit5"))
     testImplementation(kotlin("test-common"))
     testImplementation(kotlin("test-annotations-common"))
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:${property("kotlinCoroutinesVersion")}")
+    // kotlinx-coroutines version is managed by the Spring Boot BOM (kotlin-coroutines.version)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
 
     testImplementation("com.c4-soft.springaddons:spring-addons-starter-oidc-test:${property("springAddonsVersion")}")
     testImplementation("com.ninja-squad:springmockk:${property("springMockkVersion")}")
