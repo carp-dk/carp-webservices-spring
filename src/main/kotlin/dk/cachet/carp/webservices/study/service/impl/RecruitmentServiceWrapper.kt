@@ -292,4 +292,24 @@ class RecruitmentServiceWrapper(
 
             ParticipantGroupsStatus(participantGroupInfoList, participantGroupStatusList)
         }
+
+    override suspend fun stopParticipantGroup(
+        studyId: UUID,
+        groupId: UUID,
+    ): ParticipantGroupStatus =
+        withContext(Dispatchers.IO + SecurityCoroutineContext()) {
+            // Enforces ManageStudy/LimitedManageStudy on studyId (same claim as core's StopParticipantGroup)
+            // and returns only groups belonging to this study — the correct membership check core botched.
+            val groups = core.getParticipantGroupStatusList(studyId)
+            require(groups.any { it.id == groupId }) {
+                "Participant group with ID \"$groupId\" does not belong to study with ID \"$studyId\"."
+            }
+
+            // Stop the deployment directly, bypassing core's buggy require(recruitment.id == studyId).
+            // deploymentCore.Stop requires InDeployment(groupId), which a study manager holds via the
+            // ManageStudy -> InDeployment claim expansion in AuthenticationServiceImpl.getClaims.
+            deploymentCore.stop(groupId)
+
+            core.getParticipantGroupStatusList(studyId).first { it.id == groupId }
+        }
 }

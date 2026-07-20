@@ -1069,4 +1069,54 @@ class RecruitmentServiceWrapperTest {
             }
         }
     }
+
+    @Nested
+    inner class StopParticipantGroup {
+        @Test
+        fun `stops the deployment and returns the group status`() {
+            runTest {
+                val mockStudyId = UUID.randomUUID()
+                val mockGroupId = UUID.randomUUID()
+
+                val mockSds =
+                    mockk<StudyDeploymentStatus.Invited>().apply {
+                        every { studyDeploymentId } returns mockGroupId
+                        every { createdOn } returns CoreInstant.fromEpochSeconds(0)
+                        every { startedOn } returns CoreInstant.fromEpochSeconds(0)
+                    }
+                val pg = participantGroupStatus(emptySet(), mockSds)
+
+                coEvery {
+                    coreRecruitmentService.getParticipantGroupStatusList(mockStudyId)
+                } returns listOf(pg)
+                coEvery { coreDeploymentService.stop(mockGroupId) } returns mockk<StudyDeploymentStatus.Stopped>()
+
+                val sut = createSut()
+
+                val result = sut.stopParticipantGroup(mockStudyId, mockGroupId)
+
+                assertEquals(mockGroupId, result.id)
+                coVerify(exactly = 1) { coreDeploymentService.stop(mockGroupId) }
+            }
+        }
+
+        @Test
+        fun `throws and does not stop when the group does not belong to the study`() {
+            runTest {
+                val mockStudyId = UUID.randomUUID()
+                val mockGroupId = UUID.randomUUID()
+
+                coEvery {
+                    coreRecruitmentService.getParticipantGroupStatusList(mockStudyId)
+                } returns emptyList()
+
+                val sut = createSut()
+
+                assertFailsWith<IllegalArgumentException> {
+                    sut.stopParticipantGroup(mockStudyId, mockGroupId)
+                }
+                coVerify(exactly = 0) { coreDeploymentService.stop(any()) }
+            }
+        }
+    }
 }

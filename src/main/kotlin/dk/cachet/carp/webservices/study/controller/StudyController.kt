@@ -170,7 +170,14 @@ class StudyController(
     ): ResponseEntity<*> {
         val request = recruitmentSerializer.deserializeRequest(RecruitmentServiceRequest.Serializer, httpMessage)
         LOGGER.info("Start POST: $RECRUITMENT_SERVICE -> ${request::class.simpleName}")
-        val result = recruitmentService.core.invoke(request)
+        val result =
+            when (request) {
+                // Workaround for a carp.core 1.3.0 bug in RecruitmentServiceHost.stopParticipantGroup;
+                // handled in our own service layer until the upstream fix ships.
+                is RecruitmentServiceRequest.StopParticipantGroup ->
+                    recruitmentService.stopParticipantGroup(request.studyId, request.groupId)
+                else -> recruitmentService.core.invoke(request)
+            }
         return recruitmentSerializer.serializeResponse(request, result).let { ResponseEntity.ok(it) }
     }
 
