@@ -47,6 +47,7 @@ Pass these arguments to every migration command:
 --spring.main.web-application-type=none
 --spring.task.scheduling.enabled=false
 --spring.rabbitmq.listener.simple.auto-startup=false
+--spring.autoconfigure.exclude=com.c4_soft.springaddons.security.oidc.starter.reactive.client.ReactiveSpringAddonsOAuth2AuthorizedClientBeans,com.c4_soft.springaddons.security.oidc.starter.reactive.client.ReactiveSpringAddonsOidcClientWithLoginBeans,com.c4_soft.springaddons.security.oidc.starter.reactive.resourceserver.ReactiveSpringAddonsOidcResourceServerBeans
 ```
 
 Notes:
@@ -54,6 +55,8 @@ Notes:
 - `--spring.main.web-application-type=none` ensures the migration runs as a non-web process.
 - `--spring.task.scheduling.enabled=false` avoids scheduled jobs during migration.
 - `--spring.rabbitmq.listener.simple.auto-startup=false` avoids Rabbit listeners during migration.
+- `--spring.autoconfigure.exclude=...ReactiveSpringAddons...` avoids reactive OIDC web security auto-configuration
+  during non-web migration startup.
 - `resume` defaults to `true`. Set `--carp.core-1-3-migration.resume=false` to force a new run.
 - In this repository, the recommended migration entrypoint is a one-off `docker compose run --rm --no-deps carp-ws`
   container with the migration arguments appended to the image entrypoint.
@@ -96,6 +99,7 @@ docker compose --env-file stack.env --profile "${PROFILE}" run --rm --no-deps ca
   --spring.main.web-application-type=none \
   --spring.task.scheduling.enabled=false \
   --spring.rabbitmq.listener.simple.auto-startup=false \
+  --spring.autoconfigure.exclude=com.c4_soft.springaddons.security.oidc.starter.reactive.client.ReactiveSpringAddonsOAuth2AuthorizedClientBeans,com.c4_soft.springaddons.security.oidc.starter.reactive.client.ReactiveSpringAddonsOidcClientWithLoginBeans,com.c4_soft.springaddons.security.oidc.starter.reactive.resourceserver.ReactiveSpringAddonsOidcResourceServerBeans \
   --carp.core-1-3-migration.mode=inventory
 ```
 
@@ -133,6 +137,7 @@ docker compose --env-file stack.env --profile "${PROFILE}" run --rm --no-deps ca
   --spring.main.web-application-type=none \
   --spring.task.scheduling.enabled=false \
   --spring.rabbitmq.listener.simple.auto-startup=false \
+  --spring.autoconfigure.exclude=com.c4_soft.springaddons.security.oidc.starter.reactive.client.ReactiveSpringAddonsOAuth2AuthorizedClientBeans,com.c4_soft.springaddons.security.oidc.starter.reactive.client.ReactiveSpringAddonsOidcClientWithLoginBeans,com.c4_soft.springaddons.security.oidc.starter.reactive.resourceserver.ReactiveSpringAddonsOidcResourceServerBeans \
   --carp.core-1-3-migration.mode=dry-run \
   --carp.core-1-3-migration.batch-size=100
 ```
@@ -162,6 +167,7 @@ docker compose --env-file stack.env --profile "${PROFILE}" run --rm --no-deps ca
   --spring.main.web-application-type=none \
   --spring.task.scheduling.enabled=false \
   --spring.rabbitmq.listener.simple.auto-startup=false \
+  --spring.autoconfigure.exclude=com.c4_soft.springaddons.security.oidc.starter.reactive.client.ReactiveSpringAddonsOAuth2AuthorizedClientBeans,com.c4_soft.springaddons.security.oidc.starter.reactive.client.ReactiveSpringAddonsOidcClientWithLoginBeans,com.c4_soft.springaddons.security.oidc.starter.reactive.resourceserver.ReactiveSpringAddonsOidcResourceServerBeans \
   --carp.core-1-3-migration.mode=apply \
   --carp.core-1-3-migration.batch-size=100 \
   --carp.core-1-3-migration.rate-limit-ms=100
@@ -193,6 +199,7 @@ docker compose --env-file stack.env --profile "${PROFILE}" run --rm --no-deps ca
   --spring.main.web-application-type=none \
   --spring.task.scheduling.enabled=false \
   --spring.rabbitmq.listener.simple.auto-startup=false \
+  --spring.autoconfigure.exclude=com.c4_soft.springaddons.security.oidc.starter.reactive.client.ReactiveSpringAddonsOAuth2AuthorizedClientBeans,com.c4_soft.springaddons.security.oidc.starter.reactive.client.ReactiveSpringAddonsOidcClientWithLoginBeans,com.c4_soft.springaddons.security.oidc.starter.reactive.resourceserver.ReactiveSpringAddonsOidcResourceServerBeans \
   --carp.core-1-3-migration.mode=apply \
   --carp.core-1-3-migration.batch-size=100 \
   --carp.core-1-3-migration.rate-limit-ms=100
@@ -212,6 +219,7 @@ docker compose --env-file stack.env --profile "${PROFILE}" run --rm --no-deps ca
   --spring.main.web-application-type=none \
   --spring.task.scheduling.enabled=false \
   --spring.rabbitmq.listener.simple.auto-startup=false \
+  --spring.autoconfigure.exclude=com.c4_soft.springaddons.security.oidc.starter.reactive.client.ReactiveSpringAddonsOAuth2AuthorizedClientBeans,com.c4_soft.springaddons.security.oidc.starter.reactive.client.ReactiveSpringAddonsOidcClientWithLoginBeans,com.c4_soft.springaddons.security.oidc.starter.reactive.resourceserver.ReactiveSpringAddonsOidcResourceServerBeans \
   --carp.core-1-3-migration.mode=verify \
   --carp.core-1-3-migration.batch-size=100
 ```
