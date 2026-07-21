@@ -115,6 +115,12 @@ keycloak:
   admin:
     client-id: "${KC_CLIENT_ID}"
     client-secret: "${KC_CLIENT_SECRET}"
+  # Timeouts for the JWKS fetch used to validate JWTs. Spring Security 7 defaults these to
+  # 500 ms, which caused sporadic RemoteKeySourceException "Read timed out" 500s on the first
+  # request after startup and on each JWKS cache refresh while Keycloak was slow.
+  jwks:
+    connect-timeout: 5s
+    read-timeout: 5s
 
 com:
   c4-soft:

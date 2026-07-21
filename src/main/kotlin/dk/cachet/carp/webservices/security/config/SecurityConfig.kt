@@ -2,6 +2,8 @@ package dk.cachet.carp.webservices.security.config
 
 import com.c4_soft.springaddons.security.oidc.spring.SpringAddonsMethodSecurityExpressionHandler
 import com.c4_soft.springaddons.security.oidc.spring.SpringAddonsMethodSecurityExpressionRoot
+import com.c4_soft.springaddons.security.oidc.starter.synchronised.resourceserver.DefaultSpringAddonsJwtDecoderFactory
+import com.c4_soft.springaddons.security.oidc.starter.synchronised.resourceserver.SpringAddonsJwtDecoderFactory
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.webservices.security.authentication.service.AuthenticationService
 import dk.cachet.carp.webservices.security.authorization.Claim
@@ -10,11 +12,15 @@ import dk.cachet.carp.webservices.study.repository.CoreParticipantRepository
 import jakarta.annotation.PostConstruct
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.web.client.RestTemplate
+import java.time.Duration
 
 /**
  * The default security configuration is overridden by c4-soft-spring-addons to be easier to configure.
@@ -34,6 +40,25 @@ class SecurityConfig {
         SpringAddonsMethodSecurityExpressionHandler {
             ProxiesMethodSecurityExpressionRoot(participantRepository, authenticationService)
         }
+
+    /**
+     * Overrides the spring-addons default (`@ConditionalOnMissingBean`) JWT decoder factory so the
+     * JWKS fetch uses sane timeouts instead of Spring Security 7's 500 ms default, which caused
+     * sporadic `RemoteKeySourceException: Read timed out` 500s on JWKS (re)fetch when Keycloak was
+     * slow. Timeouts are configurable via `keycloak.jwks.*`.
+     */
+    @Bean
+    fun springAddonsJwtDecoderFactory(
+        @Value("\${keycloak.jwks.connect-timeout:5s}") connectTimeout: Duration,
+        @Value("\${keycloak.jwks.read-timeout:5s}") readTimeout: Duration,
+    ): SpringAddonsJwtDecoderFactory {
+        val requestFactory =
+            SimpleClientHttpRequestFactory().apply {
+                setConnectTimeout(connectTimeout)
+                setReadTimeout(readTimeout)
+            }
+        return DefaultSpringAddonsJwtDecoderFactory(RestTemplate(requestFactory))
+    }
 
     @PostConstruct
     fun init() = SecurityContextHolder.setStrategyName(SecurityContextHolder.MODE_INHERITABLETHREADLOCAL)
