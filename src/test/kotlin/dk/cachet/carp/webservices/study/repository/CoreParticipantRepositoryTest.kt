@@ -158,6 +158,31 @@ class CoreParticipantRepositoryTest {
     }
 
     @Nested
+    inner class GetStudyIdByDeploymentId {
+        @Test
+        fun `should map the resolved study id to a UUID`() {
+            val deploymentId = UUID.randomUUID()
+            val studyId = UUID.randomUUID()
+            every { mockRepository.findStudyIdByDeploymentId(deploymentId.stringRepresentation) } returns
+                studyId.stringRepresentation
+
+            val sut = CoreParticipantRepository(mockRepository)
+
+            assertEquals(studyId, sut.getStudyIdByDeploymentId(deploymentId))
+        }
+
+        @Test
+        fun `should return null when no recruitment contains the deployment`() {
+            val deploymentId = UUID.randomUUID()
+            every { mockRepository.findStudyIdByDeploymentId(deploymentId.stringRepresentation) } returns null
+
+            val sut = CoreParticipantRepository(mockRepository)
+
+            assertNull(sut.getStudyIdByDeploymentId(deploymentId))
+        }
+    }
+
+    @Nested
     inner class RemoveStudy {
         @Test
         fun `should remove study`() {

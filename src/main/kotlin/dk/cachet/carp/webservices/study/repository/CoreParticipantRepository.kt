@@ -57,6 +57,14 @@ class CoreParticipantRepository(
                 ?.let(::mapWSRecruitmentToCore)
         }
 
+    /**
+     * Resolves the study a deployment belongs to. Backed by an indexed lookup that does not load the
+     * recruitment snapshot, so it is cheap enough to call on the authorization hot path.
+     */
+    fun getStudyIdByDeploymentId(deploymentId: UUID): UUID? =
+        recruitmentRepository.findStudyIdByDeploymentId(deploymentId.stringRepresentation)
+            ?.let { UUID(it) }
+
     override suspend fun removeStudy(studyId: UUID): Boolean =
         withContext(Dispatchers.IO) {
             getRecruitment(studyId) ?: return@withContext false

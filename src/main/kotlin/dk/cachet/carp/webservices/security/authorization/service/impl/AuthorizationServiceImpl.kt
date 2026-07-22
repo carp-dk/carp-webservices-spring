@@ -29,10 +29,7 @@ class AuthorizationServiceImpl(
     ) {
         if (isAdmin()) return
 
-        require(
-            authenticationService.getClaims(claims.mapTo(HashSet()) { it::class }).containsAll(claims.toList()),
-            lazyMessage,
-        )
+        require(claims.all { authenticationService.hasClaim(it) }, lazyMessage)
     }
 
     override fun requireAnyClaim(claims: Set<Claim>) = requireAnyClaim(*claims.toTypedArray()) { PERMISSION_DENIED_MSG }
@@ -43,8 +40,7 @@ class AuthorizationServiceImpl(
     ) {
         if (isAdmin()) return
 
-        val currentClaims = authenticationService.getClaims(claims.mapTo(HashSet()) { it::class })
-        require(claims.any { currentClaims.contains(it) }, lazyMessage)
+        require(claims.any { authenticationService.hasClaim(it) }, lazyMessage)
     }
 
     override fun require(role: Role) = require(role) { PERMISSION_DENIED_MSG }

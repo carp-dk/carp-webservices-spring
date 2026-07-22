@@ -23,6 +23,23 @@ interface RecruitmentRepository : JpaRepository<Recruitment, Int>, RecruitmentRe
     )
     fun findRecruitmentByParticipantGroupId(groupId: String): Recruitment?
 
+    /**
+     * Resolves the study a deployment belongs to without deserializing the (potentially huge)
+     * recruitment snapshot. Participant group ids are study deployment ids, so a deployment maps to
+     * exactly one recruitment. The `@>` containment predicate is served by the GIN index on
+     * `snapshot->'participantGroups'`.
+     */
+    @Query(
+        value =
+            """
+            SELECT snapshot->>'studyId'
+            FROM recruitments
+            WHERE (snapshot->'participantGroups') @> jsonb_build_object(CAST(:deploymentId AS text), '{}'::jsonb)
+            """,
+        nativeQuery = true,
+    )
+    fun findStudyIdByDeploymentId(deploymentId: String): String?
+
     @Modifying
     @Transactional
     @Query(

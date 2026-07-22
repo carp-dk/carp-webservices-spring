@@ -7,12 +7,10 @@ import dk.cachet.carp.webservices.security.authorization.Claim
 import dk.cachet.carp.webservices.security.authorization.Role
 import dk.cachet.carp.webservices.security.config.SecurityCoroutineContext
 import dk.cachet.carp.webservices.study.repository.CoreParticipantRepository
-import kotlinx.coroutines.runBlocking
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.stereotype.Service
 import kotlin.collections.mapNotNull
-import kotlin.reflect.KClass
 
 @Service
 class AuthenticationServiceImpl(
@@ -31,81 +29,37 @@ class AuthenticationServiceImpl(
     override fun getClaims(): Collection<Claim> =
         getJwtAuthenticationToken().authorities
             .mapNotNull { Claim.fromGrantedAuthority(it.authority!!) }
-            .flatMap { claim ->
-                // if the study has `Claim.ManageStudy` or `Claim.LimitedManageStudy`, then
-                // also add `Claim.InDeployment` for all deployments in the study
-                when (claim) {
-                    is Claim.ManageStudy -> {
-                        runBlocking {
-                            participantRepository.getRecruitment(claim.studyId)
-                                ?.participantGroups?.keys
-                                ?.map { deploymentId -> Claim.InDeployment(deploymentId) }
-                                ?.plus(claim)
-                                ?: listOf(claim)
-                        }
-                    }
 
-                    is Claim.LimitedManageStudy -> {
-                        runBlocking {
-                            participantRepository.getRecruitment(claim.studyId)
-                                ?.participantGroups?.keys
-                                ?.map { deploymentId -> Claim.InDeployment(deploymentId) }
-                                ?.plus(claim)
-                                ?: listOf(claim)
-                        }
-                    }
+    override fun hasClaim(claim: Claim): Boolean {
+        val claims = getClaims()
+        if (claim in claims) return true
 
-                    else -> setOf(claim)
+        // A study manager implicitly has access to every deployment in the study. Rather than
+        // expanding a ManageStudy/LimitedManageStudy claim into an InDeployment claim per deployment
+        // (which would load the whole recruitment snapshot into memory on every authorization check),
+        // resolve the single deployment's study and check whether the user manages it. carp.core keeps
+        // deployments free of a study reference by design; this repo does not need that limitation.
+        if (claim is Claim.InDeployment) {
+            val managedStudyIds = claims.managedStudyIds()
+            if (managedStudyIds.isEmpty()) return false
+
+            val studyId = participantRepository.getStudyIdByDeploymentId(claim.deploymentId) ?: return false
+            return studyId in managedStudyIds
+        }
+
+        return false
+    }
+
+    private fun Collection<Claim>.managedStudyIds(): Set<UUID> =
+        buildSet {
+            this@managedStudyIds.forEach {
+                when (it) {
+                    is Claim.ManageStudy -> add(it.studyId)
+                    is Claim.LimitedManageStudy -> add(it.studyId)
+                    else -> {}
                 }
-            }
-
-    override fun getClaims(claims: Collection<KClass<out Claim>>): Collection<Claim> {
-        val userClaims =
-            getJwtAuthenticationToken().authorities
-                .mapNotNull { Claim.fromGrantedAuthority(it.authority!!) }
-        return claims.flatMap { claim ->
-            when (claim) {
-                Claim.InDeployment::class -> {
-                    userClaims
-                        .flatMap { innerClaim ->
-                            when (innerClaim) {
-                                is Claim.ManageStudy -> {
-                                    runBlocking {
-                                        participantRepository
-                                            .getRecruitment(innerClaim.studyId)
-                                            ?.participantGroups
-                                            ?.keys
-                                            ?.map { deploymentId ->
-                                                Claim.InDeployment(deploymentId)
-                                            }
-                                            ?: emptyList()
-                                    }
-                                }
-
-                                is Claim.LimitedManageStudy -> {
-                                    runBlocking {
-                                        participantRepository
-                                            .getRecruitment(innerClaim.studyId)
-                                            ?.participantGroups
-                                            ?.keys
-                                            ?.map { deploymentId ->
-                                                Claim.InDeployment(deploymentId)
-                                            }
-                                            ?: emptyList()
-                                    }
-                                }
-
-                                else -> listOf(innerClaim)
-                            }
-                        }
-                }
-
-                else ->
-                    userClaims
-                        .filterIsInstance(claim.java)
             }
         }
-    }
 
     override fun getCarpIdentity(): AccountIdentity {
         val authentication = getJwtAuthenticationToken()

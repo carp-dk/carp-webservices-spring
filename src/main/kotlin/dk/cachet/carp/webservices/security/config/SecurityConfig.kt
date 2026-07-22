@@ -10,8 +10,6 @@ import dk.cachet.carp.webservices.security.authorization.Claim
 import dk.cachet.carp.webservices.security.authorization.Role
 import dk.cachet.carp.webservices.study.repository.CoreParticipantRepository
 import jakarta.annotation.PostConstruct
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -74,47 +72,31 @@ class ProxiesMethodSecurityExpressionRoot(
     private val auth: AuthenticationService,
 ) : SpringAddonsMethodSecurityExpressionRoot() {
     fun canManageStudy(studyId: UUID?): Boolean =
-        studyId != null &&
-            auth.getClaims(setOf(Claim.ManageStudy::class))
-                .contains(Claim.ManageStudy(studyId)) || isAdmin()
+        studyId != null && auth.hasClaim(Claim.ManageStudy(studyId)) || isAdmin()
 
     fun canLimitedManageStudy(studyId: UUID?): Boolean =
-        studyId != null &&
-            auth.getClaims(setOf(Claim.LimitedManageStudy::class))
-                .contains(Claim.LimitedManageStudy(studyId)) || isAdmin()
+        studyId != null && auth.hasClaim(Claim.LimitedManageStudy(studyId)) || isAdmin()
 
     fun isInDeployment(deploymentId: UUID?): Boolean =
-        deploymentId != null &&
-            auth.getClaims(setOf(Claim.InDeployment::class))
-                .contains(Claim.InDeployment(deploymentId)) || isAdmin()
+        deploymentId != null && auth.hasClaim(Claim.InDeployment(deploymentId)) || isAdmin()
 
     fun canManageDeployment(deploymentId: UUID?): Boolean =
-        deploymentId != null &&
-            auth.getClaims(setOf(Claim.ManageDeployment::class))
-                .contains(Claim.ManageDeployment(deploymentId)) || isAdmin()
+        deploymentId != null && auth.hasClaim(Claim.ManageDeployment(deploymentId)) || isAdmin()
 
     fun isCollectionOwner(collectionId: Int?): Boolean =
-        collectionId != null &&
-            auth.getClaims(setOf(Claim.CollectionOwner::class))
-                .contains(Claim.CollectionOwner(collectionId)) || isAdmin()
+        collectionId != null && auth.hasClaim(Claim.CollectionOwner(collectionId)) || isAdmin()
 
-    // HACK: it is not easy to assign a claim with a studyId when creating deployments,
-    // so we inject `CoreParticipantRepository` here to check whether the user is in a deployment
-    // which is part of this study.
-    //
-    // A potential workaround would be to redesign the endpoints for consent, documents, collections and files.
-    fun isInDeploymentOfStudy(studyId: UUID): Boolean =
-        runBlocking(Dispatchers.IO + SecurityCoroutineContext()) {
-            if (isAdmin()) return@runBlocking true
+    // It is not easy to assign a claim with a studyId when creating deployments, so we resolve, for
+    // each deployment the user participates in, which study it belongs to and check for a match.
+    // Study managers are already covered by `canManageStudy`/`canLimitedManageStudy` in the
+    // `@PreAuthorize` expressions, so only the participant case needs handling here.
+    fun isInDeploymentOfStudy(studyId: UUID): Boolean {
+        if (isAdmin()) return true
 
-            val id =
-                participantRepository.getRecruitment(studyId)?.participantGroups?.keys
-                    ?.firstOrNull {
-                        auth.getClaims(setOf(Claim.InDeployment::class)).contains(Claim.InDeployment(it))
-                    }
-
-            id != null
-        }
+        return auth.getClaims()
+            .filterIsInstance<Claim.InDeployment>()
+            .any { participantRepository.getStudyIdByDeploymentId(it.deploymentId) == studyId }
+    }
 
     fun isAdmin(): Boolean = hasRole(Role.SYSTEM_ADMIN.toString())
 }
