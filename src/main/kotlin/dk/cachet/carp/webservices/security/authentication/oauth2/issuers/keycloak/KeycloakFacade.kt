@@ -19,6 +19,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.PropertySource
 import org.springframework.context.annotation.PropertySources
@@ -42,7 +43,7 @@ import java.time.Instant
 // LongParameterList: the timeouts must be constructor-injected because the WebClients are built
 // during construction, before Spring could perform field injection.
 @Suppress("TooManyFunctions", "LongParameterList")
-class KeycloakFacade(
+class KeycloakFacade @Autowired constructor(
     @param:Value("\${keycloak.auth-server-url}") private val authServerUrl: String,
     @param:Value("\${keycloak.realm}") private val realm: String,
     @param:Value("\${keycloak.admin.client-id}") private val clientId: String,
