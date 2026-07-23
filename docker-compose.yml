@@ -7,6 +7,9 @@ x-keycloak-dev-commands: &keycloak-dev-commands
   command:
     - start-dev
     - --db=postgres
+    # Cap Keycloak's DB pool (Quarkus default is 100) so it cannot monopolise the shared Postgres
+    # (max_connections=100). With CAWS's 20-connection pool this bounds app usage at 70 of 100.
+    - --db-pool-max-size=50
     - --features=token-exchange
     - "--db-url=jdbc:postgresql://carp-postgres-${PROFILE}:5432/keycloak"
     - "--db-username=${ADMIN_USER}"
@@ -21,6 +24,9 @@ x-keycloak-prod-commands: &keycloak-prod-commands
   command:
     - start
     - --db=postgres
+    # Cap Keycloak's DB pool (Quarkus default is 100) so it cannot monopolise the shared Postgres
+    # (max_connections=100). With CAWS's 20-connection pool this bounds app usage at 70 of 100.
+    - --db-pool-max-size=50
     - --features=token-exchange
     - "--db-url=jdbc:postgresql://carp-postgres-${PROFILE}:5432/keycloak"
     - "--db-username=${ADMIN_USER}"

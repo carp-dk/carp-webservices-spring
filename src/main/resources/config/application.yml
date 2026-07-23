@@ -34,6 +34,10 @@ spring:
     type: com.zaxxer.hikari.HikariDataSource
     hikari:
       driver-class-name: org.postgresql.Driver
+      # This pool shares one Postgres (max_connections=100) with Keycloak, whose pool is capped at 50
+      # in docker-compose, so together the two apps can hold at most 20 + 50 = 70 of the 100 slots.
+      # Both connect as the Postgres superuser, so the superuser-reserved slots are NOT a protected
+      # admin reserve here; the remaining ~30 are plain headroom. Re-check this budget before raising.
       maximum-pool-size: 20
       idle-timeout: 600000
       max-lifetime: 1800000
@@ -68,7 +72,7 @@ spring:
         retry:
           enabled: true
           initial-interval: 1s
-          max-attempts: 3
+          max-retries: 3
           max-interval: 10s
           multiplier: 3
 
