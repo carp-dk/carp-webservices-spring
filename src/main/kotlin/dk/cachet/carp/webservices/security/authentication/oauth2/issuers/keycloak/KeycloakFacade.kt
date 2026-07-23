@@ -11,6 +11,7 @@ import dk.cachet.carp.webservices.security.authentication.oauth2.IssuerFacade
 import dk.cachet.carp.webservices.security.authentication.oauth2.issuers.keycloak.domain.*
 import dk.cachet.carp.webservices.security.authorization.Claim
 import dk.cachet.carp.webservices.security.authorization.Role
+import io.netty.channel.ChannelOption
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.reactive.asFlow
@@ -23,25 +24,42 @@ import org.springframework.context.annotation.PropertySource
 import org.springframework.context.annotation.PropertySources
 import org.springframework.http.MediaType
 import org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED_VALUE
+import org.springframework.http.client.reactive.ReactorClientHttpConnector
 import org.springframework.http.codec.json.JacksonJsonDecoder
 import org.springframework.http.codec.json.JacksonJsonEncoder
 import org.springframework.stereotype.Service
 import org.springframework.web.reactive.function.client.*
 import org.springframework.web.util.UriBuilder
+import reactor.netty.http.client.HttpClient
 import tools.jackson.databind.json.JsonMapper
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 
 // https://www.keycloak.org/docs-api/21.1.1/rest-api/
 @Service
 @PropertySources(PropertySource(value = ["classpath:config/application.yml"]))
-@Suppress("TooManyFunctions")
+// LongParameterList: the timeouts must be constructor-injected because the WebClients are built
+// during construction, before Spring could perform field injection.
+@Suppress("TooManyFunctions", "LongParameterList")
 class KeycloakFacade(
     @param:Value("\${keycloak.auth-server-url}") private val authServerUrl: String,
     @param:Value("\${keycloak.realm}") private val realm: String,
     @param:Value("\${keycloak.admin.client-id}") private val clientId: String,
     @param:Value("\${keycloak.admin.client-secret}") private val clientSecret: String,
     private val environmentUtil: EnvironmentUtil,
+    // Bounds on the outbound HTTP calls to Keycloak. Keycloak is co-located, so these are hang
+    // catchers, not latency budgets: a healthy Keycloak answers in milliseconds, so hitting either
+    // timeout means it is genuinely stuck rather than merely slow.
+    @param:Value("\${keycloak.admin.connect-timeout:2s}")
+    private val connectTimeout: Duration = Duration.ofSeconds(DEFAULT_CONNECT_TIMEOUT_SECONDS),
+    @param:Value("\${keycloak.admin.response-timeout:30s}")
+    private val responseTimeout: Duration = Duration.ofSeconds(DEFAULT_RESPONSE_TIMEOUT_SECONDS),
+    // The bulk anonymous-accounts endpoint streams an NDJSON response that can legitimately run for
+    // a very long time. This timeout is not an operational limit but a last-resort cleanup so a truly
+    // dead connection is eventually released; a couple of days is fine given we have the resources to wait.
+    @param:Value("\${keycloak.admin.bulk-response-timeout:2d}")
+    private val bulkResponseTimeout: Duration = Duration.ofSeconds(DEFAULT_BULK_RESPONSE_TIMEOUT_SECONDS),
 ) : IssuerFacade {
     companion object {
         private val LOGGER: Logger = LogManager.getLogger()
@@ -50,6 +68,10 @@ class KeycloakFacade(
         // Refresh the admin token this many seconds before it actually expires, so a token fetched
         // just under the wire can't expire mid-request.
         private const val TOKEN_REFRESH_MARGIN_SECONDS = 30L
+
+        private const val DEFAULT_CONNECT_TIMEOUT_SECONDS = 2L
+        private const val DEFAULT_RESPONSE_TIMEOUT_SECONDS = 30L
+        private const val DEFAULT_BULK_RESPONSE_TIMEOUT_SECONDS = 2L * 24L * 60L * 60L // 2 days
     }
 
     // Clock used for token-expiry timing. Production uses the system clock (the Spring constructor);
@@ -96,12 +118,16 @@ class KeycloakFacade(
             }
             .build()
 
-    private val adminClient: WebClient = buildWebClient("$authServerUrl/admin/realms/$realm")
+    private val adminClient: WebClient = buildWebClient("$authServerUrl/admin/realms/$realm", responseTimeout)
 
-    private val resourceClient: WebClient = buildWebClient("$authServerUrl/realms/$realm")
+    private val resourceClient: WebClient = buildWebClient("$authServerUrl/realms/$realm", responseTimeout)
+
+    // Dedicated client for the anonymous-accounts endpoint: it streams an NDJSON response that can
+    // legitimately run far longer than a regular call, so it uses the generous bulk timeout.
+    private val bulkClient: WebClient = buildWebClient("$authServerUrl/realms/$realm", bulkResponseTimeout)
 
     private val authClient: WebClient =
-        buildWebClient("$authServerUrl/realms/$realm")
+        buildWebClient("$authServerUrl/realms/$realm", responseTimeout)
             .mutate().defaultHeaders {
                 it.contentType = MediaType.parseMediaType(APPLICATION_FORM_URLENCODED_VALUE)
                 it.accept = listOf(MediaType.APPLICATION_JSON)
@@ -165,7 +191,7 @@ class KeycloakFacade(
                 subdomain,
             )
         try {
-            return resourceClient.post()
+            return bulkClient.post()
                 .uri("/bulk-users/anonymous")
                 .headers {
                     it.setBearerAuth(token!!)
@@ -445,13 +471,23 @@ class KeycloakFacade(
             }
         }
 
-    private fun buildWebClient(baseUrl: String): WebClient =
-        WebClient.builder()
+    private fun buildWebClient(
+        baseUrl: String,
+        responseTimeout: Duration,
+    ): WebClient {
+        val httpClient =
+            HttpClient.create()
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectTimeout.toMillis().toInt())
+                .responseTimeout(responseTimeout)
+
+        return WebClient.builder()
             .baseUrl(baseUrl)
+            .clientConnector(ReactorClientHttpConnector(httpClient))
             .exchangeStrategies(serializationStrategies)
             .defaultHeaders {
                 it.contentType = MediaType.APPLICATION_JSON
                 it.accept = listOf(MediaType.APPLICATION_JSON)
             }
             .build()
+    }
 }

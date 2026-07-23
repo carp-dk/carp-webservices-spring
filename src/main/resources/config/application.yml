@@ -115,6 +115,12 @@ keycloak:
   admin:
     client-id: "${KC_CLIENT_ID}"
     client-secret: "${KC_CLIENT_SECRET}"
+    # Bounds on the Keycloak Admin API HTTP calls. Keycloak is co-located, so these catch a hung/
+    # overloaded Keycloak rather than enforce a latency budget. The bulk anonymous-accounts endpoint
+    # streams a long NDJSON response; its timeout is a last-resort cleanup, not an operational limit.
+    connect-timeout: 2s
+    response-timeout: 30s
+    bulk-response-timeout: 2d
   # Timeouts for the JWKS fetch used to validate JWTs. Spring Security 7 defaults these to
   # 500 ms, which caused sporadic RemoteKeySourceException "Read timed out" 500s on the first
   # request after startup and on each JWKS cache refresh while Keycloak was slow.

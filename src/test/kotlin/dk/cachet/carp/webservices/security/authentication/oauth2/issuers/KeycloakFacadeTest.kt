@@ -4,17 +4,23 @@ import dk.cachet.carp.webservices.common.environment.EnvironmentUtil
 import dk.cachet.carp.webservices.security.authentication.oauth2.issuers.keycloak.KeycloakFacade
 import dk.cachet.carp.webservices.security.authorization.Role
 import io.mockk.mockk
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.SocketPolicy
 import org.junit.jupiter.api.assertThrows
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
+import kotlin.test.assertTrue
 
 // KeycloakFacade is more than likely to change when the official keycloak wrappers are released.
 class KeycloakFacadeTest {
@@ -125,6 +131,43 @@ class KeycloakFacadeTest {
                 assertEquals("first-token", stillCached.accessToken)
                 assertEquals("second-token", refreshed.accessToken)
                 assertEquals(2, server.requestCount) // one fetch before expiry, one after
+            } finally {
+                server.shutdown()
+            }
+        }
+
+    @Test
+    fun `admin call fails fast instead of hanging when Keycloak does not respond`() =
+        runBlocking {
+            val server = MockWebServer()
+            server.start()
+            try {
+                server.enqueue(tokenResponse("token"))
+                server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
+
+                val facade =
+                    KeycloakFacade(
+                        server.url("/").toString().trimEnd('/'),
+                        realm,
+                        clientId,
+                        clientSecret,
+                        environmentUtil,
+                        responseTimeout = Duration.ofMillis(200),
+                    )
+
+                // Guard the test with a bound well above the 200ms response timeout: if the timeout
+                // is wired the call throws quickly; if not, withTimeout trips and we fail explicitly
+                // rather than hang.
+                val error =
+                    assertFails {
+                        withTimeout(Duration.ofSeconds(3).toMillis()) {
+                            facade.getCountForRole(Role.RESEARCHER)
+                        }
+                    }
+                assertTrue(
+                    error !is TimeoutCancellationException,
+                    "getCountForRole hung; the response timeout was not applied",
+                )
             } finally {
                 server.shutdown()
             }
