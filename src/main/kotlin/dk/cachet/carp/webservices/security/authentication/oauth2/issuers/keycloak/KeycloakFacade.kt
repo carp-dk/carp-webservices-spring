@@ -405,6 +405,11 @@ class KeycloakFacade @Autowired constructor(
         }
     }
 
+    // NOTE: Keycloak's user-search endpoint silently caps each response at `max` (default 100) and we
+    // don't paginate here. In practice queryAll is only used for exact lookups (0-1 hits) and for
+    // getAllByClaim on study-management claims, and a study has at most a handful of staff — so the cap
+    // is never reached. If a single study ever gains >100 researchers/assistants, add first/max paging
+    // (and note that revokeClaimsFromAllAccounts would otherwise leave stale claims on the dropped ones).
     private suspend fun queryAll(query: String): List<Account> {
         LOGGER.debug("Querying all accounts with query: {}", query)
 
