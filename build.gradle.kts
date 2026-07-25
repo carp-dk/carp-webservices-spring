@@ -33,6 +33,9 @@ repositories {
 tasks.withType<Test> {
     environment("SPRING.PROFILES.ACTIVE", "test")
     useJUnitPlatform()
+    // Forward the optional real-data validation file to the forked test JVM (RecruitmentNormalizerRealDataTest).
+    // Unset in CI, so the guarded test simply skips.
+    System.getProperty("normalizer.realdata.file")?.let { systemProperty("normalizer.realdata.file", it) }
 }
 
 tasks.withType<BootJar> {
