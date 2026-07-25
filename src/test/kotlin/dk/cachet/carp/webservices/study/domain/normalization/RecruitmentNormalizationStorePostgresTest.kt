@@ -98,6 +98,46 @@ class RecruitmentNormalizationStorePostgresTest {
         assertEquals(listOf(0, 1), rows.participants.sortedBy { it.sortOrder }.map { it.sortOrder })
     }
 
+    @Test
+    fun `replace applies only the delta and leaves unchanged rows untouched`() {
+        val alice = Participant(EmailAccountIdentity("alice@example.com"), UUID.randomUUID())
+        val group = stagedGroup("old name", setOf(role(alice, AssignedTo.All)), deployed = false)
+        store.replace(1, RecruitmentNormalizer.decompose(snapshot(setOf(alice), mapOf(group.id to group))))
+
+        // Stamp a sentinel created_at; a reinsert (replace-all) would reset it to now().
+        jdbc.update(
+            "UPDATE recruitment_participants SET created_at = '2000-01-01' WHERE participant_id = ?",
+            alice.id.stringRepresentation,
+        )
+
+        // Second replace: alice unchanged, add bob, rename + deploy the group.
+        val bob = Participant(UsernameAccountIdentity("bob"), UUID.randomUUID())
+        val renamed =
+            StagedParticipantGroup(group.id, ParticipantGroupRepresentation("new name")).apply {
+                addParticipants(setOf(role(alice, AssignedTo.All)))
+                markAsDeployed()
+            }
+        store.replace(
+            1,
+            RecruitmentNormalizer.decompose(snapshot(setOf(alice, bob), mapOf(renamed.id to renamed))),
+        )
+
+        // alice's row was not reinserted => diff, not replace-all.
+        val aliceCreatedAt =
+            jdbc.queryForObject(
+                "SELECT created_at::text FROM recruitment_participants WHERE participant_id = ?",
+                String::class.java,
+                alice.id.stringRepresentation,
+            )
+        assertEquals(true, aliceCreatedAt!!.startsWith("2000-01-01"))
+
+        val rows = store.readRows(1)
+        assertEquals(2, rows.participants.size)
+        val updatedGroup = rows.groups.single()
+        assertEquals("new name", updatedGroup.name)
+        assertEquals(true, updatedGroup.isDeployed)
+    }
+
     // ---- helpers -------------------------------------------------------------
 
     private fun assertReconstructs(snapshot: RecruitmentSnapshot) {

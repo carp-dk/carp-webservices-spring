@@ -19,18 +19,64 @@ import java.sql.Types
 class RecruitmentNormalizationStore(
     private val jdbcTemplate: JdbcTemplate,
 ) {
-    /** Idempotently replace all normalized rows for [recruitmentId] with [normalized]'s rows. */
+    /**
+     * Synchronize the recruitment's normalized rows to [normalized] by applying only the delta against
+     * what is currently stored — inserting new rows, deleting removed ones, updating changed ones. This
+     * keeps a single-participant change to a single-row write instead of rewriting the whole recruitment.
+     * Backfill of an empty recruitment inserts everything; a re-run with no changes is a no-op. Idempotent.
+     */
     fun replace(
         recruitmentId: Int,
         normalized: NormalizedRecruitment,
     ) {
-        // Deleting groups cascades to members (FK ON DELETE CASCADE); participants are independent.
-        jdbcTemplate.update("DELETE FROM recruitment_participant_groups WHERE recruitment_id = ?", recruitmentId)
-        jdbcTemplate.update("DELETE FROM recruitment_participants WHERE recruitment_id = ?", recruitmentId)
+        val current = readRows(recruitmentId)
+        // Order matters for the FKs: participants and groups exist before members reference them;
+        // removing a participant/group cascades its members (any explicit member delete is then a no-op).
+        syncParticipants(recruitmentId, normalized.studyId, current.participants, normalized.participants)
+        syncGroups(recruitmentId, normalized.studyId, current.groups, normalized.groups)
+        syncMembers(normalized.studyId, current.members, normalized.members)
+    }
 
-        insertParticipants(recruitmentId, normalized.studyId, normalized.participants)
-        insertGroups(recruitmentId, normalized.studyId, normalized.groups)
-        insertMembers(normalized.studyId, normalized.members)
+    private fun syncParticipants(
+        recruitmentId: Int,
+        studyId: String,
+        current: List<RecruitmentParticipantRow>,
+        desired: List<RecruitmentParticipantRow>,
+    ) {
+        val currentByKey = current.associateBy { it.participantId }
+        val desiredByKey = desired.associateBy { it.participantId }
+        deleteParticipants(recruitmentId, (currentByKey.keys - desiredByKey.keys).toList())
+        insertParticipants(recruitmentId, studyId, desired.filter { it.participantId !in currentByKey })
+        val changed = desired.filter { it.participantId in currentByKey && currentByKey[it.participantId] != it }
+        updateParticipants(recruitmentId, changed)
+    }
+
+    private fun syncGroups(
+        recruitmentId: Int,
+        studyId: String,
+        current: List<RecruitmentGroupRow>,
+        desired: List<RecruitmentGroupRow>,
+    ) {
+        val currentByKey = current.associateBy { it.groupId }
+        val desiredByKey = desired.associateBy { it.groupId }
+        deleteGroups(recruitmentId, (currentByKey.keys - desiredByKey.keys).toList())
+        insertGroups(recruitmentId, studyId, desired.filter { it.groupId !in currentByKey })
+        val changed = desired.filter { it.groupId in currentByKey && currentByKey[it.groupId] != it }
+        updateGroups(recruitmentId, changed)
+    }
+
+    private fun syncMembers(
+        studyId: String,
+        current: List<RecruitmentGroupMemberRow>,
+        desired: List<RecruitmentGroupMemberRow>,
+    ) {
+        val key = { m: RecruitmentGroupMemberRow -> m.groupId to m.participantId }
+        val currentByKey = current.associateBy(key)
+        val desiredByKey = desired.associateBy(key)
+        deleteMembers((currentByKey.keys - desiredByKey.keys).toList())
+        insertMembers(studyId, desired.filter { key(it) !in currentByKey })
+        val changed = desired.filter { key(it) in currentByKey && currentByKey[key(it)] != it }
+        updateMembers(changed)
     }
 
     /**
@@ -193,6 +239,107 @@ class RecruitmentNormalizationStore(
                 }
 
                 override fun getBatchSize(): Int = rows.size
+            },
+        )
+    }
+
+    private fun deleteParticipants(
+        recruitmentId: Int,
+        participantIds: List<String>,
+    ) = batchByKey(
+        "DELETE FROM recruitment_participants WHERE recruitment_id = ? AND participant_id = ?",
+        participantIds,
+    ) { ps, id ->
+        ps.setInt(1, recruitmentId)
+        ps.setString(2, id)
+    }
+
+    private fun deleteGroups(
+        recruitmentId: Int,
+        groupIds: List<String>,
+    ) = batchByKey(
+        "DELETE FROM recruitment_participant_groups WHERE recruitment_id = ? AND group_id = ?",
+        groupIds,
+    ) { ps, id ->
+        ps.setInt(1, recruitmentId)
+        ps.setString(2, id)
+    }
+
+    private fun deleteMembers(keys: List<Pair<String, String>>) =
+        batchByKey(
+            "DELETE FROM recruitment_participant_group_members WHERE group_id = ? AND participant_id = ?",
+            keys,
+        ) { ps, (groupId, participantId) ->
+            ps.setString(1, groupId)
+            ps.setString(2, participantId)
+        }
+
+    @Suppress("MagicNumber") // JDBC positional parameter indices
+    private fun updateParticipants(
+        recruitmentId: Int,
+        rows: List<RecruitmentParticipantRow>,
+    ) = batchByKey(
+        "UPDATE recruitment_participants SET account_identity_type = ?, username = ?, email_address = ?, " +
+            "sort_order = ?, updated_at = now() WHERE recruitment_id = ? AND participant_id = ?",
+        rows,
+    ) { ps, row ->
+        ps.setString(1, row.accountIdentityType)
+        ps.setString(2, row.username)
+        ps.setString(3, row.emailAddress)
+        ps.setInt(4, row.sortOrder)
+        ps.setInt(5, recruitmentId)
+        ps.setString(6, row.participantId)
+    }
+
+    @Suppress("MagicNumber") // JDBC positional parameter indices
+    private fun updateGroups(
+        recruitmentId: Int,
+        rows: List<RecruitmentGroupRow>,
+    ) = batchByKey(
+        "UPDATE recruitment_participant_groups SET is_deployed = ?, name = ?, updated_at = now() " +
+            "WHERE recruitment_id = ? AND group_id = ?",
+        rows,
+    ) { ps, row ->
+        ps.setBoolean(1, row.isDeployed)
+        ps.setString(2, row.name)
+        ps.setInt(3, recruitmentId)
+        ps.setString(4, row.groupId)
+    }
+
+    @Suppress("MagicNumber") // JDBC positional parameter indices
+    private fun updateMembers(rows: List<RecruitmentGroupMemberRow>) =
+        batchByKey(
+            "UPDATE recruitment_participant_group_members SET assigned_all = ?, role_names = ? " +
+                "WHERE group_id = ? AND participant_id = ?",
+            rows,
+        ) { ps, row ->
+            ps.setBoolean(1, row.assignedAll)
+            val roleNames = row.roleNames
+            if (roleNames == null) {
+                ps.setNull(2, Types.ARRAY)
+            } else {
+                ps.setArray(2, ps.connection.createArrayOf("text", roleNames.toTypedArray()))
+            }
+            ps.setString(3, row.groupId)
+            ps.setString(4, row.participantId)
+        }
+
+    /** Batch a single prepared statement over [items]; a no-op when empty. */
+    private fun <T> batchByKey(
+        sql: String,
+        items: List<T>,
+        bind: (PreparedStatement, T) -> Unit,
+    ) {
+        if (items.isEmpty()) return
+        jdbcTemplate.batchUpdate(
+            sql,
+            object : BatchPreparedStatementSetter {
+                override fun setValues(
+                    ps: PreparedStatement,
+                    i: Int,
+                ) = bind(ps, items[i])
+
+                override fun getBatchSize(): Int = items.size
             },
         )
     }
