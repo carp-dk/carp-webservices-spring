@@ -10,9 +10,7 @@ import dk.cachet.carp.studies.application.users.ParticipantGroupRepresentation
 import dk.cachet.carp.studies.domain.users.RecruitmentSnapshot
 import dk.cachet.carp.studies.domain.users.StagedParticipantGroup
 import dk.cachet.carp.webservices.common.input.WS_JSON
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -41,16 +39,7 @@ class RecruitmentNormalizerTest {
     private fun encode(snapshot: RecruitmentSnapshot): String =
         WS_JSON.encodeToString(RecruitmentSnapshot.serializer(), snapshot)
 
-    /** Sets serialize as arrays in arbitrary order; sort every array so comparison is order-insensitive. */
-    private fun canonical(json: String): JsonElement = canonicalize(WS_JSON.parseToJsonElement(json))
-
-    private fun canonicalize(element: JsonElement): JsonElement =
-        when (element) {
-            is JsonObject ->
-                JsonObject(element.entries.sortedBy { it.key }.associate { it.key to canonicalize(it.value) })
-            is JsonArray -> JsonArray(element.map(::canonicalize).sortedBy { it.toString() })
-            else -> element
-        }
+    private fun canonical(json: String): JsonElement = CanonicalJson.canonicalize(WS_JSON.parseToJsonElement(json))
 
     // ---- fixtures ------------------------------------------------------------
 

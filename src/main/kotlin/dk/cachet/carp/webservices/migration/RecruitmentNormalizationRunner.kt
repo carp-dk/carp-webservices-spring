@@ -2,12 +2,11 @@ package dk.cachet.carp.webservices.migration
 
 import dk.cachet.carp.studies.domain.users.RecruitmentSnapshot
 import dk.cachet.carp.webservices.common.input.WS_JSON
+import dk.cachet.carp.webservices.study.domain.normalization.CanonicalJson
 import dk.cachet.carp.webservices.study.domain.normalization.NormalizedRecruitment
 import dk.cachet.carp.webservices.study.domain.normalization.RecruitmentNormalizationStore
 import dk.cachet.carp.webservices.study.domain.normalization.RecruitmentNormalizer
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
 import org.apache.logging.log4j.LogManager
 import org.flywaydb.core.Flyway
 import org.springframework.boot.ApplicationArguments
@@ -143,15 +142,20 @@ class RecruitmentNormalizationRunner(
             }
             Mode.DRY_RUN -> "WOULD_MIGRATE"
             Mode.VERIFY ->
-                if (verifyPersisted(row.id, json, normalized)) "VALIDATED" else error("reconstruction mismatch")
+                if (verifyPersisted(row.id, snapshot, normalized)) "VALIDATED" else error("reconstruction mismatch")
             Mode.INVENTORY -> "UNCHANGED"
         }
     }
 
-    /** Reconstructs from the persisted rows + envelope and checks it re-serializes to the stored blob. */
+    /**
+     * Checks the recruitment reconstructed from the persisted rows serializes identically to the
+     * ORIGINAL snapshot object ([expected]). We compare re-encoded forms, not the raw stored blob:
+     * a legacy-serialized blob's `studyProtocol` can differ byte-wise from current kotlinx output
+     * while the decoded object is identical, and reproducing legacy bytes is not a requirement.
+     */
     private fun verifyPersisted(
         recruitmentId: Int,
-        json: String,
+        expected: RecruitmentSnapshot,
         decomposed: NormalizedRecruitment,
     ): Boolean {
         val dbRows = store.readRows(recruitmentId)
@@ -160,7 +164,8 @@ class RecruitmentNormalizationRunner(
                 decomposed.copy(participants = dbRows.participants, groups = dbRows.groups, members = dbRows.members),
             )
         val reEncoded = WS_JSON.encodeToString(RecruitmentSnapshot.serializer(), reconstructed)
-        return canonical(reEncoded) == canonical(json)
+        val expectedEncoded = WS_JSON.encodeToString(RecruitmentSnapshot.serializer(), expected)
+        return canonical(reEncoded) == canonical(expectedEncoded)
     }
 
     private fun decodeOrSkip(json: String): RecruitmentSnapshot =
@@ -330,18 +335,7 @@ class RecruitmentNormalizationRunner(
         if (milliseconds > 0) TimeUnit.MILLISECONDS.sleep(milliseconds)
     }
 
-    private fun canonical(json: String): JsonElement = canonicalize(WS_JSON.parseToJsonElement(json))
-
-    private fun canonicalize(element: JsonElement): JsonElement =
-        when (element) {
-            // Sort keys too: the stored blob is Postgres jsonb (keys ordered by length) while the
-            // reconstructed side is kotlinx (declaration order). Only key-sorted objects have a
-            // source-independent toString(), which the array sort below relies on.
-            is JsonObject ->
-                JsonObject(element.entries.sortedBy { it.key }.associate { it.key to canonicalize(it.value) })
-            is JsonArray -> JsonArray(element.map(::canonicalize).sortedBy { it.toString() })
-            else -> element
-        }
+    private fun canonical(json: String): JsonElement = CanonicalJson.canonicalize(WS_JSON.parseToJsonElement(json))
 
     companion object {
         private val LOGGER = LogManager.getLogger()

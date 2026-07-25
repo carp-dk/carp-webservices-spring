@@ -2,9 +2,7 @@ package dk.cachet.carp.webservices.study.domain.normalization
 
 import dk.cachet.carp.studies.domain.users.RecruitmentSnapshot
 import dk.cachet.carp.webservices.common.input.WS_JSON
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import java.io.File
@@ -75,13 +73,5 @@ class RecruitmentNormalizerRealDataTest {
     private fun encode(snapshot: RecruitmentSnapshot): String =
         WS_JSON.encodeToString(RecruitmentSnapshot.serializer(), snapshot)
 
-    private fun canonical(json: String): JsonElement = canonicalize(WS_JSON.parseToJsonElement(json))
-
-    private fun canonicalize(element: JsonElement): JsonElement =
-        when (element) {
-            is JsonObject ->
-                JsonObject(element.entries.sortedBy { it.key }.associate { it.key to canonicalize(it.value) })
-            is JsonArray -> JsonArray(element.map(::canonicalize).sortedBy { it.toString() })
-            else -> element
-        }
+    private fun canonical(json: String): JsonElement = CanonicalJson.canonicalize(WS_JSON.parseToJsonElement(json))
 }
