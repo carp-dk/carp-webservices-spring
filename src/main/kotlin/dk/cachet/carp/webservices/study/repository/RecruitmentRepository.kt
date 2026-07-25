@@ -48,6 +48,31 @@ interface RecruitmentRepository : JpaRepository<Recruitment, Int>, RecruitmentRe
     )
     fun deleteByStudyId(studyId: String)
 
+    /**
+     * Relational equivalent of [findRecruitmentByParticipantGroupId] over the normalized tables.
+     * Used once reads are served from the tables, where the blob's `participantGroups` is empty.
+     */
+    @Query(
+        value =
+            """
+            SELECT r.* FROM recruitments r
+            JOIN recruitment_participant_groups g ON g.recruitment_id = r.id
+            WHERE g.group_id = ?1
+            """,
+        nativeQuery = true,
+    )
+    fun findRecruitmentByNormalizedGroupId(groupId: String): Recruitment?
+
+    /**
+     * Relational equivalent of [findStudyIdByDeploymentId] over the normalized tables (indexed unique
+     * `group_id`). Cheap enough for the authorization hot path and does not load the snapshot.
+     */
+    @Query(
+        value = "SELECT study_id FROM recruitment_participant_groups WHERE group_id = ?1",
+        nativeQuery = true,
+    )
+    fun findStudyIdByNormalizedGroupId(groupId: String): String?
+
     @Modifying
     @Transactional
     @Query(

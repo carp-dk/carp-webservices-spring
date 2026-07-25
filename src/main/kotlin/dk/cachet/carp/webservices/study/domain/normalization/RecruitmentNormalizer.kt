@@ -28,32 +28,31 @@ object RecruitmentNormalizer {
     /** Split a snapshot into the envelope (both maps emptied) plus typed participant/group/member rows. */
     fun decompose(snapshot: RecruitmentSnapshot): NormalizedRecruitment {
         val envelope = snapshot.copy(participants = emptySet(), participantGroups = emptyMap())
-
-        val participants =
-            snapshot.participants.mapIndexed { index, participant -> participant.toRow(index) }
-
-        val groups =
-            snapshot.participantGroups.map { (groupId, group) ->
-                RecruitmentGroupRow(
-                    groupId = groupId.stringRepresentation,
-                    isDeployed = group.isDeployed,
-                    name = group.representation.name,
-                )
-            }
-
-        val members =
-            snapshot.participantGroups.flatMap { (groupId, group) ->
-                group.roleAssignments.map { it.toRow(groupId.stringRepresentation) }
-            }
-
         return NormalizedRecruitment(
             envelopeSnapshot = WS_JSON.encodeToString(RecruitmentSnapshot.serializer(), envelope),
             studyId = snapshot.studyId.stringRepresentation,
-            participants = participants,
-            groups = groups,
-            members = members,
+            participants = participantRows(snapshot.participants),
+            groups = groupRows(snapshot.participantGroups),
+            members = memberRows(snapshot.participantGroups),
         )
     }
+
+    /** Participant rows for [participants], numbering `sort_order` from [startSortOrder] (for appends). */
+    fun participantRows(
+        participants: Collection<Participant>,
+        startSortOrder: Int = 0,
+    ): List<RecruitmentParticipantRow> =
+        participants.mapIndexed { index, participant -> participant.toRow(startSortOrder + index) }
+
+    /** Group rows (without their role assignments) for [groups]. */
+    fun groupRows(groups: Map<UUID, StagedParticipantGroup>): List<RecruitmentGroupRow> =
+        groups.map { (groupId, group) ->
+            RecruitmentGroupRow(groupId.stringRepresentation, group.isDeployed, group.representation.name)
+        }
+
+    /** Member (role-assignment) rows across all [groups]. */
+    fun memberRows(groups: Map<UUID, StagedParticipantGroup>): List<RecruitmentGroupMemberRow> =
+        groups.flatMap { (groupId, group) -> group.roleAssignments.map { it.toRow(groupId.stringRepresentation) } }
 
     /** Rebuild the exact core snapshot from the envelope and the typed rows. */
     fun reconstruct(normalized: NormalizedRecruitment): RecruitmentSnapshot {

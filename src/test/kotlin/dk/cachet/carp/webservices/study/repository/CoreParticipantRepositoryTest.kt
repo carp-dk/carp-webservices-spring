@@ -5,6 +5,7 @@ import dk.cachet.carp.studies.domain.users.RecruitmentSnapshot
 import dk.cachet.carp.webservices.common.exception.responses.ResourceNotFoundException
 import dk.cachet.carp.webservices.common.input.WS_JSON
 import dk.cachet.carp.webservices.study.domain.Recruitment
+import dk.cachet.carp.webservices.study.domain.normalization.RecruitmentNormalizationStore
 import io.mockk.*
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
@@ -15,6 +16,7 @@ import dk.cachet.carp.studies.domain.users.Recruitment as CoreRecruitment
 
 class CoreParticipantRepositoryTest {
     private val mockRepository: RecruitmentRepository = mockk()
+    private val mockStore: RecruitmentNormalizationStore = mockk()
 
     @Nested
     inner class AddRecruitment {
@@ -43,7 +45,7 @@ class CoreParticipantRepositoryTest {
                     mockExistingRecruitment
                 coEvery { mockRepository.save(ofType<Recruitment>()) } returns mockSavedRecruitment
 
-                val sut = CoreParticipantRepository(mockRepository)
+                val sut = CoreParticipantRepository(mockRepository, mockStore, false)
 
                 sut.addRecruitment(mockCoreRecruitment)
 
@@ -88,7 +90,7 @@ class CoreParticipantRepositoryTest {
                     mockExistingRecruitment
                 coEvery { mockRepository.save(ofType<Recruitment>()) } returns mockSavedRecruitment
 
-                val sut = CoreParticipantRepository(mockRepository)
+                val sut = CoreParticipantRepository(mockRepository, mockStore, false)
 
                 assertThrows<IllegalStateException> {
                     sut.addRecruitment(mockCoreRecruitment)
@@ -131,7 +133,7 @@ class CoreParticipantRepositoryTest {
                             mockRecruitment.snapshot!!,
                         ),
                     )
-                val sut = CoreParticipantRepository(mockRepository)
+                val sut = CoreParticipantRepository(mockRepository, mockStore, false)
 
                 val result = sut.getRecruitment(mockUUID1)
 
@@ -147,7 +149,7 @@ class CoreParticipantRepositoryTest {
                 coEvery { mockRepository.findRecruitmentByStudyId(mockUUID.stringRepresentation) } returns
                     mockRecruitment
 
-                val sut = CoreParticipantRepository(mockRepository)
+                val sut = CoreParticipantRepository(mockRepository, mockStore, false)
 
                 val result = sut.getRecruitment(mockUUID)
 
@@ -166,7 +168,7 @@ class CoreParticipantRepositoryTest {
             every { mockRepository.findStudyIdByDeploymentId(deploymentId.stringRepresentation) } returns
                 studyId.stringRepresentation
 
-            val sut = CoreParticipantRepository(mockRepository)
+            val sut = CoreParticipantRepository(mockRepository, mockStore, false)
 
             assertEquals(studyId, sut.getStudyIdByDeploymentId(deploymentId))
         }
@@ -176,7 +178,7 @@ class CoreParticipantRepositoryTest {
             val deploymentId = UUID.randomUUID()
             every { mockRepository.findStudyIdByDeploymentId(deploymentId.stringRepresentation) } returns null
 
-            val sut = CoreParticipantRepository(mockRepository)
+            val sut = CoreParticipantRepository(mockRepository, mockStore, false)
 
             assertNull(sut.getStudyIdByDeploymentId(deploymentId))
         }
@@ -207,7 +209,7 @@ class CoreParticipantRepositoryTest {
                     mockRecruitment
                 coEvery { mockRepository.deleteByStudyId(mockUUID1.stringRepresentation) } just Runs
 
-                val sut = CoreParticipantRepository(mockRepository)
+                val sut = CoreParticipantRepository(mockRepository, mockStore, false)
 
                 val result = sut.removeStudy(mockUUID1)
 
@@ -225,7 +227,7 @@ class CoreParticipantRepositoryTest {
                 coEvery { mockRepository.findRecruitmentByStudyId(mockUUID.stringRepresentation) } returns
                     mockRecruitment
 
-                val sut = CoreParticipantRepository(mockRepository)
+                val sut = CoreParticipantRepository(mockRepository, mockStore, false)
 
                 val result = sut.removeStudy(mockUUID)
 
@@ -249,7 +251,7 @@ class CoreParticipantRepositoryTest {
 
                 coEvery { mockRepository.findRecruitmentByStudyId(mockUUID1.stringRepresentation) } returns null
 
-                val sut = CoreParticipantRepository(mockRepository)
+                val sut = CoreParticipantRepository(mockRepository, mockStore, false)
 
                 assertThrows<ResourceNotFoundException> {
                     sut.updateRecruitment(mockRecruitment)
@@ -296,7 +298,7 @@ class CoreParticipantRepositoryTest {
                     mockRecruitmentFound
                 coEvery { mockRepository.save(ofType<Recruitment>()) } returns mockk()
 
-                val sut = CoreParticipantRepository(mockRepository)
+                val sut = CoreParticipantRepository(mockRepository, mockStore, false)
 
                 sut.updateRecruitment(mockCoreRecruitment)
 

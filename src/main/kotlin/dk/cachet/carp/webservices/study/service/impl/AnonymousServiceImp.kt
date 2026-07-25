@@ -14,6 +14,7 @@ import dk.cachet.carp.studies.application.StudyDetails
 import dk.cachet.carp.studies.application.users.AssignedParticipantRoles
 import dk.cachet.carp.studies.application.users.Participant
 import dk.cachet.carp.studies.domain.users.StagedParticipantGroup
+import dk.cachet.carp.webservices.common.exception.responses.ResourceNotFoundException
 import dk.cachet.carp.webservices.common.input.WS_JSON
 import dk.cachet.carp.webservices.common.services.CoreServiceContainer
 import dk.cachet.carp.webservices.deployment.domain.ParticipantGroup
@@ -21,22 +22,28 @@ import dk.cachet.carp.webservices.deployment.domain.StudyDeployment
 import dk.cachet.carp.webservices.deployment.repository.CoreDeploymentRepository
 import dk.cachet.carp.webservices.deployment.repository.CoreParticipationRepository
 import dk.cachet.carp.webservices.security.config.SecurityCoroutineContext
+import dk.cachet.carp.webservices.study.domain.normalization.RecruitmentNormalizationStore
 import dk.cachet.carp.webservices.study.repository.RecruitmentRepository
 import dk.cachet.carp.webservices.study.service.AnonymousService
 import kotlinx.coroutines.*
 import kotlinx.serialization.encodeToString
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import tools.jackson.databind.ObjectMapper
 import kotlin.time.Clock
 import dk.cachet.carp.deployments.domain.StudyDeployment as CoreStudyDeployment
 
 @Service
+@Suppress("LongParameterList") // Spring constructor injection
 class AnonymousServiceImp(
     private val objectMapper: ObjectMapper,
     services: CoreServiceContainer,
     private val deploymentRepository: CoreDeploymentRepository,
     private val recruitmentRepository: RecruitmentRepository,
     private val participantGroupRepository: CoreParticipationRepository,
+    private val normalizationStore: RecruitmentNormalizationStore,
+    @Value("\${carp.recruitment.normalized-store-enabled:false}")
+    private val normalizedStoreEnabled: Boolean,
 ) : AnonymousService {
     val studyService = services.studyService
 
@@ -174,12 +181,18 @@ class AnonymousServiceImp(
             val study = studyService.getStudyDetails(studyId)
 
             val (participants, groups, deployments, participation) = buildParticipants(pair, roleName, study)
-            val participantGroupString = WS_JSON.encodeToString(groups)
-            recruitmentRepository.bulkAddParticipantsAndGroups(
-                studyId.stringRepresentation,
-                objectMapper.writeValueAsString(participants),
-                participantGroupString,
-            )
+            if (normalizedStoreEnabled) {
+                val recruitment =
+                    recruitmentRepository.findRecruitmentByStudyId(studyId.stringRepresentation)
+                        ?: throw ResourceNotFoundException("Recruitment with studyId $studyId is not found.")
+                normalizationStore.append(recruitment.id, studyId.stringRepresentation, participants, groups)
+            } else {
+                recruitmentRepository.bulkAddParticipantsAndGroups(
+                    studyId.stringRepresentation,
+                    objectMapper.writeValueAsString(participants),
+                    WS_JSON.encodeToString(groups),
+                )
+            }
             deploymentRepository.addAll(deployments)
             participantGroupRepository.addAll(participation)
             groups.values.toList()

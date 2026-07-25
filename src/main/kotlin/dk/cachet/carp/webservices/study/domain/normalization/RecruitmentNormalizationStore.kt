@@ -1,5 +1,8 @@
 package dk.cachet.carp.webservices.study.domain.normalization
 
+import dk.cachet.carp.common.application.UUID
+import dk.cachet.carp.studies.application.users.Participant
+import dk.cachet.carp.studies.domain.users.StagedParticipantGroup
 import org.springframework.jdbc.core.BatchPreparedStatementSetter
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Component
@@ -25,9 +28,31 @@ class RecruitmentNormalizationStore(
         jdbcTemplate.update("DELETE FROM recruitment_participant_groups WHERE recruitment_id = ?", recruitmentId)
         jdbcTemplate.update("DELETE FROM recruitment_participants WHERE recruitment_id = ?", recruitmentId)
 
-        insertParticipants(recruitmentId, normalized)
-        insertGroups(recruitmentId, normalized)
+        insertParticipants(recruitmentId, normalized.studyId, normalized.participants)
+        insertGroups(recruitmentId, normalized.studyId, normalized.groups)
         insertMembers(normalized.studyId, normalized.members)
+    }
+
+    /**
+     * Append [participants] and [groups] to an existing recruitment's tables without touching existing
+     * rows (the relational equivalent of the JSONB bulk-append). `sort_order` continues after the current
+     * maximum so appended participants sort after existing ones.
+     */
+    fun append(
+        recruitmentId: Int,
+        studyId: String,
+        participants: Collection<Participant>,
+        groups: Map<UUID, StagedParticipantGroup>,
+    ) {
+        val nextSortOrder =
+            jdbcTemplate.queryForObject(
+                "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM recruitment_participants WHERE recruitment_id = ?",
+                Int::class.java,
+                recruitmentId,
+            ) ?: 0
+        insertParticipants(recruitmentId, studyId, RecruitmentNormalizer.participantRows(participants, nextSortOrder))
+        insertGroups(recruitmentId, studyId, RecruitmentNormalizer.groupRows(groups))
+        insertMembers(studyId, RecruitmentNormalizer.memberRows(groups))
     }
 
     /** Read the persisted normalized rows for [recruitmentId] (for verification / reconstruction). */
@@ -87,9 +112,9 @@ class RecruitmentNormalizationStore(
     @Suppress("MagicNumber") // JDBC positional parameter indices
     private fun insertParticipants(
         recruitmentId: Int,
-        normalized: NormalizedRecruitment,
+        studyId: String,
+        rows: List<RecruitmentParticipantRow>,
     ) {
-        val rows = normalized.participants
         jdbcTemplate.batchUpdate(
             "INSERT INTO recruitment_participants " +
                 "(recruitment_id, study_id, participant_id, account_identity_type, username, email_address, " +
@@ -101,7 +126,7 @@ class RecruitmentNormalizationStore(
                 ) {
                     val row = rows[i]
                     ps.setInt(1, recruitmentId)
-                    ps.setString(2, normalized.studyId)
+                    ps.setString(2, studyId)
                     ps.setString(3, row.participantId)
                     ps.setString(4, row.accountIdentityType)
                     ps.setString(5, row.username)
@@ -117,9 +142,9 @@ class RecruitmentNormalizationStore(
     @Suppress("MagicNumber") // JDBC positional parameter indices
     private fun insertGroups(
         recruitmentId: Int,
-        normalized: NormalizedRecruitment,
+        studyId: String,
+        rows: List<RecruitmentGroupRow>,
     ) {
-        val rows = normalized.groups
         jdbcTemplate.batchUpdate(
             "INSERT INTO recruitment_participant_groups " +
                 "(recruitment_id, study_id, group_id, is_deployed, name, created_at) VALUES (?, ?, ?, ?, ?, now())",
@@ -130,7 +155,7 @@ class RecruitmentNormalizationStore(
                 ) {
                     val row = rows[i]
                     ps.setInt(1, recruitmentId)
-                    ps.setString(2, normalized.studyId)
+                    ps.setString(2, studyId)
                     ps.setString(3, row.groupId)
                     ps.setBoolean(4, row.isDeployed)
                     ps.setString(5, row.name)
