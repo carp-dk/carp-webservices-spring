@@ -241,10 +241,29 @@ Precondition: confirm the Core13 migration has fully applied everywhere (no rows
 **Batch sizing:** a single recruitment can decompose into ~13k child rows, so batch by a small number
 of recruitments per transaction, not by a fixed child-row count.
 
-## 9. Rollout & verification
+## 9. Rollout & verification (as built)
 
-Shadow-read (reconstruct alongside blob, compare serialized forms, log sampled divergences)
-until divergence ≈ 0 → dual-write → flip source of truth → drop blob after a confidence window.
+Everything is gated by `carp.recruitment.normalized-store-enabled` (default **off**). With the flag off
+the app reads and writes the blob unchanged, so all of the below ships dormant and safe. Because the
+migration runs in an **offline maintenance window** (no concurrent traffic), no dual-write / shadow-read
+period is needed.
+
+Per environment (dev is already on carp.core 1.3; prod needs the Core13 migration first):
+
+1. **Backfill** — run the normalization runner: `inventory` → `dry-run` → `apply` → `verify`
+   (non-web, `carp.recruitment-normalization.mode=…`). Reuses the `core_data_migration_*` tracking tables.
+2. **Flip the flag on.** From here `getRecruitment` reconstructs from the tables, and every write
+   decomposes into them and persists an **envelope-only** blob. New data and any touched recruitment
+   land in the tables automatically — this is the actual win.
+3. **Smoke test.** The blob is still full for untouched recruitments, so flipping the flag back off is a
+   clean rollback up to this point.
+4. **`strip` (housekeeping, deferrable).** Empties the two maps from dormant recruitments' blobs after
+   confirming the tables reconstruct them. Not required for correctness (reads ignore the blob maps when
+   the flag is on) — it only reclaims storage. **Point of no return:** once stripped, the flag can't be
+   flipped back off. Run it in a later window, once the table-backed reads are trusted in prod.
+
+Skipped rows (undecodable / NULL — see §8) are never stripped, and `strip` refuses to touch any
+recruitment the tables can't reconstruct.
 
 ## 10. Risks
 
