@@ -5,23 +5,47 @@ import dk.cachet.carp.webservices.study.domain.SortDirection
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
 
+/**
+ * Participant search/list/count over the normalized recruitment tables (`recruitment_participants`,
+ * `recruitment_participant_groups`, `recruitment_participant_group_members`) — the read-model half of
+ * the participant-group normalization (see docs/participant-group-normalization.md).
+ *
+ * These previously fanned out over `recruitments.snapshot` JSONB. They now query the typed tables
+ * (indexed `pg_trgm` search on `username`/`email_address`, relational join for the deployed flag) and
+ * reconstruct the exact participant JSON via `jsonb_build_object`, so [ParticipantAccountQueryRow] and
+ * the service-layer consumers are unchanged.
+ */
 class RecruitmentRepositoryImpl(
     @PersistenceContext private val entityManager: EntityManager,
 ) : RecruitmentRepositoryCustom {
     companion object {
+        private const val EMAIL_IDENTITY_TYPE = "dk.cachet.carp.common.application.users.EmailAccountIdentity"
+        private const val USERNAME_IDENTITY_TYPE = "dk.cachet.carp.common.application.users.UsernameAccountIdentity"
+
+        /** Rebuilds the core `Participant` JSON (`{accountIdentity:{__type,..}, id}`) from columns of [alias]. */
+        private fun participantJson(alias: String): String =
+            """
+            jsonb_build_object(
+                'accountIdentity',
+                CASE WHEN $alias.account_identity_type = 'email'
+                    THEN jsonb_build_object('__type', '$EMAIL_IDENTITY_TYPE', 'emailAddress', $alias.email_address)
+                    ELSE jsonb_build_object('__type', '$USERNAME_IDENTITY_TYPE', 'username', $alias.username)
+                END,
+                'id', $alias.participant_id
+            )
+            """
+
+        /** Per-study map of participant -> its deployed group id (participant is deployed iff present). */
         private const val DEPLOYED_PARTICIPANTS_CTE =
             """
             WITH deployed_participants AS (
-                SELECT DISTINCT ON (role_assignment->>'participantId')
-                    role_assignment->>'participantId' AS participant_id,
-                    group_id AS deployment_id
-                FROM public.recruitments,
-                     jsonb_each(snapshot->'participantGroups') groups(group_id, group_value),
-                     jsonb_array_elements(group_value->'_roleAssignments') role_assignments(role_assignment)
-                WHERE snapshot->>'studyId' = :studyId
-                AND group_value->>'isDeployed' = 'true'
-                AND (role_assignment->>'participantId') IS NOT NULL
-                ORDER BY role_assignment->>'participantId', group_id
+                SELECT DISTINCT ON (m.participant_id)
+                    m.participant_id AS participant_id,
+                    m.group_id AS deployment_id
+                FROM recruitment_participant_group_members m
+                JOIN recruitment_participant_groups g ON g.group_id = m.group_id
+                WHERE g.study_id = :studyId AND g.is_deployed
+                ORDER BY m.participant_id, m.group_id
             )
             """
     }
@@ -33,116 +57,25 @@ class RecruitmentRepositoryImpl(
         search: String?,
         isDescending: Boolean?,
         sortBy: ParticipantOrderBy?,
-    ): String? =
-        executeLegacyParticipantQuery(
-            studyId,
-            offset,
-            limit,
-            search,
-            when (isDescending) {
-                true -> SortDirection.Desc
-                false -> SortDirection.Asc
-                null -> null
-            },
-            sortBy,
-        )
-
-    override fun queryParticipantAccounts(
-        studyId: String,
-        offset: Int?,
-        limit: Int?,
-        search: String?,
-        isDeployed: Boolean?,
-        sortDirection: SortDirection?,
-        sortBy: ParticipantOrderBy?,
-    ): List<ParticipantAccountQueryRow> =
-        executeParticipantAccountQuery(studyId, offset, limit, search, isDeployed, sortDirection, sortBy)
-
-    override fun countQueryParticipantAccounts(
-        studyId: String,
-        search: String?,
-        isDeployed: Boolean?,
-    ): Int {
-        val searchCondition = buildParticipantSearchCondition("participant", search)
-        val deploymentCondition = buildDeploymentCondition(isDeployed)
-
-        val sql = """
-            $DEPLOYED_PARTICIPANTS_CTE
-            SELECT COUNT(*)
-            FROM public.recruitments,
-                 jsonb_array_elements(snapshot->'participants') arr(participant)
-            LEFT JOIN deployed_participants deployed_participant
-                ON deployed_participant.participant_id = participant->>'id'
-            WHERE snapshot->>'studyId' = :studyId
-            $searchCondition
-            $deploymentCondition
-        """
-
-        val query = entityManager.createNativeQuery(sql)
-        query.setParameter("studyId", studyId)
-        if (search != null) query.setParameter("search", search)
-
-        return (query.singleResult as Number).toInt()
-    }
-
-    @Suppress("LongMethod", "LongParameterList")
-    private fun executeLegacyParticipantQuery(
-        studyId: String,
-        offset: Int?,
-        limit: Int?,
-        search: String?,
-        sortDirection: SortDirection?,
-        sortBy: ParticipantOrderBy?,
     ): String? {
-        val direction = if (sortDirection == SortDirection.Desc) "DESC" else "ASC"
-
-        val searchCondition =
-            if (search != null) {
-                """
-            AND (
-                elem->>'id' ILIKE CONCAT('%', :search, '%')
-                OR
-                elem->'accountIdentity'->>'username' ILIKE CONCAT('%', :search, '%')
-                OR elem->'accountIdentity'->>'emailAddress' ILIKE CONCAT('%', :search, '%')
-            )
-        """
-            } else {
-                ""
-            }
-
+        val direction = if (isDescending == true) "DESC" else "ASC"
         val orderByClause =
-            when (sortBy) {
-                ParticipantOrderBy.AccountIdentity ->
-                    """
-                    COALESCE(
-                         elem->'accountIdentity'->>'username',
-                         elem->'accountIdentity'->>'emailAddress'
-                    ) $direction
-                """
-                else ->
-                    if (sortDirection == null) {
-                        "idx"
-                    } else {
-                        """
-                        COALESCE(
-                             elem->'accountIdentity'->>'username',
-                             elem->'accountIdentity'->>'emailAddress'
-                        ) $direction
-                    """
-                    }
+            if (sortBy == ParticipantOrderBy.AccountIdentity || isDescending != null) {
+                "COALESCE(p.username, p.email_address) $direction"
+            } else {
+                "p.sort_order"
             }
 
         val sql = """
-            SELECT jsonb_agg(elem) AS participants_
+            SELECT jsonb_agg(participant)::text AS participants_
             FROM (
-                SELECT elem
-                FROM public.recruitments,
-                     jsonb_array_elements(snapshot->'participants') WITH ORDINALITY arr(elem, idx)
-                WHERE snapshot->>'studyId' = :studyId
-                $searchCondition
+                SELECT ${participantJson("p")} AS participant
+                FROM recruitment_participants p
+                WHERE p.study_id = :studyId
+                ${buildSearchCondition("p", search)}
                 ORDER BY $orderByClause
                 LIMIT :limit OFFSET :offset
-            ) subquery
+            ) sub
         """
 
         val query = entityManager.createNativeQuery(sql)
@@ -154,8 +87,8 @@ class RecruitmentRepositoryImpl(
         return query.singleResult as? String
     }
 
-    @Suppress("LongMethod", "LongParameterList")
-    private fun executeParticipantAccountQuery(
+    @Suppress("LongParameterList")
+    override fun queryParticipantAccounts(
         studyId: String,
         offset: Int?,
         limit: Int?,
@@ -164,69 +97,25 @@ class RecruitmentRepositoryImpl(
         sortDirection: SortDirection?,
         sortBy: ParticipantOrderBy?,
     ): List<ParticipantAccountQueryRow> {
-        val direction = if (sortDirection == SortDirection.Desc) "DESC" else "ASC"
-        val searchCondition = buildParticipantSearchCondition("elem", search)
-        val deploymentCondition = buildDeploymentCondition(isDeployed)
-
-        val orderByClause =
-            when (sortBy) {
-                ParticipantOrderBy.IsDeployed ->
-                    """
-                    CASE WHEN deployed_participant.participant_id IS NULL THEN 0 ELSE 1 END $direction,
-                    COALESCE(
-                        elem->'accountIdentity'->>'username',
-                        elem->'accountIdentity'->>'emailAddress'
-                    ) $direction,
-                    idx $direction
-                    """
-                ParticipantOrderBy.AccountIdentity ->
-                    """
-                    COALESCE(
-                        elem->'accountIdentity'->>'username',
-                        elem->'accountIdentity'->>'emailAddress'
-                    ) $direction
-                """
-                else ->
-                    if (sortDirection == null) {
-                        "idx"
-                    } else {
-                        """
-                        COALESCE(
-                            elem->'accountIdentity'->>'username',
-                            elem->'accountIdentity'->>'emailAddress'
-                        ) $direction
-                    """
-                    }
-            }
-
-        // The new POST query supports unpaged requests, so only emit LIMIT/OFFSET when both values are provided.
-        val paginationClause =
-            if (limit != null && offset != null) {
-                "LIMIT :limit OFFSET :offset"
-            } else {
-                ""
-            }
+        val paginationClause = if (limit != null && offset != null) "LIMIT :limit OFFSET :offset" else ""
 
         val sql = """
             $DEPLOYED_PARTICIPANTS_CTE
             SELECT
-                elem AS participant,
-                deployed_participant.participant_id IS NOT NULL AS is_deployed,
-                deployed_participant.deployment_id
-            FROM public.recruitments,
-                 jsonb_array_elements(snapshot->'participants') WITH ORDINALITY arr(elem, idx)
-            LEFT JOIN deployed_participants deployed_participant
-                ON deployed_participant.participant_id = elem->>'id'
-            WHERE snapshot->>'studyId' = :studyId
-            $searchCondition
-            $deploymentCondition
-            ORDER BY $orderByClause
+                (${participantJson("p")})::text AS participant,
+                dp.participant_id IS NOT NULL AS is_deployed,
+                dp.deployment_id
+            FROM recruitment_participants p
+            LEFT JOIN deployed_participants dp ON dp.participant_id = p.participant_id
+            WHERE p.study_id = :studyId
+            ${buildSearchCondition("p", search)}
+            ${buildDeploymentCondition(isDeployed)}
+            ORDER BY ${accountOrderBy(sortBy, sortDirection)}
             $paginationClause
         """
 
         val query = entityManager.createNativeQuery(sql)
         query.setParameter("studyId", studyId)
-        // Keep the parameter bindings aligned with the generated SQL to avoid invalid unpaged queries.
         if (limit != null && offset != null) {
             query.setParameter("limit", limit)
             query.setParameter("offset", offset)
@@ -244,27 +133,64 @@ class RecruitmentRepositoryImpl(
         }
     }
 
-    private fun buildParticipantSearchCondition(
-        participantColumn: String,
+    override fun countQueryParticipantAccounts(
+        studyId: String,
+        search: String?,
+        isDeployed: Boolean?,
+    ): Int {
+        val sql = """
+            $DEPLOYED_PARTICIPANTS_CTE
+            SELECT COUNT(*)
+            FROM recruitment_participants p
+            LEFT JOIN deployed_participants dp ON dp.participant_id = p.participant_id
+            WHERE p.study_id = :studyId
+            ${buildSearchCondition("p", search)}
+            ${buildDeploymentCondition(isDeployed)}
+        """
+
+        val query = entityManager.createNativeQuery(sql)
+        query.setParameter("studyId", studyId)
+        if (search != null) query.setParameter("search", search)
+
+        return (query.singleResult as Number).toInt()
+    }
+
+    /** ORDER BY for the account query; mirrors the previous JSONB ordering (deployed, identity, stable). */
+    private fun accountOrderBy(
+        sortBy: ParticipantOrderBy?,
+        sortDirection: SortDirection?,
+    ): String {
+        val direction = if (sortDirection == SortDirection.Desc) "DESC" else "ASC"
+        return when {
+            sortBy == ParticipantOrderBy.IsDeployed ->
+                "CASE WHEN dp.participant_id IS NULL THEN 0 ELSE 1 END $direction, " +
+                    "COALESCE(p.username, p.email_address) $direction, p.sort_order $direction"
+            sortBy == ParticipantOrderBy.AccountIdentity || sortDirection != null ->
+                "COALESCE(p.username, p.email_address) $direction"
+            else -> "p.sort_order"
+        }
+    }
+
+    private fun buildSearchCondition(
+        alias: String,
         search: String?,
     ): String =
         if (search != null) {
             """
             AND (
-                $participantColumn->>'id' ILIKE CONCAT('%', :search, '%')
-                OR
-                $participantColumn->'accountIdentity'->>'username' ILIKE CONCAT('%', :search, '%')
-                OR $participantColumn->'accountIdentity'->>'emailAddress' ILIKE CONCAT('%', :search, '%')
+                $alias.participant_id ILIKE CONCAT('%', :search, '%')
+                OR $alias.username ILIKE CONCAT('%', :search, '%')
+                OR $alias.email_address ILIKE CONCAT('%', :search, '%')
             )
-        """
+            """
         } else {
             ""
         }
 
     private fun buildDeploymentCondition(isDeployed: Boolean?): String =
         when (isDeployed) {
-            true -> "AND deployed_participant.participant_id IS NOT NULL"
-            false -> "AND deployed_participant.participant_id IS NULL"
+            true -> "AND dp.participant_id IS NOT NULL"
+            false -> "AND dp.participant_id IS NULL"
             null -> ""
         }
 }
