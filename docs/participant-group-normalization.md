@@ -243,6 +243,8 @@ of recruitments per transaction, not by a fixed child-row count.
 
 ## 9. Rollout & verification (as built)
 
+> Step-by-step commands: **[recruitment-normalization-migration.md](recruitment-normalization-migration.md)**.
+
 Everything is gated by `carp.recruitment.normalized-store-enabled` (default **off**). With the flag off
 the app reads and writes the blob unchanged, so all of the below ships dormant and safe. Because the
 migration runs in an **offline maintenance window** (no concurrent traffic), no dual-write / shadow-read
