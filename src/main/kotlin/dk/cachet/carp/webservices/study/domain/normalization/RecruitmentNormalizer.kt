@@ -123,7 +123,9 @@ object RecruitmentNormalizer {
                     groupId = groupId,
                     participantId = participantId.stringRepresentation,
                     assignedAll = false,
-                    roleNames = roles.roleNames.toList(),
+                    // Sorted so the row is order-stable: role names are an unordered set, and a
+                    // stable order keeps the write-path diff from seeing a spurious change.
+                    roleNames = roles.roleNames.sorted(),
                 )
         }
 

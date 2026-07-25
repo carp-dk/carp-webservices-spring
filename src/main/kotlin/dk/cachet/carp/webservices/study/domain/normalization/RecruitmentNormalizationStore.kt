@@ -141,8 +141,10 @@ class RecruitmentNormalizationStore(
                 { rs, _ ->
                     val rawArray = rs.getArray("role_names")
 
+                    // Sorted to match the canonical order written by the normalizer (see memberRows),
+                    // so the write-path diff compares equal for unchanged role assignments.
                     @Suppress("UNCHECKED_CAST")
-                    val roleNames = (rawArray?.array as? Array<String>)?.toList()
+                    val roleNames = (rawArray?.array as? Array<String>)?.toList()?.sorted()
                     RecruitmentGroupMemberRow(
                         groupId = rs.getString("group_id"),
                         participantId = rs.getString("participant_id"),
