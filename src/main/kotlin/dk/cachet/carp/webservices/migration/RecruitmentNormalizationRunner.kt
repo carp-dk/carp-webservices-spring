@@ -53,7 +53,7 @@ class RecruitmentNormalizationRunner(
         try {
             when (options.mode) {
                 Mode.INVENTORY -> recordInventory(runId)
-                Mode.DRY_RUN, Mode.APPLY, Mode.VERIFY -> processRecruitments(runId, options)
+                Mode.DRY_RUN, Mode.APPLY, Mode.VERIFY, Mode.STRIP -> processRecruitments(runId, options)
             }
             completeRun(runId)
             SpringApplication.exit(applicationContext)
@@ -94,13 +94,14 @@ class RecruitmentNormalizationRunner(
                     } else {
                         RecruitmentBatchOutcome(processBatch(runId, rows, progress, options), done = false)
                     }
-                }!!
+                }
             progress = outcome.progress
             if (outcome.done) break
             pause(options.rateLimitMs)
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun processBatch(
         runId: Long,
         rows: List<RecruitmentRow>,
@@ -113,11 +114,11 @@ class RecruitmentNormalizationRunner(
             val startedAt = System.nanoTime()
             try {
                 val outcome = processRow(row, options.mode)
-                if (outcome == "MIGRATED" || outcome == "WOULD_MIGRATE") progress = progress.migrated()
+                if (outcome in setOf("MIGRATED", "WOULD_MIGRATE", "STRIPPED")) progress = progress.migrated()
                 recordRowOutcome(runId, row, outcome, startedAt, null)
             } catch (error: DecodeSkip) {
                 recordRowOutcome(runId, row, "SKIPPED", startedAt, error.reason)
-            } catch (@Suppress("TooGenericExceptionCaught") error: Exception) {
+            } catch (error: Exception) {
                 recordFailure(runId, row, error)
                 recordRowOutcome(runId, row, "FAILED", startedAt, error.message)
                 progress = progress.failed()
@@ -143,9 +144,34 @@ class RecruitmentNormalizationRunner(
             Mode.DRY_RUN -> "WOULD_MIGRATE"
             Mode.VERIFY ->
                 if (verifyPersisted(row.id, snapshot, normalized)) "VALIDATED" else error("reconstruction mismatch")
+            Mode.STRIP -> stripBlob(row.id, snapshot, normalized)
             Mode.INVENTORY -> "UNCHANGED"
         }
     }
+
+    /**
+     * Empties the two maps from the recruitment blob (keeping the envelope), but ONLY after confirming the
+     * tables reconstruct it — never strips data the tables can't reproduce. Already-empty blobs are a no-op.
+     * This is the write-cutover cleanup; safe to run any time after the store is enabled and verified.
+     */
+    private fun stripBlob(
+        recruitmentId: Int,
+        snapshot: RecruitmentSnapshot,
+        decomposed: NormalizedRecruitment,
+    ): String =
+        when {
+            snapshot.participants.isEmpty() && snapshot.participantGroups.isEmpty() -> "UNCHANGED"
+            !verifyPersisted(recruitmentId, snapshot, decomposed) -> error("reconstruction mismatch; not stripping")
+            else -> {
+                jdbcTemplate.update(
+                    "UPDATE recruitments SET snapshot = " +
+                        "jsonb_set(jsonb_set(snapshot, '{participants}', '[]'::jsonb), " +
+                        "'{participantGroups}', '{}'::jsonb) WHERE id = ?",
+                    recruitmentId,
+                )
+                "STRIPPED"
+            }
+        }
 
     /**
      * Checks the recruitment reconstructed from the persisted rows serializes identically to the
@@ -168,10 +194,11 @@ class RecruitmentNormalizationRunner(
         return canonical(reEncoded) == canonical(expectedEncoded)
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun decodeOrSkip(json: String): RecruitmentSnapshot =
         try {
             WS_JSON.decodeFromString(RecruitmentSnapshot.serializer(), json)
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+        } catch (e: Exception) {
             throw DecodeSkip(e.message?.take(MAX_ERROR_LENGTH) ?: "undecodable snapshot", e)
         }
 
@@ -241,7 +268,7 @@ class RecruitmentNormalizationRunner(
                 )
             },
             runId,
-        )!!
+        )
 
     private fun updateProgress(
         runId: Long,
@@ -409,4 +436,5 @@ private enum class Mode {
     DRY_RUN,
     APPLY,
     VERIFY,
+    STRIP,
 }

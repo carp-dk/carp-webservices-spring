@@ -140,6 +140,7 @@ class RecruitmentNormalizationStore(
                     "WHERE g.recruitment_id = ?",
                 { rs, _ ->
                     val rawArray = rs.getArray("role_names")
+
                     @Suppress("UNCHECKED_CAST")
                     val roleNames = (rawArray?.array as? Array<String>)?.toList()
                     RecruitmentGroupMemberRow(

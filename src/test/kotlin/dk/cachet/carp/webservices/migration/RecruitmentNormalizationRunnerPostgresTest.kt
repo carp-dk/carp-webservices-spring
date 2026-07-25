@@ -114,6 +114,45 @@ class RecruitmentNormalizationRunnerPostgresTest {
     }
 
     @Test
+    fun `strip empties migrated blobs, keeps the envelope, skips unmigrated, and is idempotent`() {
+        runner("apply").run(mockk<ApplicationArguments>())
+        runner("strip").run(mockk<ApplicationArguments>())
+
+        // Decodable recruitments 1-3 had their two maps emptied; the envelope (studyId) is preserved.
+        assertEquals(
+            listOf(1, 2, 3),
+            jdbc.queryForList(
+                "SELECT id FROM recruitments WHERE snapshot->'participants' = '[]'::jsonb " +
+                    "AND snapshot->'participantGroups' = '{}'::jsonb ORDER BY id",
+                Int::class.java,
+            ),
+        )
+        assertEquals(1L, count("SELECT count(*) FROM recruitments WHERE id = 1 AND snapshot->>'studyId' IS NOT NULL"))
+        // Undecodable recruitment 4 was NOT stripped (still holds its participants).
+        assertEquals(
+            1,
+            jdbc.queryForObject(
+                "SELECT jsonb_array_length(snapshot->'participants') FROM recruitments WHERE id = 4",
+                Int::class.java,
+            ),
+        )
+
+        val strip1 = long("SELECT id FROM core_data_migration_runs WHERE mode = 'STRIP' ORDER BY id LIMIT 1")
+        assertEquals(mapOf("STRIPPED" to 3L, "SKIPPED" to 2L), outcomesForRun(strip1))
+
+        // Re-strip is a no-op: the emptied blobs are UNCHANGED.
+        runner("strip").run(mockk<ApplicationArguments>())
+        val strip2 = long("SELECT id FROM core_data_migration_runs WHERE mode = 'STRIP' ORDER BY id DESC LIMIT 1")
+        assertEquals(mapOf("SKIPPED" to 2L, "UNCHANGED" to 3L), outcomesForRun(strip2))
+    }
+
+    private fun outcomesForRun(runId: Long): Map<String, Long> =
+        jdbc.queryForList(
+            "SELECT outcome, COUNT(*) AS c FROM core_data_migration_rows WHERE run_id = ? GROUP BY outcome",
+            runId,
+        ).associate { it["outcome"] as String to (it["c"] as Number).toLong() }
+
+    @Test
     fun `schema constraints reject invalid participant and member rows`() {
         jdbc.update("INSERT INTO recruitments (id, snapshot) VALUES (10, '{}'::jsonb)")
 
