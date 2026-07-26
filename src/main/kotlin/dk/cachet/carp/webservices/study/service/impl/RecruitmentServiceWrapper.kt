@@ -246,14 +246,6 @@ class RecruitmentServiceWrapper(
         return inactiveDeploymentInfoList.sortedBy { it.dateOfLastDataUpload }
     }
 
-    override fun isParticipant(
-        studyId: UUID,
-        accountId: UUID,
-    ): Boolean =
-        runBlocking(SecurityCoroutineContext()) {
-            getParticipants(studyId, null, null, null, false, null).any { it.id == accountId.toString() }
-        }
-
     override suspend fun getParticipantGroupsStatus(studyId: UUID): ParticipantGroupsStatus =
         withContext(Dispatchers.IO + SecurityCoroutineContext()) {
             val participantGroupStatusList = core.getParticipantGroupStatusList(studyId)

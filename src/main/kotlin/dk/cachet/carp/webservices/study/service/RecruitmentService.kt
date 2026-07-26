@@ -47,11 +47,6 @@ interface RecruitmentService {
         limit: Int = -1,
     ): List<InactiveDeploymentInfo>
 
-    fun isParticipant(
-        studyId: UUID,
-        accountId: UUID,
-    ): Boolean
-
     suspend fun getParticipantGroupsStatus(studyId: UUID): ParticipantGroupsStatus
 
     /**
