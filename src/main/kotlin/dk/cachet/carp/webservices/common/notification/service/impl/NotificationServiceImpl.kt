@@ -93,11 +93,46 @@ class NotificationServiceImpl(
         message: String,
         channelToSend: String,
     ) {
+        // A channel with no configured webhook URL is treated as disabled: skip silently rather than
+        // attempting a POST to an empty URL (which would fail on every notification).
+        if (channelToSend.isBlank()) {
+            LOGGER.debug("Skipping Teams notification: no webhook URL configured for this channel.")
+            return
+        }
+
+        // Microsoft retired the legacy Office 365 Connector webhooks (MessageCard payload) in favour of
+        // Power Automate "Workflows" incoming webhooks, which expect an Adaptive Card wrapped in a
+        // { "type": "message", "attachments": [...] } envelope.
         val payload =
             mapOf(
-                "text" to message,
-                "title" to "\ud83c\udf81 CARP-Webservices",
-                "themeColor" to "8f4742",
+                "type" to "message",
+                "attachments" to
+                    listOf(
+                        mapOf(
+                            "contentType" to "application/vnd.microsoft.card.adaptive",
+                            "content" to
+                                mapOf(
+                                    "\$schema" to "http://adaptivecards.io/schemas/adaptive-card.json",
+                                    "type" to "AdaptiveCard",
+                                    "version" to "1.5",
+                                    "body" to
+                                        listOf(
+                                            mapOf(
+                                                "type" to "TextBlock",
+                                                "text" to "\ud83c\udf81 CARP-Webservices",
+                                                "weight" to "Bolder",
+                                                "size" to "Large",
+                                                "wrap" to true,
+                                            ),
+                                            mapOf(
+                                                "type" to "TextBlock",
+                                                "text" to message,
+                                                "wrap" to true,
+                                            ),
+                                        ),
+                                ),
+                        ),
+                    ),
             )
 
         try {

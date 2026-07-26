@@ -249,10 +249,11 @@ logging:
 
 teams:
   webhook:
-    server: "${TEAMS_SERVER_WEBHOOK_URL}"
-    client: "${TEAMS_CLIENT_WEBHOOK_URL}"
-    heartbeat: "${TEAMS_HEARTBEAT_WEBHOOK_URL}"
-    dev: "${TEAMS_DEV_WEBHOOK_URL}"
+    # Each channel is optional: leave its env var unset to disable notifications for that channel.
+    server: "${TEAMS_SERVER_WEBHOOK_URL:}"
+    client: "${TEAMS_CLIENT_WEBHOOK_URL:}"
+    heartbeat: "${TEAMS_HEARTBEAT_WEBHOOK_URL:}"
+    dev: "${TEAMS_DEV_WEBHOOK_URL:}"
 
 storage:
   directory: /home/carp/storage/${spring.profiles.active}/
