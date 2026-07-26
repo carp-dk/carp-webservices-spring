@@ -187,22 +187,29 @@ class RecruitmentServiceWrapper(
                 participantRow.participantJson,
                 Participant::class.java,
             )
-        val foundAccount = accountService.findByAccountIdentity(participant.accountIdentity)
-        val account = foundAccount ?: Account.fromAccountIdentity(participant.accountIdentity)
+        // Generated (anonymous) accounts are username-only with no name/email to enrich, and they always
+        // exist, so we skip the per-row Keycloak lookup for them and resolve their fields locally.
+        // TODO(account-existence): this ASSUMES the generated account exists (we create it) rather than
+        //  verifying it. Long-term, confirm existence cheaply via a per-study Keycloak group
+        //  (GET /groups/{id}/members) or a local participant read model. See project_account_lookup_n1.
+        val identity = participant.accountIdentity
+        val isAnonymous = identity is UsernameAccountIdentity
+        val foundAccount = if (isAnonymous) null else accountService.findByAccountIdentity(identity)
+        val account = foundAccount ?: Account.fromAccountIdentity(identity)
 
         return ParticipantAccountSummaryDto(
             participantId = participant.id.stringRepresentation,
             firstName = account.firstName,
             lastName = account.lastName,
             accountIdentity =
-                when (val identity = participant.accountIdentity) {
+                when (identity) {
                     is EmailAccountIdentity -> identity.emailAddress.address
                     is UsernameAccountIdentity -> identity.username.name
                     else -> null
                 },
             isDeployed = participantRow.isDeployed,
             invitedOn = participantRow.deploymentId?.let(invitedOnByDeploymentId::get),
-            carpUser = foundAccount != null,
+            carpUser = isAnonymous || foundAccount != null,
         )
     }
 
@@ -258,7 +265,18 @@ class RecruitmentServiceWrapper(
                     .map { groupStatus ->
                         val accountsByParticipant =
                             groupStatus.participants.associateWith { participant ->
-                                accountService.findByAccountIdentity(participant.accountIdentity)
+                                // Generated (anonymous) accounts are username-only with no name/email to
+                                // enrich, and they always exist, so we resolve them locally instead of
+                                // making a Keycloak call per participant.
+                                // TODO(account-existence): local resolution ASSUMES the generated account
+                                //  exists rather than verifying it. See project_account_lookup_n1 for the
+                                //  long-term fix (per-study Keycloak group or a local participant read model).
+                                when (participant.accountIdentity) {
+                                    is UsernameAccountIdentity ->
+                                        Account.fromAccountIdentity(participant.accountIdentity)
+                                            .apply { role = Role.PARTICIPANT }
+                                    else -> accountService.findByAccountIdentity(participant.accountIdentity)
+                                }
                             }
 
                         val lastDataUpload =

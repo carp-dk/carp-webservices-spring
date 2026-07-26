@@ -2,6 +2,7 @@ package dk.cachet.carp.webservices.study.service.impl
 
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.common.application.users.EmailAccountIdentity
+import dk.cachet.carp.common.application.users.UsernameAccountIdentity
 import dk.cachet.carp.deployments.application.StudyDeploymentStatus
 import dk.cachet.carp.deployments.infrastructure.DeploymentServiceDecorator
 import dk.cachet.carp.studies.application.users.Participant
@@ -489,6 +490,67 @@ class RecruitmentServiceWrapperTest {
                         true,
                     )
                 }
+            }
+        }
+
+        @Test
+        fun `flags anonymous row as carp user without a Keycloak lookup`() {
+            runTest {
+                val mockStudyId = UUID.randomUUID()
+                val request = ParticipantAccountsRequestDto(page = 0, size = 2)
+
+                val ai1 = EmailAccountIdentity("alpha@example.com")
+                val uai2 = UsernameAccountIdentity("anonymous-2")
+                val p1 = Participant(ai1)
+                val p2 = Participant(uai2)
+
+                val account1 =
+                    Account(
+                        firstName = "Alice",
+                        lastName = "A",
+                        email = ai1.emailAddress.address,
+                    )
+
+                val participantRows =
+                    listOf(
+                        ParticipantAccountQueryRow("""{"stub":1}""", false, null),
+                        ParticipantAccountQueryRow("""{"stub":2}""", true, null),
+                    )
+
+                stubQueryParticipantAccounts(
+                    studyId = mockStudyId,
+                    offset = 0,
+                    size = 2,
+                    isDeployed = null,
+                    participantRows = participantRows,
+                    total = 2,
+                )
+                coEvery {
+                    objectMapper.readValue(participantRows[0].participantJson, Participant::class.java)
+                } returns p1
+                coEvery {
+                    objectMapper.readValue(participantRows[1].participantJson, Participant::class.java)
+                } returns p2
+                coEvery { accountService.findByAccountIdentity(ai1) } returns account1
+
+                val sut = createSut()
+
+                val result = sut.queryParticipantAccounts(mockStudyId, request)
+
+                // Only the email row triggers a Keycloak lookup; the anonymous row is resolved locally.
+                coVerify(exactly = 1) { accountService.findByAccountIdentity(any()) }
+                coVerify(exactly = 1) { accountService.findByAccountIdentity(ai1) }
+
+                assertEquals(2, result.content.size)
+                assertEquals(ai1.emailAddress.address, result.content[0].accountIdentity)
+                assertTrue(result.content[0].carpUser)
+
+                val anonymous = result.content[1]
+                assertEquals(p2.id.stringRepresentation, anonymous.participantId)
+                assertEquals(uai2.username.name, anonymous.accountIdentity)
+                assertNull(anonymous.firstName)
+                assertNull(anonymous.lastName)
+                assertTrue(anonymous.carpUser)
             }
         }
 
@@ -1066,6 +1128,84 @@ class RecruitmentServiceWrapperTest {
 
                 assertEquals(0, result.groups.size)
                 assertEquals(1, result.groupStatuses.size)
+            }
+        }
+
+        @Test
+        fun `resolves anonymous participant locally without a Keycloak lookup`() {
+            runTest {
+                val mockStudyId = UUID.randomUUID()
+                val mockDeploymentId = UUID.randomUUID()
+
+                val uai1 = UsernameAccountIdentity("anonymous-1")
+                val p1 = Participant(uai1)
+                val pgs1 =
+                    participantGroupStatus(
+                        setOf(p1),
+                        mockk<StudyDeploymentStatus.Invited>().apply {
+                            every { studyDeploymentId } returns mockDeploymentId
+                            every { createdOn } returns CoreInstant.fromEpochSeconds(0)
+                            every { startedOn } returns CoreInstant.fromEpochSeconds(0)
+                        },
+                    )
+
+                coEvery {
+                    services.recruitmentService.getParticipantGroupStatusList(mockStudyId)
+                } returns listOf(pgs1)
+                coEvery { dataStreamService.getLatestUpdatedAt(mockDeploymentId) } returns Instant.fromEpochSeconds(0)
+
+                val sut = createSut()
+
+                val result = sut.getParticipantGroupsStatus(mockStudyId)
+
+                // Anonymous (username-only) accounts are resolved locally: no Keycloak call is made.
+                coVerify(exactly = 0) { accountService.findByAccountIdentity(any()) }
+                val participant = result.groups.single().participants.single()
+                assertEquals(p1.id, participant.participantId)
+                assertEquals(Role.PARTICIPANT.toString(), participant.role)
+                assertNull(participant.firstName)
+                assertNull(participant.lastName)
+                assertNull(participant.email)
+                // Present account means the deployment's last upload is still populated.
+                assertEquals(Instant.fromEpochSeconds(0), participant.dateOfLastDataUpload)
+            }
+        }
+
+        @Test
+        fun `looks up only email participants in a mixed group`() {
+            runTest {
+                val mockStudyId = UUID.randomUUID()
+                val mockDeploymentId = UUID.randomUUID()
+
+                val eai1 = EmailAccountIdentity("named@gmail.com")
+                val uai2 = UsernameAccountIdentity("anonymous-2")
+                val p1 = Participant(eai1)
+                val p2 = Participant(uai2)
+                val pgs1 =
+                    participantGroupStatus(
+                        setOf(p1, p2),
+                        mockk<StudyDeploymentStatus.Invited>().apply {
+                            every { studyDeploymentId } returns mockDeploymentId
+                            every { createdOn } returns CoreInstant.fromEpochSeconds(0)
+                            every { startedOn } returns CoreInstant.fromEpochSeconds(0)
+                        },
+                    )
+
+                coEvery { accountService.findByAccountIdentity(eai1) } returns
+                    Account(email = eai1.emailAddress.address)
+                coEvery {
+                    services.recruitmentService.getParticipantGroupStatusList(mockStudyId)
+                } returns listOf(pgs1)
+                coEvery { dataStreamService.getLatestUpdatedAt(mockDeploymentId) } returns Instant.fromEpochSeconds(0)
+
+                val sut = createSut()
+
+                val result = sut.getParticipantGroupsStatus(mockStudyId)
+
+                // Only the email participant triggers a Keycloak lookup.
+                coVerify(exactly = 1) { accountService.findByAccountIdentity(any()) }
+                coVerify(exactly = 1) { accountService.findByAccountIdentity(eai1) }
+                assertEquals(2, result.groups.single().participants.size)
             }
         }
     }
