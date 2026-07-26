@@ -322,7 +322,7 @@ class CollectionServiceImplTest {
         }
 
         @Test
-        fun `exception is thrown if collection is not present in database`() {
+        fun `empty collection is returned if not present in database`() {
             val mockStudyId = "123"
             val mockName = "name"
             every {
@@ -331,13 +331,6 @@ class CollectionServiceImplTest {
                     mockName,
                 )
             } returns Optional.empty()
-            every {
-                validationMessages.get(
-                    "collection.studyId-and-collectionName.not_found",
-                    mockStudyId,
-                    mockName,
-                )
-            } returns "Collection not found"
             val sut =
                 CollectionServiceImpl(
                     collectionRepository,
@@ -347,9 +340,13 @@ class CollectionServiceImplTest {
                     objectMapper,
                 )
 
-            assertFailsWith(ResourceNotFoundException::class) {
-                sut.getCollectionByStudyIdAndByName(mockStudyId, mockName)
-            }
+            // A missing collection is an expected state (created lazily on first document), not a 404.
+            val result = sut.getCollectionByStudyIdAndByName(mockStudyId, mockName)
+
+            assertEquals(mockName, result.name)
+            assertEquals(mockStudyId, result.studyId)
+            assertEquals(0, result.id)
+            assertTrue(result.documents!!.isEmpty())
         }
     }
 

@@ -107,10 +107,10 @@ class CollectionServiceImpl(
     ): Collection {
         val collectionOp = collectionRepository.findCollectionByStudyIdAndName(studyId, name)
         if (!collectionOp.isPresent) {
-            LOGGER.warn("Collection not found, studyId: $studyId, collection name: $name")
-            throw ResourceNotFoundException(
-                validationMessages.get("collection.studyId-and-collectionName.not_found", studyId, name),
-            )
+            // A collection is created lazily when the first document is added to it, so its absence is an
+            // expected state rather than an error. Return an empty, non-persisted collection instead of a 404.
+            LOGGER.info("Collection not yet created, studyId: $studyId, collection name: $name. Returning empty.")
+            return Collection(name = name, studyId = studyId, documents = emptyList())
         }
         val collection = collectionOp.get()
         objectMapper.writeValueAsString(collection)
