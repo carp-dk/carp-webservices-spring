@@ -24,7 +24,9 @@ import kotlinx.coroutines.*
 import kotlinx.datetime.Clock
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.Instant
-import kotlinx.datetime.plus
+import kotlinx.datetime.minus
+import kotlinx.datetime.toJavaInstant
+import kotlinx.datetime.toKotlinInstant
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.springframework.stereotype.Service
@@ -218,33 +220,25 @@ class RecruitmentServiceWrapper(
         lastUpdate: Int,
         offset: Int,
         limit: Int,
-    ): List<InactiveDeploymentInfo> {
-        val timeNow: Instant = Clock.System.now()
+    ): List<InactiveDeploymentInfo> =
+        withContext(Dispatchers.IO + SecurityCoroutineContext()) {
+            // "Inactive" = latest upload older than `lastUpdate` hours, i.e. lastUpload < now - lastUpdate.
+            val threshold = Clock.System.now().minus(lastUpdate, DateTimeUnit.HOUR)
 
-        val participantGroupStatusList =
-            core.getParticipantGroupStatusList(studyId)
-                .filterIsInstance<ParticipantGroupStatus.InDeployment>()
-
-        val inactiveDeploymentInfoList =
-            participantGroupStatusList
-                .map {
-                    val lastDataUpload =
-                        dataStreamService.getLatestUpdatedAt(
-                            it.studyDeploymentStatus.studyDeploymentId,
-                        )
-                    InactiveDeploymentInfo(it.id, lastDataUpload)
-                }
-                .filter {
-                    it.dateOfLastDataUpload != null &&
-                        it.dateOfLastDataUpload.plus(lastUpdate, DateTimeUnit.HOUR) < timeNow
-                }
-
-        if (offset >= 0 && limit > 0) {
-            return inactiveDeploymentInfoList.drop(offset * limit).take(limit).sortedBy { it.dateOfLastDataUpload }
+            // Filter/sort/page happen in one aggregate query over the normalized recruitment tables
+            // (see RecruitmentRepositoryCustom.findInactiveDeployments) — no per-deployment fan-out and
+            // no materializing every participant group. Requires the recruitment normalized store to be
+            // populated. `offset` is a page index, so the row offset is offset * limit (legacy contract).
+            val paging = offset >= 0 && limit > 0
+            recruitmentRepository
+                .findInactiveDeployments(
+                    studyId = studyId.stringRepresentation,
+                    threshold = threshold.toJavaInstant(),
+                    offset = if (paging) offset * limit else null,
+                    limit = if (paging) limit else null,
+                )
+                .map { InactiveDeploymentInfo(UUID(it.deploymentId), it.lastDataUpload.toKotlinInstant()) }
         }
-
-        return inactiveDeploymentInfoList.sortedBy { it.dateOfLastDataUpload }
-    }
 
     override suspend fun getParticipantGroupsStatus(studyId: UUID): ParticipantGroupsStatus =
         withContext(Dispatchers.IO + SecurityCoroutineContext()) {

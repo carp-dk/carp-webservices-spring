@@ -155,6 +155,55 @@ class RecruitmentRepositoryImpl(
         return (query.singleResult as Number).toInt()
     }
 
+    override fun findInactiveDeployments(
+        studyId: String,
+        threshold: java.time.Instant,
+        offset: Int?,
+        limit: Int?,
+    ): List<InactiveDeploymentRow> {
+        val paginationClause = if (limit != null && offset != null) "LIMIT :limit OFFSET :offset" else ""
+
+        // Single aggregate: latest upload per deployed group, keep only those below the threshold.
+        // The inner joins drop groups with no data-stream rows, so never-uploaded deployments are
+        // excluded — matching the legacy in-memory "dateOfLastDataUpload != null" filter.
+        val sql = """
+            SELECT g.group_id AS deployment_id, MAX(s.updated_at) AS last_upload
+            FROM recruitment_participant_groups g
+            JOIN data_stream_ids i ON i.study_deployment_id = g.group_id
+            JOIN data_stream_sequence s ON s.data_stream_id = i.id
+            WHERE g.study_id = :studyId AND g.is_deployed
+            GROUP BY g.group_id
+            HAVING MAX(s.updated_at) < :threshold
+            ORDER BY last_upload ASC, g.group_id ASC
+            $paginationClause
+        """
+
+        val query = entityManager.createNativeQuery(sql)
+        query.setParameter("studyId", studyId)
+        query.setParameter("threshold", threshold)
+        if (limit != null && offset != null) {
+            query.setParameter("limit", limit)
+            query.setParameter("offset", offset)
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        val rows = query.resultList as List<Array<Any?>>
+        return rows.map { row ->
+            InactiveDeploymentRow(
+                deploymentId = row[0].toString(),
+                lastDataUpload =
+                    when (val value = row[1]) {
+                        is java.time.Instant -> value
+                        is java.sql.Timestamp -> value.toInstant()
+                        // `updated_at` is `timestamp without time zone` storing UTC wall-clock (Hibernate
+                        // writes Instants as UTC); interpret a zoneless read the same way.
+                        is java.time.LocalDateTime -> value.toInstant(java.time.ZoneOffset.UTC)
+                        else -> error("Unexpected last_upload type: ${value?.let { it::class }}")
+                    },
+            )
+        }
+    }
+
     /** ORDER BY for the account query; mirrors the previous JSONB ordering (deployed, identity, stable). */
     private fun accountOrderBy(
         sortBy: ParticipantOrderBy?,

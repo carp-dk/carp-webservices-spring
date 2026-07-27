@@ -16,6 +16,7 @@ import dk.cachet.carp.webservices.security.authentication.domain.Account
 import dk.cachet.carp.webservices.security.authorization.Claim
 import dk.cachet.carp.webservices.security.authorization.Role
 import dk.cachet.carp.webservices.study.dto.ParticipantAccountsRequestDto
+import dk.cachet.carp.webservices.study.repository.InactiveDeploymentRow
 import dk.cachet.carp.webservices.study.repository.ParticipantAccountQueryRow
 import dk.cachet.carp.webservices.study.repository.RecruitmentRepository
 import io.mockk.*
@@ -586,292 +587,72 @@ class RecruitmentServiceWrapperTest {
 
     @Nested
     inner class GetInactiveDeployments {
+        // The filtering/sorting/paging now happens in one SQL aggregate (see
+        // RecruitmentRepositoryImpl.findInactiveDeployments, covered by its Postgres test). Here we
+        // verify the wrapper's own responsibilities: threshold math, page-index translation, and mapping.
+
         @Test
-        fun `inactive deployments are returned`() {
+        fun `maps repository rows to InactiveDeploymentInfo preserving order`() {
             runTest {
-                val mockStudyId = UUID.randomUUID()
+                val dep1 = UUID.randomUUID()
+                val dep2 = UUID.randomUUID()
+                val row1 = InactiveDeploymentRow(dep1.stringRepresentation, java.time.Instant.ofEpochSecond(100))
+                val row2 = InactiveDeploymentRow(dep2.stringRepresentation, java.time.Instant.ofEpochSecond(200))
+                every {
+                    recruitmentRepository.findInactiveDeployments(any(), any(), any(), any())
+                } returns listOf(row1, row2)
 
-                val mockSdId1 = UUID.randomUUID()
-                val mockSds1 =
-                    mockk<StudyDeploymentStatus.Invited>().apply {
-                        every { studyDeploymentId } returns mockSdId1
-                        every { createdOn } returns CoreInstant.fromEpochSeconds(0)
-                        every { startedOn } returns CoreInstant.fromEpochSeconds(0)
-                    }
-                val pg1 = participantGroupStatus(emptySet(), mockSds1)
-                val mockInstant1 = Instant.fromEpochSeconds(0)
-
-                val mockSdId2 = UUID.randomUUID()
-                val mockSds2 =
-                    mockk<StudyDeploymentStatus.Invited>().apply {
-                        every { studyDeploymentId } returns mockSdId2
-                        every { createdOn } returns CoreInstant.fromEpochSeconds(0)
-                        every { startedOn } returns CoreInstant.fromEpochSeconds(0)
-                    }
-                val pg2 = participantGroupStatus(emptySet(), mockSds2)
-                val mockInstant2 = Instant.fromEpochSeconds(0)
-
-                val mockParticipantGroupStatusList = listOf(pg1, pg2)
-
-                coEvery {
-                    services.recruitmentService.getParticipantGroupStatusList(mockStudyId)
-                } returns mockParticipantGroupStatusList
-
-                coEvery { dataStreamService.getLatestUpdatedAt(mockSdId1) } returns mockInstant1
-                coEvery { dataStreamService.getLatestUpdatedAt(mockSdId2) } returns mockInstant2
-
-                val sut =
-                    RecruitmentServiceWrapper(
-                        accountService,
-                        dataStreamService,
-                        recruitmentRepository,
-                        objectMapper,
-                        services,
-                    )
-
-                val result = sut.getInactiveDeployments(mockStudyId, 0, 0, 0)
+                val result =
+                    createSut().getInactiveDeployments(UUID.randomUUID(), lastUpdate = 24, offset = 0, limit = -1)
 
                 assertEquals(2, result.size)
-                assertEquals(result.get(0).dateOfLastDataUpload, mockInstant1)
-                assertEquals(result.get(1).dateOfLastDataUpload, mockInstant2)
+                assertEquals(dep1.stringRepresentation, result[0].deploymentId.stringRepresentation)
+                assertEquals(Instant.fromEpochSeconds(100), result[0].dateOfLastDataUpload)
+                assertEquals(dep2.stringRepresentation, result[1].deploymentId.stringRepresentation)
+                assertEquals(Instant.fromEpochSeconds(200), result[1].dateOfLastDataUpload)
             }
         }
 
         @Test
-        fun `filters out ParticipantGroupStatusList`() {
+        fun `passes a threshold of now minus lastUpdate hours`() {
             runTest {
-                val mockStudyId = UUID.randomUUID()
+                val threshold = slot<java.time.Instant>()
+                every {
+                    recruitmentRepository.findInactiveDeployments(any(), capture(threshold), any(), any())
+                } returns emptyList()
 
-                val pg1 = mockk<ParticipantGroupStatus.Staged>()
-                val pg2 = mockk<ParticipantGroupStatus.Staged>()
+                createSut().getInactiveDeployments(UUID.randomUUID(), lastUpdate = 6, offset = 0, limit = -1)
 
-                val mockParticipantGroupStatusList = listOf(pg1, pg2)
-
-                coEvery {
-                    services.recruitmentService.getParticipantGroupStatusList(mockStudyId)
-                } returns mockParticipantGroupStatusList
-
-                val sut =
-                    RecruitmentServiceWrapper(
-                        accountService,
-                        dataStreamService,
-                        recruitmentRepository,
-                        objectMapper,
-                        services,
-                    )
-
-                val result = sut.getInactiveDeployments(mockStudyId, 0, 0, 0)
-                assertEquals(0, result.size)
+                val expected = java.time.Instant.now().minusSeconds(6 * 3600)
+                val diff = java.time.Duration.between(threshold.captured, expected).abs()
+                assertTrue(diff.seconds < 60, "threshold expected ~6h ago, diff was $diff")
             }
         }
 
         @Test
-        fun `filters out active deployments 1`() {
+        fun `translates page index into a row offset when limit is positive`() {
             runTest {
-                val mockStudyId = UUID.randomUUID()
+                every {
+                    recruitmentRepository.findInactiveDeployments(any(), any(), any(), any())
+                } returns emptyList()
 
-                val mockSdId1 = UUID.randomUUID()
-                val mockSds1 =
-                    mockk<StudyDeploymentStatus.Invited>().apply {
-                        every { studyDeploymentId } returns mockSdId1
-                        every { createdOn } returns CoreInstant.fromEpochSeconds(0)
-                        every { startedOn } returns CoreInstant.fromEpochSeconds(0)
-                    }
-                val pg1 = participantGroupStatus(emptySet(), mockSds1)
-                val mockInstant1 = Instant.fromEpochSeconds(Clock.System.now().epochSeconds + 1)
+                createSut().getInactiveDeployments(UUID.randomUUID(), lastUpdate = 1, offset = 2, limit = 10)
 
-                val mockParticipantGroupStatusList = listOf(pg1)
-
-                coEvery {
-                    services.recruitmentService.getParticipantGroupStatusList(mockStudyId)
-                } returns mockParticipantGroupStatusList
-
-                coEvery { dataStreamService.getLatestUpdatedAt(mockSdId1) } returns mockInstant1
-
-                val sut =
-                    RecruitmentServiceWrapper(
-                        accountService,
-                        dataStreamService,
-                        recruitmentRepository,
-                        objectMapper,
-                        services,
-                    )
-
-                val result = sut.getInactiveDeployments(mockStudyId, 0, 0, 0)
-                assertEquals(0, result.size)
+                // offset is a page index, so the row offset is page(2) * size(10) = 20.
+                verify { recruitmentRepository.findInactiveDeployments(any(), any(), 20, 10) }
             }
         }
 
         @Test
-        fun `filters out active deployments 2`() {
+        fun `requests all rows (no pagination) when limit is not positive`() {
             runTest {
-                val mockStudyId = UUID.randomUUID()
+                every {
+                    recruitmentRepository.findInactiveDeployments(any(), any(), any(), any())
+                } returns emptyList()
 
-                val mockSdId1 = UUID.randomUUID()
-                val mockSds1 =
-                    mockk<StudyDeploymentStatus.Invited>().apply {
-                        every { studyDeploymentId } returns mockSdId1
-                        every { createdOn } returns CoreInstant.fromEpochSeconds(0)
-                        every { startedOn } returns CoreInstant.fromEpochSeconds(0)
-                    }
-                val pg1 = participantGroupStatus(emptySet(), mockSds1)
-                val mockInstant1 = Instant.fromEpochSeconds(Clock.System.now().epochSeconds - 1)
+                createSut().getInactiveDeployments(UUID.randomUUID(), lastUpdate = 1, offset = 0, limit = -1)
 
-                val mockParticipantGroupStatusList = listOf(pg1)
-
-                coEvery {
-                    services.recruitmentService.getParticipantGroupStatusList(mockStudyId)
-                } returns mockParticipantGroupStatusList
-
-                coEvery { dataStreamService.getLatestUpdatedAt(mockSdId1) } returns mockInstant1
-
-                val sut =
-                    RecruitmentServiceWrapper(
-                        accountService,
-                        dataStreamService,
-                        recruitmentRepository,
-                        objectMapper,
-                        services,
-                    )
-
-                val result = sut.getInactiveDeployments(mockStudyId, 1, 0, 0)
-                assertEquals(0, result.size)
-            }
-        }
-
-        @Test
-        fun `filters out active deployments 3`() {
-            runTest {
-                val mockStudyId = UUID.randomUUID()
-
-                val mockSdId1 = UUID.randomUUID()
-                val mockSds1 =
-                    mockk<StudyDeploymentStatus.Invited>().apply {
-                        every { studyDeploymentId } returns mockSdId1
-                        every { createdOn } returns CoreInstant.fromEpochSeconds(0)
-                        every { startedOn } returns CoreInstant.fromEpochSeconds(0)
-                    }
-                val pg1 = participantGroupStatus(emptySet(), mockSds1)
-                val mockInstant1 = null
-
-                val mockParticipantGroupStatusList = listOf(pg1)
-                coEvery {
-                    services.recruitmentService.getParticipantGroupStatusList(mockStudyId)
-                } returns mockParticipantGroupStatusList
-                coEvery { dataStreamService.getLatestUpdatedAt(mockSdId1) } returns mockInstant1
-
-                val sut =
-                    RecruitmentServiceWrapper(
-                        accountService,
-                        dataStreamService,
-                        recruitmentRepository,
-                        objectMapper,
-                        services,
-                    )
-
-                val result = sut.getInactiveDeployments(mockStudyId, 0, 0, 0)
-                assertEquals(0, result.size)
-            }
-        }
-
-        @Test
-        fun `returns results sorted`() {
-            runTest {
-                val mockStudyId = UUID.randomUUID()
-
-                val mockSdId1 = UUID.randomUUID()
-                val mockSds1 =
-                    mockk<StudyDeploymentStatus.Invited>().apply {
-                        every { studyDeploymentId } returns mockSdId1
-                        every { createdOn } returns CoreInstant.fromEpochSeconds(0)
-                        every { startedOn } returns CoreInstant.fromEpochSeconds(0)
-                    }
-                val pg1 = participantGroupStatus(emptySet(), mockSds1)
-                val mockInstant1 = Instant.fromEpochSeconds(1)
-
-                val mockSdId2 = UUID.randomUUID()
-                val mockSds2 =
-                    mockk<StudyDeploymentStatus.Invited>().apply {
-                        every { studyDeploymentId } returns mockSdId2
-                        every { createdOn } returns CoreInstant.fromEpochSeconds(0)
-                        every { startedOn } returns CoreInstant.fromEpochSeconds(0)
-                    }
-                val pg2 = participantGroupStatus(emptySet(), mockSds2)
-                val mockInstant2 = Instant.fromEpochSeconds(0)
-
-                val mockParticipantGroupStatusList = listOf(pg1, pg2)
-
-                coEvery {
-                    services.recruitmentService.getParticipantGroupStatusList(mockStudyId)
-                } returns mockParticipantGroupStatusList
-
-                coEvery { dataStreamService.getLatestUpdatedAt(mockSdId1) } returns mockInstant1
-                coEvery { dataStreamService.getLatestUpdatedAt(mockSdId2) } returns mockInstant2
-
-                val sut =
-                    RecruitmentServiceWrapper(
-                        accountService,
-                        dataStreamService,
-                        recruitmentRepository,
-                        objectMapper,
-                        services,
-                    )
-
-                val result = sut.getInactiveDeployments(mockStudyId, 0, 0, 0)
-
-                assertEquals(2, result.size)
-                assertEquals(result.get(0).dateOfLastDataUpload, mockInstant2)
-                assertEquals(result.get(1).dateOfLastDataUpload, mockInstant1)
-            }
-        }
-
-        @Test
-        fun `applies offset and limit`() {
-            runTest {
-                val mockStudyId = UUID.randomUUID()
-
-                val mockSdId1 = UUID.randomUUID()
-                val mockSds1 =
-                    mockk<StudyDeploymentStatus.Invited>().apply {
-                        every { studyDeploymentId } returns mockSdId1
-                        every { createdOn } returns CoreInstant.fromEpochSeconds(0)
-                        every { startedOn } returns CoreInstant.fromEpochSeconds(0)
-                    }
-                val pg1 = participantGroupStatus(emptySet(), mockSds1)
-                val mockInstant1 = Instant.fromEpochSeconds(0)
-
-                val mockSdId2 = UUID.randomUUID()
-                val mockSds2 =
-                    mockk<StudyDeploymentStatus.Invited>().apply {
-                        every { studyDeploymentId } returns mockSdId2
-                        every { createdOn } returns CoreInstant.fromEpochSeconds(0)
-                        every { startedOn } returns CoreInstant.fromEpochSeconds(0)
-                    }
-                val pg2 = participantGroupStatus(emptySet(), mockSds2)
-                val mockInstant2 = Instant.fromEpochSeconds(0)
-
-                val mockParticipantGroupStatusList = listOf(pg1, pg2)
-
-                coEvery {
-                    services.recruitmentService.getParticipantGroupStatusList(mockStudyId)
-                } returns mockParticipantGroupStatusList
-
-                coEvery { dataStreamService.getLatestUpdatedAt(mockSdId1) } returns mockInstant1
-                coEvery { dataStreamService.getLatestUpdatedAt(mockSdId2) } returns mockInstant2
-
-                val sut =
-                    RecruitmentServiceWrapper(
-                        accountService,
-                        dataStreamService,
-                        recruitmentRepository,
-                        objectMapper,
-                        services,
-                    )
-
-                val result = sut.getInactiveDeployments(mockStudyId, 0, 1, 1)
-
-                assertEquals(1, result.size)
-                assertEquals(result.get(0).dateOfLastDataUpload, mockInstant2)
+                verify { recruitmentRepository.findInactiveDeployments(any(), any(), null, null) }
             }
         }
     }
