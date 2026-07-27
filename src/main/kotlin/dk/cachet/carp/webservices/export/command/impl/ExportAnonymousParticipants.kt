@@ -1,6 +1,7 @@
 package dk.cachet.carp.webservices.export.command.impl
 
 import dk.cachet.carp.common.application.UUID
+import dk.cachet.carp.common.application.UUIDRegex
 import dk.cachet.carp.common.application.users.AssignedTo
 import dk.cachet.carp.common.application.users.UsernameAccountIdentity
 import dk.cachet.carp.studies.application.users.AssignedParticipantRoles
@@ -24,6 +25,16 @@ import java.nio.file.Path
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
+/**
+ * Generates anonymous participants for a study and writes their magic links to a CSV export.
+ *
+ * NOT idempotent by design. Accounts and participants are created in per-batch transactions (see
+ * [AnonymousService.bulkAddParticipantsAndGroups]) so a batch is atomic, but the export as a whole is not:
+ * if a run fails part-way, the batches that already committed remain as orphaned Keycloak accounts and
+ * recruitment rows, and a re-submitted export mints a fresh set rather than resuming or de-duplicating.
+ * This is an accepted trade-off — a whole-export transaction / buffered CSV is infeasible at the 5M ceiling,
+ * and mid-run failures are not expected. A failed run's orphans must be cleaned up manually.
+ */
 @Suppress("LongParameterList")
 class ExportAnonymousParticipants(
     entry: Export,
@@ -132,7 +143,25 @@ class ExportAnonymousParticipants(
         csvPath.toFile().bufferedWriter().use { writer ->
             writer.write(CSV_HEADER)
             writer.newLine()
-            var done = 0L
+
+            var received = 0L
+            var skipped = 0L
+            var written = 0L
+
+            // Flush the buffered accounts into participants + CSV rows, returning the number written.
+            suspend fun flush() {
+                if (users.isEmpty()) return
+                createAnonymousParticipant(users).forEach { participant ->
+                    val row =
+                        "${participant.username},${participant.studyDeploymentId}," +
+                            "\"${participant.magicLink}\",${participant.expiryDate}"
+                    writer.write(row)
+                    writer.newLine()
+                }
+                written += users.size
+                users.clear()
+            }
+
             accountService.generateAnonymousAccountBulk(
                 payload.expirationSeconds,
                 payload.clientId,
@@ -141,37 +170,36 @@ class ExportAnonymousParticipants(
                 payload.amountOfAccounts,
                 studyId.stringRepresentation,
             ).collect { response ->
-                if (++done % 1000L == 0L) {
-                    LOGGER?.info("Created $done/${payload.amountOfAccounts} anonymous accounts")
+                if (++received % 1000L == 0L) {
+                    LOGGER?.info("Received $received/${payload.amountOfAccounts} anonymous accounts")
                 }
-                if (response.userId == null || response.link == null) {
-                    LOGGER?.warn("Null value arrived userid:${response.userId}, link:${response.link}")
+                val userId = response.userId
+                val link = response.link
+                // Skip malformed responses rather than aborting the whole export: a null field, or a
+                // userId that is not a UUID (buildParticipants parses it with UUID(...), which would
+                // otherwise throw and fail the entire batch).
+                if (userId == null || link == null) {
+                    skipped++
+                    LOGGER?.warn("Skipping anonymous account with missing field (userId=$userId, hasLink=${link != null})")
                     return@collect
                 }
-                users.add(Pair(response.userId, response.link))
-                if (users.size >= 1000) {
-                    createAnonymousParticipant(
-                        users,
-                    ).forEach { participant ->
-                        val row =
-                            "${participant.username},${participant.studyDeploymentId}," +
-                                "\"${participant.magicLink}\",${participant.expiryDate}"
-                        writer.write(row)
-                        writer.newLine()
-                    }
-                    users.clear()
+                if (!UUIDRegex.matches(userId)) {
+                    skipped++
+                    LOGGER?.warn("Skipping anonymous account with non-UUID userId: $userId")
+                    return@collect
                 }
+                users.add(userId to link)
+                if (users.size >= 1000) flush()
             }
-            if (users.isNotEmpty()) {
-                createAnonymousParticipant(
-                    users,
-                ).forEach { participant ->
-                    val row =
-                        "${participant.username},${participant.studyDeploymentId}," +
-                            "\"${participant.magicLink}\",${participant.expiryDate}"
-                    writer.write(row)
-                    writer.newLine()
-                }
+            flush()
+
+            if (skipped > 0L || written < payload.amountOfAccounts.toLong()) {
+                LOGGER?.warn(
+                    "Anonymous participant export for study $studyId under-delivered: " +
+                        "requested=${payload.amountOfAccounts}, received=$received, written=$written, skipped=$skipped",
+                )
+            } else {
+                LOGGER?.info("Anonymous participant export for study $studyId wrote $written participants")
             }
         }
     }

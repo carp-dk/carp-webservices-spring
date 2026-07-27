@@ -29,6 +29,8 @@ import kotlinx.coroutines.*
 import kotlinx.serialization.encodeToString
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 import tools.jackson.databind.ObjectMapper
 import kotlin.time.Clock
 import dk.cachet.carp.deployments.domain.StudyDeployment as CoreStudyDeployment
@@ -42,10 +44,13 @@ class AnonymousServiceImp(
     private val recruitmentRepository: RecruitmentRepository,
     private val participantGroupRepository: CoreParticipationRepository,
     private val normalizationStore: RecruitmentNormalizationStore,
+    transactionManager: PlatformTransactionManager,
     @Value("\${carp.recruitment.normalized-store-enabled:false}")
     private val normalizedStoreEnabled: Boolean,
 ) : AnonymousService {
     val studyService = services.studyService
+
+    private val transactionTemplate = TransactionTemplate(transactionManager)
 
     data class ParticipantBundle(
         val participant: Participant,
@@ -70,23 +75,32 @@ class AnonymousServiceImp(
         val bundles =
             pair.map {
                 async(Dispatchers.Default) {
-                    // Participant
-                    val uuid = UUID(it.first)
+                    // Anonymous participants deliberately use ONE UUID — the Keycloak account id
+                    // (== username) — as the participant id, the participant group id AND the study
+                    // deployment id. This is REQUIRED, not incidental: the carp-keycloak bulk extension
+                    // stamps each account with attribute inDeployment = <the account's own id>, which the
+                    // realm mapper turns into the JWT `in_deployment` claim. Authorization
+                    // (DeploymentServiceAuthorizer / DataStreamServiceAuthorizer) checks
+                    // Claim.InDeployment(deploymentId), so the deployment id MUST equal the account id, or
+                    // the participant authenticates but is 403'd on every deployment/data-stream call.
+                    // Do NOT split these into distinct ids — it breaks anonymous participant auth.
+                    // (group id == deployment id is also carp.core convention; see StagedParticipantGroup.id.)
+                    val id = UUID(it.first)
 
                     val participant =
-                        Participant(AccountIdentity.fromUsername(it.first), uuid)
+                        Participant(AccountIdentity.fromUsername(it.first), id)
 
                     // Deployment
                     val stagedGroup =
-                        StagedParticipantGroup(uuid).apply {
-                            addParticipants(setOf(AssignedParticipantRoles(uuid, AssignedTo.Roles(setOf(roleName)))))
+                        StagedParticipantGroup(id).apply {
+                            addParticipants(setOf(AssignedParticipantRoles(id, AssignedTo.Roles(setOf(roleName)))))
                             markAsDeployed()
                         }
 
                     val invitations =
                         listOf(
                             ParticipantInvitation(
-                                uuid,
+                                id,
                                 AssignedTo.Roles(setOf(roleName)),
                                 UsernameAccountIdentity(it.first),
                                 study.invitation,
@@ -97,7 +111,7 @@ class AnonymousServiceImp(
                         CoreStudyDeployment.fromInvitations(
                             study.protocolSnapshot!!,
                             invitations,
-                            uuid,
+                            id,
                             Clock.System.now(),
                         )
 
@@ -114,14 +128,14 @@ class AnonymousServiceImp(
                     // ParticipantGroup
                     val group =
                         dk.cachet.carp.deployments.domain.users.ParticipantGroup.fromNewDeployment(
-                            uuid,
+                            id,
                             study.protocolSnapshot!!.toObject(),
                         )
 
                     for (invitation in invitations) {
                         val participation =
                             Participation(
-                                uuid,
+                                id,
                                 invitation.assignedRoles,
                                 invitation.participantId,
                             )
@@ -137,7 +151,7 @@ class AnonymousServiceImp(
                                         .first { pd -> pd.roleName == role }
                                 }
 
-                        val account = Account(AccountIdentity.fromUsername(it.first), uuid)
+                        val account = Account(AccountIdentity.fromUsername(it.first), id)
                         val studyInvitation = invitation.invitation
 
                         group.addParticipation(
@@ -156,7 +170,7 @@ class AnonymousServiceImp(
 
                     ParticipantBundle(
                         participant,
-                        uuid to stagedGroup,
+                        id to stagedGroup,
                         studyDeploymentToSave,
                         participation,
                     )
@@ -181,20 +195,27 @@ class AnonymousServiceImp(
             val study = studyService.getStudyDetails(studyId)
 
             val (participants, groups, deployments, participation) = buildParticipants(pair, roleName, study)
-            if (normalizedStoreEnabled) {
-                val recruitment =
-                    recruitmentRepository.findRecruitmentByStudyId(studyId.stringRepresentation)
-                        ?: throw ResourceNotFoundException("Recruitment with studyId $studyId is not found.")
-                normalizationStore.append(recruitment.id, studyId.stringRepresentation, participants, groups)
-            } else {
-                recruitmentRepository.bulkAddParticipantsAndGroups(
-                    studyId.stringRepresentation,
-                    objectMapper.writeValueAsString(participants),
-                    WS_JSON.encodeToString(groups),
-                )
+
+            // One transaction per batch: the recruitment rows, deployments and participant groups either
+            // all commit or all roll back, so a failure part-way through a batch cannot leave orphaned rows
+            // (e.g. recruitment participants without their deployments). Runs synchronously on this IO
+            // thread, which carries the security context via SecurityCoroutineContext.
+            transactionTemplate.executeWithoutResult {
+                if (normalizedStoreEnabled) {
+                    val recruitment =
+                        recruitmentRepository.findRecruitmentByStudyId(studyId.stringRepresentation)
+                            ?: throw ResourceNotFoundException("Recruitment with studyId $studyId is not found.")
+                    normalizationStore.append(recruitment.id, studyId.stringRepresentation, participants, groups)
+                } else {
+                    recruitmentRepository.bulkAddParticipantsAndGroups(
+                        studyId.stringRepresentation,
+                        objectMapper.writeValueAsString(participants),
+                        WS_JSON.encodeToString(groups),
+                    )
+                }
+                deploymentRepository.addAll(deployments)
+                participantGroupRepository.addAll(participation)
             }
-            deploymentRepository.addAll(deployments)
-            participantGroupRepository.addAll(participation)
             groups.values.toList()
         }
 }

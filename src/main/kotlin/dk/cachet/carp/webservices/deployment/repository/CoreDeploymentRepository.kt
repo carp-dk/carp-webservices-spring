@@ -58,23 +58,26 @@ class CoreDeploymentRepository(
             LOGGER.info("Deployment saved, id: ${studyDeployment.id.stringRepresentation}")
         }
 
+    /**
+     * Batch-insert [studyDeployments]. Not a suspend function: its sole caller (anonymous bulk generation)
+     * invokes it inside a TransactionTemplate so the recruitment, deployment and participant-group writes
+     * for one batch share a single transaction (propagation REQUIRED joins that transaction).
+     */
     @Suppress("MagicNumber", "MaxLineLength")
-    suspend fun addAll(studyDeployments: List<StudyDeployment>) =
-        withContext(Dispatchers.IO) {
-            val timestamp = Timestamp.from(java.time.Instant.now())
-            val auditor = auditorAware.currentAuditor.orElse("system")
-            val sql =
-                "INSERT INTO deployments (created_at, created_by, updated_at, updated_by, snapshot) " +
-                    "VALUES (?,?,?,?,?::jsonb)"
-            jdbcTemplate.batchUpdate(sql, studyDeployments, studyDeployments.size) { ps, deployment ->
-                ps.setObject(1, timestamp)
-                ps.setObject(2, auditor)
-                ps.setObject(3, timestamp)
-                ps.setObject(4, auditor)
-                ps.setObject(5, deployment.snapshot?.toString())
-            }
-            Unit
+    fun addAll(studyDeployments: List<StudyDeployment>) {
+        val timestamp = Timestamp.from(java.time.Instant.now())
+        val auditor = auditorAware.currentAuditor.orElse("system")
+        val sql =
+            "INSERT INTO deployments (created_at, created_by, updated_at, updated_by, snapshot) " +
+                "VALUES (?,?,?,?,?::jsonb)"
+        jdbcTemplate.batchUpdate(sql, studyDeployments, studyDeployments.size) { ps, deployment ->
+            ps.setObject(1, timestamp)
+            ps.setObject(2, auditor)
+            ps.setObject(3, timestamp)
+            ps.setObject(4, auditor)
+            ps.setObject(5, deployment.snapshot?.toString())
         }
+    }
 
     override suspend fun getStudyDeploymentBy(id: UUID) =
         withContext(Dispatchers.IO) {

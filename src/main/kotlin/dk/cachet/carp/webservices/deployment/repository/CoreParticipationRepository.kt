@@ -143,21 +143,24 @@ class CoreParticipationRepository(
         return ParticipantGroup.fromSnapshot(snapshot)
     }
 
+    /**
+     * Batch-insert [groups]. Not a suspend function: its sole caller (anonymous bulk generation) invokes it
+     * inside a TransactionTemplate so the recruitment, deployment and participant-group writes for one batch
+     * share a single transaction (propagation REQUIRED joins that transaction).
+     */
     @Suppress("MaxLineLength", "MagicNumber")
-    suspend fun addAll(groups: List<WSParticipantGroup>) =
-        withContext(Dispatchers.IO) {
-            val timestamp = Timestamp.from(java.time.Instant.now())
-            val auditor = auditorAware.currentAuditor.orElse("system")
-            val sql =
-                "INSERT INTO participant_groups (created_at, created_by, updated_at, updated_by, snapshot) " +
-                    "VALUES (?,?,?,?,?::jsonb)"
-            jdbcTemplate.batchUpdate(sql, groups, groups.size) { ps, group ->
-                ps.setObject(1, timestamp)
-                ps.setObject(2, auditor)
-                ps.setObject(3, timestamp)
-                ps.setObject(4, auditor)
-                ps.setObject(5, group.snapshot.toString())
-            }
-            Unit
+    fun addAll(groups: List<WSParticipantGroup>) {
+        val timestamp = Timestamp.from(java.time.Instant.now())
+        val auditor = auditorAware.currentAuditor.orElse("system")
+        val sql =
+            "INSERT INTO participant_groups (created_at, created_by, updated_at, updated_by, snapshot) " +
+                "VALUES (?,?,?,?,?::jsonb)"
+        jdbcTemplate.batchUpdate(sql, groups, groups.size) { ps, group ->
+            ps.setObject(1, timestamp)
+            ps.setObject(2, auditor)
+            ps.setObject(3, timestamp)
+            ps.setObject(4, auditor)
+            ps.setObject(5, group.snapshot.toString())
         }
+    }
 }
