@@ -19,9 +19,11 @@ import dk.cachet.carp.webservices.study.service.AnonymousService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
+import kotlinx.datetime.toJavaInstant
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import java.nio.file.Path
+import kotlin.time.Duration.Companion.days
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
@@ -50,6 +52,13 @@ class ExportAnonymousParticipants(
     companion object {
         const val MAX_AMOUNT = 5000000
         const val CSV_HEADER = "username,study_deployment_id,access_link,expiry_date"
+
+        /**
+         * Safety margin added to link expiry before anonymous accounts become eligible for deletion.
+         * Generous on purpose — anonymous accounts don't accumulate fast, so a long cushion against clock
+         * skew / late redemption / cleanup-job cadence costs little.
+         */
+        val CLEANUP_BUFFER = 30.days
         val LOGGER: Logger? = LogManager.getLogger()
     }
 
@@ -139,14 +148,13 @@ class ExportAnonymousParticipants(
             )
 
         val users = mutableListOf<Pair<String, String>>()
+        var received = 0L
+        var skipped = 0L
+        var written = 0L
 
         csvPath.toFile().bufferedWriter().use { writer ->
             writer.write(CSV_HEADER)
             writer.newLine()
-
-            var received = 0L
-            var skipped = 0L
-            var written = 0L
 
             // Flush the buffered accounts into participants + CSV rows, returning the number written.
             suspend fun flush() {
@@ -201,6 +209,19 @@ class ExportAnonymousParticipants(
             } else {
                 LOGGER?.info("Anonymous participant export for study $studyId wrote $written participants")
             }
+        }
+
+        // Schedule these accounts for later cleanup (see AnonymousService). Keyed on `received`, not
+        // `written`: skipped/malformed accounts still exist in the study's Keycloak group and must be
+        // swept too, so a generation that produced only unusable accounts must still schedule cleanup.
+        // delete_after = link expiry + CLEANUP_BUFFER so cleanup never races expiry / clock skew / a late
+        // redemption; the study's timer is reset/extended to the latest generation on each call.
+        if (received > 0L) {
+            val deleteAfter =
+                Clock.System.now() +
+                    payload.expirationSeconds.toDuration(DurationUnit.SECONDS) +
+                    CLEANUP_BUFFER
+            anonymousService.recordCleanupSchedule(studyId, deleteAfter.toJavaInstant(), received)
         }
     }
 

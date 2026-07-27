@@ -23,15 +23,19 @@ import dk.cachet.carp.webservices.deployment.repository.CoreDeploymentRepository
 import dk.cachet.carp.webservices.deployment.repository.CoreParticipationRepository
 import dk.cachet.carp.webservices.security.config.SecurityCoroutineContext
 import dk.cachet.carp.webservices.study.domain.normalization.RecruitmentNormalizationStore
+import dk.cachet.carp.webservices.study.repository.AnonymousAccountCleanupStore
 import dk.cachet.carp.webservices.study.repository.RecruitmentRepository
 import dk.cachet.carp.webservices.study.service.AnonymousService
 import kotlinx.coroutines.*
 import kotlinx.serialization.encodeToString
+import org.apache.logging.log4j.LogManager
+import org.apache.logging.log4j.Logger
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
 import tools.jackson.databind.ObjectMapper
+import java.time.Instant
 import kotlin.time.Clock
 import dk.cachet.carp.deployments.domain.StudyDeployment as CoreStudyDeployment
 
@@ -44,6 +48,7 @@ class AnonymousServiceImp(
     private val recruitmentRepository: RecruitmentRepository,
     private val participantGroupRepository: CoreParticipationRepository,
     private val normalizationStore: RecruitmentNormalizationStore,
+    private val anonymousAccountCleanupStore: AnonymousAccountCleanupStore,
     transactionManager: PlatformTransactionManager,
     @Value("\${carp.recruitment.normalized-store-enabled:false}")
     private val normalizedStoreEnabled: Boolean,
@@ -51,6 +56,10 @@ class AnonymousServiceImp(
     val studyService = services.studyService
 
     private val transactionTemplate = TransactionTemplate(transactionManager)
+
+    companion object {
+        private val LOGGER: Logger = LogManager.getLogger()
+    }
 
     data class ParticipantBundle(
         val participant: Participant,
@@ -217,5 +226,25 @@ class AnonymousServiceImp(
                 participantGroupRepository.addAll(participation)
             }
             groups.values.toList()
+        }
+
+    override suspend fun recordCleanupSchedule(
+        studyId: UUID,
+        deleteAfter: Instant,
+        accountCount: Long,
+    ): Unit =
+        withContext(Dispatchers.IO) {
+            try {
+                anonymousAccountCleanupStore.upsert(
+                    studyId.stringRepresentation,
+                    deleteAfter,
+                    accountCount,
+                    Instant.now(),
+                )
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                // Best-effort: a failed schedule write must NOT fail the generation (that would ERROR the
+                // export and regenerate duplicates on retry). Worst case the accounts aren't auto-cleaned.
+                LOGGER.error("Failed to record anonymous-account cleanup schedule for study $studyId", e)
+            }
         }
 }
