@@ -63,9 +63,10 @@ class Core13DataMigrationRunner(
             return
         }
 
-        val dataSource = requireNotNull(jdbcTemplate.dataSource) {
-            "JdbcTemplate dataSource is required to initialize migration metadata schema."
-        }
+        val dataSource =
+            requireNotNull(jdbcTemplate.dataSource) {
+                "JdbcTemplate dataSource is required to initialize migration metadata schema."
+            }
         Flyway.configure().dataSource(dataSource).load().migrate()
     }
 

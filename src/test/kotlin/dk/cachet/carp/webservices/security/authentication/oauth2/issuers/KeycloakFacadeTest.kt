@@ -76,7 +76,8 @@ class KeycloakFacadeTest {
                 server.enqueue(tokenResponse("stale-token")) // initial token fetch (cached)
                 server.enqueue(MockResponse().setResponseCode(401)) // cached token rejected server-side
                 server.enqueue(tokenResponse("fresh-token")) // refresh after invalidation
-                server.enqueue( // successful retry
+                // successful retry
+                server.enqueue(
                     MockResponse()
                         .setHeader("Content-Type", "application/json")
                         .setBody("42"),

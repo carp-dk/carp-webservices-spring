@@ -26,7 +26,6 @@ import org.junit.jupiter.api.Nested
 import tools.jackson.core.type.TypeReference
 import tools.jackson.databind.ObjectMapper
 import kotlin.test.*
-import kotlin.time.Clock
 import kotlin.time.Instant as CoreInstant
 
 private fun participantGroupStatus(
