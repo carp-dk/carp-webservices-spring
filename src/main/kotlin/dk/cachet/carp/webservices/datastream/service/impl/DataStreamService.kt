@@ -29,6 +29,7 @@ import tools.jackson.databind.ObjectMapper
 import java.io.IOException
 import java.nio.file.Path
 import java.time.ZoneOffset
+import dk.cachet.carp.webservices.datastream.domain.DataStreamId as DataStreamIdEntity
 
 @Service
 class DataStreamService(
@@ -45,6 +46,14 @@ class DataStreamService(
         private const val V2_COMPLETED_APP_TASK_TYPE_PREFIX = "$COMPLETED_APP_TASK_NAMESPACE."
         private const val SEMVER_COMPONENT_COUNT = 3
         private const val SEMVER_PADDING_VALUE = 0
+
+        // How many sequence rows to load per DB round-trip during export. Kept deliberately
+        // small: each row's `snapshot` JSONB holds an unbounded number of measurements and
+        // sequences are never merged, so per-row size is unknown and can be large. A big batch
+        // would pull that many full blobs into heap at once. 25 collapses the old per-row
+        // (findById) round-trips ~25x while keeping the in-flight blob set bounded — matching
+        // the conservative batch default used by the recruitment normalization runner.
+        private const val SEQUENCE_EXPORT_BATCH_SIZE = 25
         private val validTypes =
             setOf(
                 "informed_consent",
@@ -375,17 +384,30 @@ class DataStreamService(
 
         val sequenceIds = dataStreamSequenceRepository.findSequenceIdsByStreamId(dataStreamIds)
 
-        sequenceIds.forEach { sequenceId ->
-            try {
-                // Return empty if no sequences found
-                val sequence = dataStreamSequenceRepository.findById(sequenceId).orElse(null)
-
-                buildDataStreamBatch(sequence, jsonGenerator)
-            } catch (e: IllegalArgumentException) {
-                LOGGER.info(
-                    "Failed to process dataStream " +
-                        "$sequenceId: ${e.message}",
-                )
+        // Load sequences in batches instead of one findById per row, keeping heap bounded
+        // to a single batch while streaming each row straight to disk. The DataStreamId
+        // metadata is resolved per batch (not once up front): a study-scope export can span
+        // as many streams as participants, so a global id->metadata map would itself grow
+        // unbounded with study size. Per batch it holds at most the batch's distinct streams,
+        // still collapsing the old per-row metadata lookup into one query per batch.
+        sequenceIds.chunked(SEQUENCE_EXPORT_BATCH_SIZE).forEach { idBatch ->
+            // findAllById does not preserve input order, so re-index by id and walk idBatch
+            // to keep the original per-row emission order (rows out in sequenceIds order).
+            val sequencesById = dataStreamSequenceRepository.findAllById(idBatch).associateBy { it.id }
+            val sequences = idBatch.mapNotNull { sequencesById[it] }
+            val dataStreamIdsById =
+                dataStreamIdRepository
+                    .findAllById(sequences.mapNotNull { it.dataStreamId }.distinct())
+                    .associateBy { it.id }
+            sequences.forEach { sequence ->
+                try {
+                    buildDataStreamBatch(sequence, dataStreamIdsById, jsonGenerator)
+                } catch (e: IllegalArgumentException) {
+                    LOGGER.info(
+                        "Failed to process dataStream " +
+                            "${sequence.id}: ${e.message}",
+                    )
+                }
             }
         }
         jsonGenerator.writeEndArray()
@@ -394,10 +416,10 @@ class DataStreamService(
 
     private fun buildDataStreamBatch(
         dataStreamSequence: DataStreamSequence,
+        dataStreamIdsById: Map<Int, DataStreamIdEntity>,
         jsonGenerator: JsonGenerator,
     ) {
-        val id =
-            dataStreamIdRepository.findByDataStreamId(dataStreamSequence.dataStreamId!!)
+        val id = dataStreamIdsById[dataStreamSequence.dataStreamId!!]
         check(id != null) { "DataStreamId not found for ID: ${dataStreamSequence.dataStreamId}" }
 
         val dataStreamId =

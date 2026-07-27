@@ -18,17 +18,21 @@ import dk.cachet.carp.webservices.datastream.dto.DateTaskQuantityTripleDb
 import dk.cachet.carp.webservices.datastream.repository.DataStreamIdRepository
 import dk.cachet.carp.webservices.datastream.repository.DataStreamSequenceRepository
 import dk.cachet.carp.webservices.datastream.service.core.CoreDataStreamService
+import dk.cachet.carp.webservices.datastream.service.createSequence
 import dk.cachet.carp.webservices.deployment.service.ParticipationService
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkAll
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Instant
 import kotlinx.datetime.toJavaInstant
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -44,10 +48,14 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import kotlin.io.path.createTempDirectory
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import dk.cachet.carp.webservices.datastream.domain.DataStreamSequence as DataStreamSequenceEntity
+
+private const val SHARED_STREAM_ID = 100
 
 class DataStreamServiceTest {
     private val dataStreamIdRepository = mockk<DataStreamIdRepository>()
@@ -803,6 +811,11 @@ class DataStreamServiceTest {
                 )
         }
 
+        @AfterEach
+        fun tearDown() {
+            unmockkAll()
+        }
+
         @Test
         fun `fun should return if empty data streams`() {
             runTest {
@@ -811,6 +824,80 @@ class DataStreamServiceTest {
                 sut.getDataStreams(emptyList(), Path.of("/file.txt"))
 
                 coVerify(exactly = 0) { dataStreamSequenceRepository.findAllByDataStreamIds(any()) }
+            }
+        }
+
+        // Captures the sequence rows in the order they reach createSequence, so we can assert
+        // emission order without exercising the (config-dependent) snapshot deserialization.
+        // createSequence throws after capturing; the throw is swallowed by buildDataStreamBatch.
+        private fun stubExportPipeline(captured: MutableList<Int>) {
+            mockkStatic("dk.cachet.carp.webservices.datastream.service.DataStreamSequenceServiceKt")
+            every { createSequence(any(), any(), any(), any()) } answers {
+                captured.add(secondArg<DataStreamSequenceEntity>().id)
+                error("captured; stop before serialization")
+            }
+            // One shared stream; metadata resolved per batch via findAllById.
+            every { dataStreamIdRepository.findAllById(any<Iterable<Int>>()) } answers {
+                firstArg<Iterable<Int>>().map {
+                    DataStreamId(
+                        id = it,
+                        studyDeploymentId = UUID.randomUUID().stringRepresentation,
+                        deviceRoleName = "device",
+                        name = "name",
+                        nameSpace = "namespace",
+                    )
+                }
+            }
+        }
+
+        private fun sequenceEntity(id: Int) =
+            DataStreamSequenceEntity(
+                id = id,
+                dataStreamId = SHARED_STREAM_ID,
+                firstSequenceId = id.toLong(),
+                lastSequenceId = id.toLong(),
+            )
+
+        @Test
+        fun `emits rows in sequenceIds order despite findAllById returning them out of order`() {
+            runTest {
+                // 30 ids in a deliberately non-sorted order spanning two batches (batch size 25).
+                val inputOrder = (30 downTo 1).toList()
+                val entityById = inputOrder.associateWith { sequenceEntity(it) }
+                val captured = mutableListOf<Int>()
+                stubExportPipeline(captured)
+
+                every { dataStreamSequenceRepository.findSequenceIdsByStreamId(any()) } returns inputOrder
+                // Simulate the DB returning each batch in arbitrary (reversed) order.
+                every { dataStreamSequenceRepository.findAllById(any<Iterable<Int>>()) } answers {
+                    firstArg<Iterable<Int>>().toList().reversed().map { entityById.getValue(it) }
+                }
+
+                sut.getDataStreams(listOf(SHARED_STREAM_ID), createTempDirectory("export-test"))
+
+                assertEquals(inputOrder, captured)
+                // Two batches of 30 ids at size 25 => two sequence fetches, not per-row.
+                verify(exactly = 2) { dataStreamSequenceRepository.findAllById(any<Iterable<Int>>()) }
+            }
+        }
+
+        @Test
+        fun `skips sequence rows that disappeared between the id query and the batch fetch`() {
+            runTest {
+                val inputOrder = listOf(1, 2, 3)
+                val captured = mutableListOf<Int>()
+                stubExportPipeline(captured)
+
+                every { dataStreamSequenceRepository.findSequenceIdsByStreamId(any()) } returns inputOrder
+                // Id 2 is gone by the time the batch is fetched.
+                every { dataStreamSequenceRepository.findAllById(any<Iterable<Int>>()) } answers {
+                    firstArg<Iterable<Int>>().toList().filter { it != 2 }.map { sequenceEntity(it) }
+                }
+
+                assertDoesNotThrow {
+                    sut.getDataStreams(listOf(SHARED_STREAM_ID), createTempDirectory("export-test"))
+                }
+                assertEquals(listOf(1, 3), captured)
             }
         }
     }
