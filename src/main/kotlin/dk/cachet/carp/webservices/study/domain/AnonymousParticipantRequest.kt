@@ -16,5 +16,6 @@ data class AnonymousParticipantRequest(
     @field:NotBlank
     val participantRoleName: String,
     val subdomain: String?,
-    val useFastPipeline: Boolean = false,
+    // Fast (bulk) pipeline is the default; callers can still opt out with false to use the legacy per-account flow.
+    val useFastPipeline: Boolean = true,
 )
