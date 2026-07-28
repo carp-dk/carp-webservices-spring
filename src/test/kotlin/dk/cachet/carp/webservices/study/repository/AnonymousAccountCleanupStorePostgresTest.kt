@@ -85,6 +85,55 @@ class AnonymousAccountCleanupStorePostgresTest {
         assertEquals(2L, count("SELECT COUNT(*) FROM anonymous_account_cleanup"))
     }
 
+    @Test
+    fun `findExpired returns only past-due studies, oldest first, capped by limit`() {
+        val now = Instant.parse("2026-06-01T00:00:00Z")
+        val older = UUID.randomUUID().stringRepresentation
+        val newer = UUID.randomUUID().stringRepresentation
+        val future = UUID.randomUUID().stringRepresentation
+        val written = Instant.parse("2025-12-01T00:00:00Z")
+        store.upsert(newer, Instant.parse("2026-05-01T00:00:00Z"), 10, written)
+        store.upsert(older, Instant.parse("2026-04-01T00:00:00Z"), 20, written)
+        store.upsert(future, Instant.parse("2026-12-01T00:00:00Z"), 5, written)
+
+        val result = store.findExpired(now, 10)
+        assertEquals(listOf(older, newer), result.map { it.studyId })
+        assertEquals(20L, result.first().accountCount)
+
+        // limit caps the number of rows returned
+        assertEquals(1, store.findExpired(now, 1).size)
+    }
+
+    @Test
+    fun `deleteIfUnchanged removes the row only when delete_after still matches`() {
+        val deleteAfter = Instant.parse("2026-01-01T00:00:00Z")
+        store.upsert(studyId, deleteAfter, 10, Instant.parse("2025-12-01T00:00:00Z"))
+
+        // A stale delete_after (a concurrent generation extended it) removes nothing.
+        assertEquals(0, store.deleteIfUnchanged(studyId, Instant.parse("2025-11-01T00:00:00Z")))
+        assertEquals(1L, count("SELECT COUNT(*) FROM anonymous_account_cleanup"))
+
+        // The current delete_after removes the row.
+        assertEquals(1, store.deleteIfUnchanged(studyId, deleteAfter))
+        assertEquals(0L, count("SELECT COUNT(*) FROM anonymous_account_cleanup"))
+    }
+
+    @Test
+    fun `markAttempted rotates a study to the back of the queue`() {
+        val now = Instant.parse("2025-12-01T00:00:00Z")
+        val a = UUID.randomUUID().stringRepresentation
+        val b = UUID.randomUUID().stringRepresentation
+        // Same delete_after, so ordering is decided purely by last_attempted_at.
+        store.upsert(a, Instant.parse("2026-01-01T00:00:00Z"), 10, now)
+        store.upsert(b, Instant.parse("2026-01-01T00:00:00Z"), 10, now)
+        val scanNow = Instant.parse("2026-06-01T00:00:00Z")
+
+        // Attempt A: it gets a non-null last_attempted_at, so B (still null) now sorts first.
+        store.markAttempted(a, now)
+
+        assertEquals(b, store.findExpired(scanNow, 10).first().studyId)
+    }
+
     // ---- helpers -------------------------------------------------------------
 
     private fun count(sql: String): Long = checkNotNull(jdbc.queryForObject(sql, Long::class.java))

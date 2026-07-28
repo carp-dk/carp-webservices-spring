@@ -174,6 +174,51 @@ class KeycloakFacadeTest {
             }
         }
 
+    @Test
+    fun `deleteAnonymousAccounts sends limit, createdBefore and cursor and parses the result`() =
+        runBlocking {
+            val server = MockWebServer()
+            server.start()
+            try {
+                server.enqueue(tokenResponse("token"))
+                server.enqueue(
+                    MockResponse()
+                        .setHeader("Content-Type", "application/json")
+                        .setBody(
+                            """{"deleted":7,"skipped":2,"activeSkipped":1,"exhausted":true,"cursor":9}""",
+                        ),
+                )
+
+                val facade =
+                    KeycloakFacade(
+                        server.url("/").toString().trimEnd('/'),
+                        realm,
+                        clientId,
+                        clientSecret,
+                        environmentUtil,
+                    )
+
+                val result = facade.deleteAnonymousAccounts("study-1", createdBefore = 1234L, limit = 500, cursor = 42)
+
+                assertEquals(7, result.deleted)
+                assertEquals(2, result.skipped)
+                assertEquals(1, result.activeSkipped)
+                assertTrue(result.exhausted)
+                assertEquals(9, result.cursor)
+
+                server.takeRequest() // admin token fetch
+                val request = server.takeRequest()
+                assertEquals("DELETE", request.method)
+                val path = request.path!!
+                assertTrue(path.startsWith("/realms/$realm/bulk-users/anonymous/study-1"), "path was $path")
+                assertTrue(path.contains("limit=500"), "path was $path")
+                assertTrue(path.contains("createdBefore=1234"), "path was $path")
+                assertTrue(path.contains("cursor=42"), "path was $path")
+            } finally {
+                server.shutdown()
+            }
+        }
+
     private fun tokenResponse(accessToken: String) =
         MockResponse()
             .setHeader("Content-Type", "application/json")

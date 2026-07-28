@@ -213,6 +213,26 @@ class KeycloakFacade
             }
         }
 
+        override suspend fun deleteAnonymousAccounts(
+            groupId: String,
+            createdBefore: Long,
+            limit: Int,
+            cursor: Int,
+        ): BulkDeleteResult =
+            withAdminToken { token ->
+                bulkClient.delete()
+                    .uri { builder ->
+                        builder.path("/bulk-users/anonymous/$groupId")
+                            .queryParam("limit", limit)
+                            .queryParam("createdBefore", createdBefore)
+                            .queryParam("cursor", cursor)
+                            .build()
+                    }
+                    .headers { it.setBearerAuth(token) }
+                    .retrieve()
+                    .awaitBody<BulkDeleteResult>()
+            }
+
         override suspend fun addRole(
             account: Account,
             role: Role,

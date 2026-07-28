@@ -11,14 +11,17 @@
 -- so cleanup never races link expiry, clock skew, or a late redemption.
 --
 -- One row per study => study_id is unique. account_count is cumulative (accounts generated in Keycloak,
--- including any the app skipped), for visibility only.
+-- including any the app skipped), for visibility only. last_attempted_at is the time cleanup last tried
+-- this study; the sweep orders by it (nulls first) so a study that can't finish (e.g. an active session
+-- keeps it non-empty) rotates to the back instead of starving the others.
 CREATE TABLE anonymous_account_cleanup (
-    id            BIGSERIAL PRIMARY KEY,
-    study_id      VARCHAR(255)                NOT NULL UNIQUE,
-    delete_after  TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    account_count BIGINT                      NOT NULL DEFAULT 0,
-    created_at    TIMESTAMP WITHOUT TIME ZONE,
-    updated_at    TIMESTAMP WITHOUT TIME ZONE
+    id                BIGSERIAL PRIMARY KEY,
+    study_id          VARCHAR(255)                NOT NULL UNIQUE,
+    delete_after      TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    account_count     BIGINT                      NOT NULL DEFAULT 0,
+    last_attempted_at TIMESTAMP WITHOUT TIME ZONE,
+    created_at        TIMESTAMP WITHOUT TIME ZONE,
+    updated_at        TIMESTAMP WITHOUT TIME ZONE
 );
 
 -- Supports the Phase 2 cleanup scan for studies whose accounts are past their deletion time.

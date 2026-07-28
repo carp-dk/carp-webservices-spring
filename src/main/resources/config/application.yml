@@ -261,6 +261,14 @@ storage:
 cleanup:
   exports:
     retention-days: "${EXPORTS_RETENTION_DAYS:7}"
+  anonymous-accounts:
+    cron: "${ANONYMOUS_CLEANUP_CRON:0 30 3 * * ?}"
+    # Hard cap on accounts actually deleted per run (enforced down to the individual request), so a large
+    # study is spread over several runs rather than triggering an unbounded burst of Keycloak deletions.
+    max-accounts-per-run: "${ANONYMOUS_CLEANUP_MAX_ACCOUNTS_PER_RUN:1000000}"
+    # Max accounts deleted per request to the extension; a study is swept over several such calls.
+    per-request-limit: "${ANONYMOUS_CLEANUP_PER_REQUEST_LIMIT:10000}"
+    max-studies-per-scan: "${ANONYMOUS_CLEANUP_MAX_STUDIES_PER_SCAN:500}"
 
 environment:
   url: "${CAWS_URL}"
