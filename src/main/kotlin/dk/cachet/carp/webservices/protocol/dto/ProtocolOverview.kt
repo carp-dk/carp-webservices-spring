@@ -1,8 +1,8 @@
 package dk.cachet.carp.webservices.protocol.dto
 
 import dk.cachet.carp.protocols.application.StudyProtocolSnapshot
-import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
+import kotlin.time.Instant
 
 /**
  * A DTO representing the latest [StudyProtocolSnapshot] with auxiliary information.

@@ -18,14 +18,14 @@ import dk.cachet.carp.webservices.study.domain.AnonymousParticipantRequest
 import dk.cachet.carp.webservices.study.service.AnonymousService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
-import kotlinx.datetime.Clock
-import kotlinx.datetime.toJavaInstant
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import java.nio.file.Path
+import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
+import kotlin.time.toJavaInstant
 
 /**
  * Generates anonymous participants for a study and writes their magic links to a CSV export.

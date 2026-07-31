@@ -22,7 +22,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import kotlin.test.assertEquals
-import kotlinx.datetime.Instant as KInstant
+import kotlin.time.Instant as KInstant
 
 class StatisticsServiceImplTest {
     private val studyRepository = mockk<StudyRepository>()

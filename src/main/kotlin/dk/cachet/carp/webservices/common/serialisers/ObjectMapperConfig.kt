@@ -13,7 +13,6 @@ import dk.cachet.carp.webservices.common.configuration.internationalisation.serv
 import dk.cachet.carp.webservices.common.serialisers.serdes.UUIDDeserializer
 import dk.cachet.carp.webservices.common.serialisers.serdes.UUIDSerializer
 import dk.cachet.carp.webservices.datastream.serdes.*
-import kotlinx.datetime.Instant
 import org.springframework.boot.jackson.autoconfigure.JsonMapperBuilderCustomizer
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -22,6 +21,7 @@ import tools.jackson.databind.SerializationContext
 import tools.jackson.databind.ValueSerializer
 import tools.jackson.databind.module.SimpleModule
 import tools.jackson.module.kotlin.KotlinModule
+import kotlin.time.Instant
 
 /**
  * The Configuration Class [ObjectMapperConfig].

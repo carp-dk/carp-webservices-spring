@@ -3,11 +3,11 @@ package dk.cachet.carp.webservices.common.input
 import dk.cachet.carp.common.application.data.Data
 import dk.cachet.carp.common.application.data.input.Sex
 import dk.cachet.carp.webservices.common.input.domain.*
-import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.PolymorphicSerializer
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Instant
 
 class WSInputDataTypesSerializationTest {
     @Suppress("LongMethod")

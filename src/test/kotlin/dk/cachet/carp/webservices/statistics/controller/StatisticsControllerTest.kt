@@ -9,7 +9,6 @@ import dk.cachet.carp.webservices.statistics.service.StatisticsService
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
 import org.springframework.http.MediaType
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter
 import org.springframework.test.web.servlet.MockMvc
@@ -21,6 +20,7 @@ import tools.jackson.databind.module.SimpleModule
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Instant
 
 class StatisticsControllerTest {
     private val statisticsService: StatisticsService = mockk()

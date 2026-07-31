@@ -30,8 +30,6 @@ import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.Instant
-import kotlinx.datetime.toJavaInstant
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
@@ -53,6 +51,8 @@ import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import kotlin.time.Instant
+import kotlin.time.toJavaInstant
 import dk.cachet.carp.webservices.datastream.domain.DataStreamSequence as DataStreamSequenceEntity
 
 private const val SHARED_STREAM_ID = 100

@@ -2,10 +2,10 @@ package dk.cachet.carp.webservices.common.input.domain
 
 import dk.cachet.carp.common.application.data.Data
 import dk.cachet.carp.webservices.common.input.WSInputDataTypes
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 /**
  * The informed consent from a participant.

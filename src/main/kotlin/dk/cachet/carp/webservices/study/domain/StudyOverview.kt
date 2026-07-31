@@ -1,7 +1,7 @@
 package dk.cachet.carp.webservices.study.domain
 
 import dk.cachet.carp.common.application.UUID
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 data class StudyOverview(
     /** StudyStatus */

@@ -14,8 +14,8 @@ import dk.cachet.carp.webservices.protocol.service.ProtocolService
 import dk.cachet.carp.webservices.security.authentication.domain.Account
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.toKotlinInstant
 import org.springframework.stereotype.Service
+import kotlin.time.toKotlinInstant
 
 @Service
 class ProtocolServiceWrapper(

@@ -14,14 +14,14 @@ import dk.cachet.carp.webservices.export.service.ResourceExporterService
 import dk.cachet.carp.webservices.file.util.FileUtil
 import dk.cachet.carp.webservices.study.domain.AnonymousParticipantRequest
 import dk.cachet.carp.webservices.study.service.AnonymousService
-import kotlinx.datetime.Clock
-import kotlinx.datetime.toJavaInstant
 import org.springframework.stereotype.Service
 import java.nio.ByteBuffer
 import java.nio.file.Path
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import kotlin.time.Clock
+import kotlin.time.toJavaInstant
 
 /**
  * A command to encapsulate the logic for long-running exports.

@@ -1,7 +1,7 @@
 package dk.cachet.carp.webservices.datastream.dto
 
 import dk.cachet.carp.webservices.datastream.domain.DateTaskQuantityTriple
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 data class DataStreamsSummaryDto(
     val data: List<DateTaskQuantityTriple>,

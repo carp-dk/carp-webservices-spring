@@ -12,11 +12,11 @@ import dk.cachet.carp.webservices.statistics.service.StatisticsService
 import dk.cachet.carp.webservices.study.repository.StudyRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.toKotlinInstant
 import org.springframework.stereotype.Service
 import java.time.Clock
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
+import kotlin.time.toKotlinInstant
 
 @Service
 class StatisticsServiceImpl(

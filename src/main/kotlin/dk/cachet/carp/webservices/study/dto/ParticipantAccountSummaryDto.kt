@@ -1,6 +1,6 @@
 package dk.cachet.carp.webservices.study.dto
 
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 /**
  * Participant-centered row returned by the participant accounts query endpoint.

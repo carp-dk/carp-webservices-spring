@@ -21,17 +21,17 @@ import dk.cachet.carp.webservices.study.repository.ParticipantAccountQueryRow
 import dk.cachet.carp.webservices.study.repository.RecruitmentRepository
 import dk.cachet.carp.webservices.study.service.RecruitmentService
 import kotlinx.coroutines.*
-import kotlinx.datetime.Clock
 import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.Instant
 import kotlinx.datetime.minus
-import kotlinx.datetime.toJavaInstant
-import kotlinx.datetime.toKotlinInstant
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.springframework.stereotype.Service
 import tools.jackson.core.type.TypeReference
 import tools.jackson.databind.ObjectMapper
+import kotlin.time.Clock
+import kotlin.time.Instant
+import kotlin.time.toJavaInstant
+import kotlin.time.toKotlinInstant
 
 @Service
 class RecruitmentServiceWrapper(

@@ -21,12 +21,11 @@ import dk.cachet.carp.webservices.study.repository.ParticipantAccountQueryRow
 import dk.cachet.carp.webservices.study.repository.RecruitmentRepository
 import io.mockk.*
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
 import org.junit.jupiter.api.Nested
 import tools.jackson.core.type.TypeReference
 import tools.jackson.databind.ObjectMapper
 import kotlin.test.*
-import kotlin.time.Instant as CoreInstant
+import kotlin.time.Instant
 
 private fun participantGroupStatus(
     participants: Set<Participant>,
@@ -414,7 +413,7 @@ class RecruitmentServiceWrapperTest {
                     listOf(
                         mockk<StudyDeploymentStatus.Invited>().apply {
                             every { studyDeploymentId } returns deploymentId
-                            every { createdOn } returns CoreInstant.parse(invitedOn.toString())
+                            every { createdOn } returns Instant.parse(invitedOn.toString())
                         },
                     )
 
@@ -473,7 +472,7 @@ class RecruitmentServiceWrapperTest {
                     listOf(
                         mockk<StudyDeploymentStatus.Invited>().apply {
                             every { studyDeploymentId } returns deploymentId
-                            every { createdOn } returns CoreInstant.parse(invitedOn.toString())
+                            every { createdOn } returns Instant.parse(invitedOn.toString())
                         },
                     )
 
@@ -670,8 +669,8 @@ class RecruitmentServiceWrapperTest {
                         setOf(p1),
                         mockk<StudyDeploymentStatus.Invited>().apply {
                             every { studyDeploymentId } returns UUID.randomUUID()
-                            every { createdOn } returns CoreInstant.fromEpochSeconds(0)
-                            every { startedOn } returns CoreInstant.fromEpochSeconds(0)
+                            every { createdOn } returns Instant.fromEpochSeconds(0)
+                            every { startedOn } returns Instant.fromEpochSeconds(0)
                         },
                     )
                 val a1 = Account(email = eai1.emailAddress.address)
@@ -718,8 +717,8 @@ class RecruitmentServiceWrapperTest {
                         setOf(p1, p2),
                         mockk<StudyDeploymentStatus.Invited>().apply {
                             every { studyDeploymentId } returns mockDeploymentId
-                            every { createdOn } returns CoreInstant.fromEpochSeconds(0)
-                            every { startedOn } returns CoreInstant.fromEpochSeconds(0)
+                            every { createdOn } returns Instant.fromEpochSeconds(0)
+                            every { startedOn } returns Instant.fromEpochSeconds(0)
                         },
                     )
 
@@ -759,8 +758,8 @@ class RecruitmentServiceWrapperTest {
                         setOf(p1),
                         mockk<StudyDeploymentStatus.Invited>().apply {
                             every { studyDeploymentId } returns UUID.randomUUID()
-                            every { createdOn } returns CoreInstant.fromEpochSeconds(0)
-                            every { startedOn } returns CoreInstant.fromEpochSeconds(0)
+                            every { createdOn } returns Instant.fromEpochSeconds(0)
+                            every { startedOn } returns Instant.fromEpochSeconds(0)
                         },
                     )
 
@@ -831,8 +830,8 @@ class RecruitmentServiceWrapperTest {
                         setOf(p1),
                         mockk<StudyDeploymentStatus.Invited>().apply {
                             every { studyDeploymentId } returns mockDeploymentId
-                            every { createdOn } returns CoreInstant.fromEpochSeconds(0)
-                            every { startedOn } returns CoreInstant.fromEpochSeconds(0)
+                            every { createdOn } returns Instant.fromEpochSeconds(0)
+                            every { startedOn } returns Instant.fromEpochSeconds(0)
                         },
                     )
 
@@ -873,8 +872,8 @@ class RecruitmentServiceWrapperTest {
                         setOf(p1, p2),
                         mockk<StudyDeploymentStatus.Invited>().apply {
                             every { studyDeploymentId } returns mockDeploymentId
-                            every { createdOn } returns CoreInstant.fromEpochSeconds(0)
-                            every { startedOn } returns CoreInstant.fromEpochSeconds(0)
+                            every { createdOn } returns Instant.fromEpochSeconds(0)
+                            every { startedOn } returns Instant.fromEpochSeconds(0)
                         },
                     )
 
@@ -908,8 +907,8 @@ class RecruitmentServiceWrapperTest {
                 val mockSds =
                     mockk<StudyDeploymentStatus.Invited>().apply {
                         every { studyDeploymentId } returns mockGroupId
-                        every { createdOn } returns CoreInstant.fromEpochSeconds(0)
-                        every { startedOn } returns CoreInstant.fromEpochSeconds(0)
+                        every { createdOn } returns Instant.fromEpochSeconds(0)
+                        every { startedOn } returns Instant.fromEpochSeconds(0)
                     }
                 val pg = participantGroupStatus(emptySet(), mockSds)
 

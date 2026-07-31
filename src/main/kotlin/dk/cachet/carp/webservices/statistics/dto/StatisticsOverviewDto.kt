@@ -1,6 +1,6 @@
 package dk.cachet.carp.webservices.statistics.dto
 
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 data class StatisticsOverviewDto(
     val totalLiveStudies: Long,

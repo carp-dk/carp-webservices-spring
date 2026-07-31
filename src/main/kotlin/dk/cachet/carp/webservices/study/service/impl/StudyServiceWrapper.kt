@@ -59,7 +59,7 @@ class StudyServiceWrapper(
                         studyId = status.studyId,
                         name = status.name,
                         createdOn =
-                            kotlinx.datetime.Instant.fromEpochSeconds(
+                            kotlin.time.Instant.fromEpochSeconds(
                                 status.createdOn.epochSeconds,
                                 status.createdOn.nanosecondsOfSecond.toLong(),
                             ),

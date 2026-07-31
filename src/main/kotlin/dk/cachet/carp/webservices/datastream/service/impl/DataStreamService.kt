@@ -16,9 +16,6 @@ import dk.cachet.carp.webservices.datastream.service.createSequence
 import dk.cachet.carp.webservices.deployment.service.ParticipationService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.Instant
-import kotlinx.datetime.toJavaInstant
-import kotlinx.datetime.toKotlinInstant
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.springframework.dao.DataAccessException
@@ -29,6 +26,9 @@ import tools.jackson.databind.ObjectMapper
 import java.io.IOException
 import java.nio.file.Path
 import java.time.ZoneOffset
+import kotlin.time.Instant
+import kotlin.time.toJavaInstant
+import kotlin.time.toKotlinInstant
 import dk.cachet.carp.webservices.datastream.domain.DataStreamId as DataStreamIdEntity
 
 @Service
