@@ -23,7 +23,9 @@ Anonymous accounts are one-time-use: once their magic link expires the account c
 
 ### Account Cleanup (deletion)
 
-A daily scheduled job (`AnonymousAccountCleanupScheduler`, configurable via `cleanup.anonymous-accounts.*`) deletes the accounts whose schedule is past due.
+> **Disabled by default.** Anonymous accounts are currently **retained indefinitely** — Keycloak comfortably holds the full set at the expected scale, so the deletion sweep below is turned off. The cleanup *schedule* above is still recorded on every generation, so deletion can be re-enabled at any time (set `cleanup.anonymous-accounts.enabled=true` / `ANONYMOUS_CLEANUP_ENABLED=true`) with the per-study timers already populated — no backfill needed. The rest of this section describes the behaviour when enabled.
+
+When enabled, a daily scheduled job (`AnonymousAccountCleanupScheduler`, configurable via `cleanup.anonymous-accounts.*`) deletes the accounts whose schedule is past due.
 
 - **What it does**: for each study where `now > delete_after`, it calls the carp-keycloak extension's `DELETE /bulk-users/anonymous/{studyId}` endpoint, which removes that study's group members in batched transactions. It deletes only accounts created before `delete_after`, so a concurrent generation's fresh accounts are never swept. The empty group is **deliberately left in place** (a concurrent generation may be reusing it, and it is reused by the next generation); the study's schedule row is dropped once all its members are gone.
 - **In-progress participants are never cut off**: the extension keeps any account that still has an active session (or was created on/after `delete_after`) and reports it as `skipped`; that study's schedule row is retained and retried on a later run.

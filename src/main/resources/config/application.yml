@@ -262,6 +262,11 @@ cleanup:
   exports:
     retention-days: "${EXPORTS_RETENTION_DAYS:7}"
   anonymous-accounts:
+    # Scheduled deletion of expired anonymous accounts is DISABLED by default: accounts are retained
+    # indefinitely (Keycloak comfortably holds the full set at the expected scale). The per-study cleanup
+    # ledger is still recorded on each generation, so setting this to true re-enables deletion with the
+    # schedule already populated. See docs/ws-exports.md.
+    enabled: "${ANONYMOUS_CLEANUP_ENABLED:false}"
     cron: "${ANONYMOUS_CLEANUP_CRON:0 30 3 * * ?}"
     # Hard cap on accounts actually deleted per run (enforced down to the individual request), so a large
     # study is spread over several runs rather than triggering an unbounded burst of Keycloak deletions.
