@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
 @Repository
+@Suppress("TooManyFunctions")
 interface DataStreamSequenceRepository : JpaRepository<DataStreamSequence, Int> {
     interface MaximumSequenceId {
         val dataStreamId: Int
@@ -85,6 +86,26 @@ interface DataStreamSequenceRepository : JpaRepository<DataStreamSequence, Int> 
     fun findSequenceIdsByStreamId(
         @Param("dataStreamIds") dataStreamIds: List<Int>,
     ): List<Int>
+
+    /**
+     * All sequences of a single data stream whose local audit timestamp [DataStreamSequence.updatedAt]
+     * falls within [[from], [to]] (both inclusive). Ordered by sequence id so that consecutive
+     * sequences merge correctly when appended to a [dk.cachet.carp.data.application.DataStreamBatch].
+     */
+    @Query(
+        """
+    SELECT dss
+    FROM data_stream_sequence dss
+    WHERE dss.dataStreamId = :dataStreamId
+    AND dss.updatedAt BETWEEN :from AND :to
+    ORDER BY dss.firstSequenceId ASC
+    """,
+    )
+    fun findAllByDataStreamIdAndUpdatedAtBetween(
+        @Param("dataStreamId") dataStreamId: Int,
+        @Param("from") from: Instant,
+        @Param("to") to: Instant,
+    ): List<DataStreamSequence>
 
     @Query(
         nativeQuery = true,

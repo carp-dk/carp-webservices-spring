@@ -1,11 +1,15 @@
 package dk.cachet.carp.webservices.datastream.controller
 
 import dk.cachet.carp.common.application.UUID
+import dk.cachet.carp.data.application.DataStreamBatch
+import dk.cachet.carp.data.application.DataStreamId
 import dk.cachet.carp.data.infrastructure.DataStreamServiceRequest
 import dk.cachet.carp.webservices.common.input.WS_JSON
 import dk.cachet.carp.webservices.datastream.dto.DataStreamsSummaryDto
 import dk.cachet.carp.webservices.datastream.service.DataStreamService
 import dk.cachet.carp.webservices.datastream.service.impl.decompressGzip
+import dk.cachet.carp.webservices.security.authorization.Claim
+import dk.cachet.carp.webservices.security.authorization.service.AuthorizationService
 import io.swagger.v3.oas.annotations.Operation
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
@@ -18,6 +22,7 @@ import kotlin.time.Instant
 @RestController
 class DataStreamController(
     private val dataStreamService: DataStreamService,
+    private val authorizationService: AuthorizationService,
 ) {
     companion object {
         private val LOGGER: Logger = LogManager.getLogger()
@@ -27,6 +32,7 @@ class DataStreamController(
         const val DATA_STREAM_SERVICE = "/api/data-stream-service"
         const val DATA_STREAM_SERVICE_GZIP = "/api/data-stream-service-zip"
         const val DATA_STREAMS_SUMMARY = "/api/data-stream-service/summary"
+        const val DATA_STREAM_QUERY_BY_TIME = "/api/data-stream-service/query-by-time"
     }
 
     @GetMapping(value = [DATA_STREAMS_SUMMARY])
@@ -49,6 +55,25 @@ class DataStreamController(
         )
 
         return dataStreamService.getDataStreamsSummary(studyId, deploymentId, participantId, scope, type, from, to)
+    }
+
+    @PostMapping(value = [DATA_STREAM_QUERY_BY_TIME])
+    @ResponseStatus(HttpStatus.OK)
+    @Operation(tags = ["dataStream/queryDataStreamByTime.json"])
+    suspend fun queryDataStreamByTime(
+        @RequestBody dataStreamId: String,
+        @RequestParam("from", required = true) from: Instant,
+        @RequestParam("to", required = true) to: Instant,
+    ): ResponseEntity<Any> {
+        // Body and response are both core (carp.core) types, so mobile clients reuse the serializers
+        // they already have: DataStreamId in, DataStreamBatch out. `from`/`to` are plain query params.
+        val dataStream = WS_JSON.decodeFromString(DataStreamId.serializer(), dataStreamId)
+        LOGGER.info("Start POST: $DATA_STREAM_QUERY_BY_TIME -> dataStream=$dataStream&from=$from&to=$to")
+        // Mirror core DataStreamServiceRequest.GetDataStream authorization: require the caller to be in
+        // the study deployment. `require` grants system admins implicitly.
+        authorizationService.require(Claim.InDeployment(dataStream.studyDeploymentId))
+        val batch = dataStreamService.getDataStreamByUpdatedAt(dataStream, from, to)
+        return ResponseEntity.ok(WS_JSON.encodeToString(DataStreamBatch.serializer(), batch))
     }
 
     @PostMapping(value = [DATA_STREAM_SERVICE])

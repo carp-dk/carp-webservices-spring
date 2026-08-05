@@ -2,6 +2,7 @@ package dk.cachet.carp.webservices.datastream.service.impl
 
 import dk.cachet.carp.common.application.ApplicationData
 import dk.cachet.carp.common.application.UUID
+import dk.cachet.carp.common.application.data.DataType
 import dk.cachet.carp.data.infrastructure.DataStreamServiceDecorator
 import dk.cachet.carp.deployments.application.users.Participation
 import dk.cachet.carp.deployments.domain.users.AccountParticipation
@@ -15,6 +16,7 @@ import dk.cachet.carp.webservices.common.services.CoreServiceContainer
 import dk.cachet.carp.webservices.datastream.domain.DataStreamId
 import dk.cachet.carp.webservices.datastream.domain.DateTaskQuantityTriple
 import dk.cachet.carp.webservices.datastream.dto.DateTaskQuantityTripleDb
+import dk.cachet.carp.webservices.datastream.repository.DataStreamConfigurationRepository
 import dk.cachet.carp.webservices.datastream.repository.DataStreamIdRepository
 import dk.cachet.carp.webservices.datastream.repository.DataStreamSequenceRepository
 import dk.cachet.carp.webservices.datastream.service.core.CoreDataStreamService
@@ -53,6 +55,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlin.time.Instant
 import kotlin.time.toJavaInstant
+import dk.cachet.carp.data.application.DataStreamId as CoreDataStreamId
 import dk.cachet.carp.webservices.datastream.domain.DataStreamSequence as DataStreamSequenceEntity
 
 private const val SHARED_STREAM_ID = 100
@@ -60,6 +63,7 @@ private const val SHARED_STREAM_ID = 100
 class DataStreamServiceTest {
     private val dataStreamIdRepository = mockk<DataStreamIdRepository>()
     private val dataStreamSequenceRepository = mockk<DataStreamSequenceRepository>()
+    private val configRepository = mockk<DataStreamConfigurationRepository>()
     private val objectMapper = ObjectMapper()
     private val participantRepository = mockk<ParticipantRepository>()
     private val participationService = mockk<ParticipationService>()
@@ -208,6 +212,7 @@ class DataStreamServiceTest {
             DataStreamService(
                 dataStreamIdRepository,
                 dataStreamSequenceRepository,
+                configRepository,
                 objectMapper,
                 participantRepository,
                 participationService,
@@ -741,6 +746,7 @@ class DataStreamServiceTest {
                 DataStreamService(
                     dataStreamIdRepository,
                     dataStreamSequenceRepository,
+                    configRepository,
                     objectMapper,
                     participantRepository,
                     participationService,
@@ -781,6 +787,7 @@ class DataStreamServiceTest {
                 DataStreamService(
                     dataStreamIdRepository,
                     dataStreamSequenceRepository,
+                    configRepository,
                     objectMapper,
                     participantRepository,
                     participationService,
@@ -795,6 +802,41 @@ class DataStreamServiceTest {
     }
 
     @Nested
+    inner class GetDataStreamByUpdatedAt {
+        private val sut =
+            DataStreamService(
+                dataStreamIdRepository,
+                dataStreamSequenceRepository,
+                configRepository,
+                objectMapper,
+                participantRepository,
+                participationService,
+                services,
+            )
+
+        private val dataStream =
+            CoreDataStreamId(
+                studyDeploymentId = UUID.randomUUID(),
+                deviceRoleName = "Primary Phone",
+                dataType = DataType("dk.cachet.carp", "heartbeat"),
+            )
+
+        @Test
+        fun `should throw when from is after to`() =
+            runTest {
+                val from = Instant.fromEpochMilliseconds(2000L)
+                val to = Instant.fromEpochMilliseconds(1000L)
+
+                assertFailsWith<IllegalArgumentException> {
+                    sut.getDataStreamByUpdatedAt(dataStream, from, to)
+                }
+
+                // Guard must reject before touching the database.
+                verify(exactly = 0) { configRepository.findById(any()) }
+            }
+    }
+
+    @Nested
     inner class GetDataStreams {
         lateinit var sut: DataStreamService
 
@@ -804,6 +846,7 @@ class DataStreamServiceTest {
                 DataStreamService(
                     dataStreamIdRepository,
                     dataStreamSequenceRepository,
+                    configRepository,
                     objectMapper,
                     participantRepository,
                     participationService,

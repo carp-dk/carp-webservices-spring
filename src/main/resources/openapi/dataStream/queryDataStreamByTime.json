@@ -1,0 +1,91 @@
+{
+  "tags": [
+    "data-stream-controller"
+  ],
+  "description": "\n        Retrieve a data stream by local update time. Behaves like the core getDataStream, but selects\n        data points whose local `updated_at` timestamp falls within the inclusive [from, to] window\n        instead of a sequence-id range.\n\n        The request body is a serialized core DataStreamId (the same type used by getDataStream).\n        `from` and `to` are ISO-8601 instants passed as query parameters. The response body is a\n        serialized DataStreamBatch.\n    ",
+  "operationId": "queryDataStreamByTime",
+  "parameters": [
+    {
+      "name": "from",
+      "in": "query",
+      "required": true,
+      "description": "Inclusive start of the updated_at window, as an ISO-8601 instant (e.g. 2026-08-01T00:00:00Z).",
+      "schema": {
+        "type": "string",
+        "format": "date-time"
+      }
+    },
+    {
+      "name": "to",
+      "in": "query",
+      "required": true,
+      "description": "Inclusive end of the updated_at window, as an ISO-8601 instant (e.g. 2026-08-05T00:00:00Z).",
+      "schema": {
+        "type": "string",
+        "format": "date-time"
+      }
+    }
+  ],
+  "requestBody": {
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/DataStreamId"
+        }
+      }
+    },
+    "required": true
+  },
+  "responses": {
+    "200": {
+      "description": "OK",
+      "content": {
+        "*/*": {
+          "schema": {
+            "$ref": "#/components/schemas/DataStreamBatch"
+          }
+        }
+      }
+    },
+    "400": {
+      "description": "Bad Request",
+      "content": {
+        "*/*": {
+          "schema": {
+            "$ref": "#/components/schemas/CarpErrorResponse"
+          }
+        }
+      }
+    },
+    "401": {
+      "description": "Unauthorized",
+      "content": {
+        "*/*": {
+          "schema": {
+            "$ref": "#/components/schemas/CarpErrorResponse"
+          }
+        }
+      }
+    },
+    "403": {
+      "description": "Forbidden",
+      "content": {
+        "*/*": {
+          "schema": {
+            "$ref": "#/components/schemas/CarpErrorResponse"
+          }
+        }
+      }
+    },
+    "404": {
+      "description": "Not Found",
+      "content": {
+        "*/*": {
+          "schema": {
+            "$ref": "#/components/schemas/CarpErrorResponse"
+          }
+        }
+      }
+    }
+  }
+}

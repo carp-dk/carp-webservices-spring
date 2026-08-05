@@ -2,6 +2,7 @@ package dk.cachet.carp.webservices.datastream.service.impl
 
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.common.application.data.DataType
+import dk.cachet.carp.data.application.DataStreamBatch
 import dk.cachet.carp.data.application.DataStreamId
 import dk.cachet.carp.studies.domain.users.ParticipantRepository
 import dk.cachet.carp.webservices.common.services.CoreServiceContainer
@@ -9,10 +10,13 @@ import dk.cachet.carp.webservices.datastream.domain.DataStreamSequence
 import dk.cachet.carp.webservices.datastream.domain.DateTaskQuantityTriple
 import dk.cachet.carp.webservices.datastream.dto.DataStreamsSummaryDto
 import dk.cachet.carp.webservices.datastream.dto.DateTaskQuantityTripleDb
+import dk.cachet.carp.webservices.datastream.repository.DataStreamConfigurationRepository
 import dk.cachet.carp.webservices.datastream.repository.DataStreamIdRepository
 import dk.cachet.carp.webservices.datastream.repository.DataStreamSequenceRepository
 import dk.cachet.carp.webservices.datastream.service.DataStreamService
 import dk.cachet.carp.webservices.datastream.service.createSequence
+import dk.cachet.carp.webservices.datastream.service.fetchValidatedDataStreamId
+import dk.cachet.carp.webservices.datastream.service.validateConfig
 import dk.cachet.carp.webservices.deployment.service.ParticipationService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -32,9 +36,11 @@ import kotlin.time.toKotlinInstant
 import dk.cachet.carp.webservices.datastream.domain.DataStreamId as DataStreamIdEntity
 
 @Service
+@Suppress("LongParameterList")
 class DataStreamService(
     private val dataStreamIdRepository: DataStreamIdRepository,
     private val dataStreamSequenceRepository: DataStreamSequenceRepository,
+    private val configRepository: DataStreamConfigurationRepository,
     private val objectMapper: ObjectMapper,
     private val participantRepository: ParticipantRepository,
     private val participationService: ParticipationService,
@@ -84,6 +90,32 @@ class DataStreamService(
         val dataStreamIds = findDataStreamIdsByDeploymentId(deploymentId)
         return findLatestUpdatedAtByDataStreamIds(dataStreamIds)
     }
+
+    override suspend fun getDataStreamByUpdatedAt(
+        dataStream: DataStreamId,
+        from: Instant,
+        to: Instant,
+    ): DataStreamBatch =
+        withContext(Dispatchers.IO) {
+            require(from <= to) { "'from' ($from) must not be after 'to' ($to)." }
+
+            // Mirror core.getDataStream's guard: reject streams that were never configured/opened.
+            validateConfig(dataStream, configRepository)
+            val dataStreamId = fetchValidatedDataStreamId(dataStream, dataStreamIdRepository)
+
+            val sequences =
+                dataStreamSequenceRepository.findAllByDataStreamIdAndUpdatedAtBetween(
+                    dataStreamId.id,
+                    from.toJavaInstant(),
+                    to.toJavaInstant(),
+                )
+
+            // Each matching row is emitted in full (whole sequence range) — unlike the sequence-id
+            // path, updated_at doesn't slice within a row, so there is no sub-range to intersect.
+            sequences.fold(MutableDataStreamBatchDecorator()) { batch, sequence ->
+                batch.apply { appendSequence(createSequence(dataStream, sequence, sequence.toRange(), objectMapper)) }
+            }
+        }
 
     override fun findDataStreamIdsByDeploymentId(deploymentId: UUID): List<Int> {
         return dataStreamIdRepository.getAllByDeploymentId(deploymentId.toString()).map { it.id }
