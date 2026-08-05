@@ -1,6 +1,8 @@
 package dk.cachet.carp.webservices.common.configuration.swagger
 
+import com.fasterxml.jackson.core.type.TypeReference
 import dk.cachet.carp.webservices.common.environment.EnvironmentUtil
+import io.swagger.v3.core.util.Json
 import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.Operation
@@ -22,8 +24,6 @@ import org.springframework.core.io.Resource
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 import org.springframework.util.StreamUtils
 import org.springframework.util.StringUtils
-import tools.jackson.databind.ObjectMapper
-import tools.jackson.module.kotlin.readValue
 import java.nio.charset.Charset
 import java.util.*
 import kotlin.collections.ArrayList
@@ -35,7 +35,6 @@ class OpenApi30Config(
     @param:Value("\${spring.application.name}") private val moduleName: String,
     @param:Value("\${spring.application.version}") private val apiVersion: String,
     @param:Value("classpath:openapi/description.txt") private val docResource: Resource,
-    private val objectMapper: ObjectMapper,
     private val environmentUtil: EnvironmentUtil,
 ) {
     companion object {
@@ -45,6 +44,12 @@ class OpenApi30Config(
             "Provide the username and password of the user"
         const val OPENAPI_FOLDER = "/openapi"
     }
+
+    // The hand-written openapi/**/*.json files describe swagger-core models (Operation, Schema), which
+    // are Jackson 2-annotated. They MUST be read with swagger's own Jackson 2 mapper — the app's default
+    // Jackson 3 (tools.jackson) ObjectMapper silently drops annotation-driven fields such as `$ref`,
+    // which collapses every referenced request/response schema to an empty `{}` ("any") in the UI.
+    private val swaggerMapper = Json.mapper()
 
     @Bean
     fun customOpenAPI(): OpenAPI? {
@@ -138,7 +143,7 @@ class OpenApi30Config(
         val operations = mutableMapOf<String, Operation>()
 
         for (resource in resources) {
-            val operation = objectMapper.readValue(resource.inputStream, Operation::class.java)
+            val operation = swaggerMapper.readValue(resource.inputStream, Operation::class.java)
             // keys in the form of 'accounts/inviteStudyOwner.json'
             val key = resource.url.toExternalForm().split('/').takeLast(2).joinToString("/")
             operations[key] = operation
@@ -170,7 +175,11 @@ class OpenApi30Config(
         val schemaJsonFile = loader.getResources("classpath*:$OPENAPI_FOLDER/schemas.json")
 
         if (schemaJsonFile.any()) {
-            val schemaMap: Map<String, Schema<*>> = objectMapper.readValue(schemaJsonFile[0].inputStream)
+            val schemaMap: Map<String, Schema<Any>> =
+                swaggerMapper.readValue(
+                    schemaJsonFile[0].inputStream,
+                    object : TypeReference<Map<String, Schema<Any>>>() {},
+                )
             for ((key, schema) in schemaMap) {
                 if (!openAPI.components.schemas.containsKey(key)) {
                     openAPI.components.addSchemas(key, schema)

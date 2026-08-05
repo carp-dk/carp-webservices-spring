@@ -175,9 +175,10 @@ springdoc:
       client-secret: "${KC_CLIENT_SECRET}"
       scopes: openid profile email carp
       realm: ${keycloak.realm}
-  # TODO: Kotlin support is broken due to incompability between springdoc-openapi, spring-boot 3.5.x and kotlin 1.9.x,
-  # enable kotlin support once kotlin 2 is used
-  enable-kotlin: false
+  # Re-enabled: the incompatibility that forced this off (springdoc-openapi on spring-boot 3.5.x +
+  # kotlin 1.9.x) no longer applies — now on kotlin 2.4, spring-boot 4.1 and springdoc 3.x. Enables
+  # Kotlin-aware schema generation (nullability/required, suspend Continuation stripping).
+  enable-kotlin: true
 
 rabbit:
   email:
