@@ -38,6 +38,16 @@ private fun participantGroupStatus(
         ParticipantGroupRepresentation.Default,
     )
 
+private inline fun <reified T : StudyDeploymentStatus> statusMock(deploymentId: UUID = UUID.randomUUID()): T =
+    mockk<T>().apply {
+        every { studyDeploymentId } returns deploymentId
+        every { createdOn } returns Instant.fromEpochSeconds(0)
+        every { startedOn } returns Instant.fromEpochSeconds(0)
+    }
+
+private fun anonymousGroup(status: StudyDeploymentStatus): ParticipantGroupStatus.InDeployment =
+    participantGroupStatus(setOf(Participant(UsernameAccountIdentity("anon-${UUID.randomUUID()}"))), status)
+
 class RecruitmentServiceWrapperTest {
     private val accountService: AccountService = mockk()
     private val dataStreamService: DataStreamService = mockk()
@@ -892,6 +902,177 @@ class RecruitmentServiceWrapperTest {
                 coVerify(exactly = 1) { accountService.findByAccountIdentity(any()) }
                 coVerify(exactly = 1) { accountService.findByAccountIdentity(eai1) }
                 assertEquals(2, result.groups.single().participants.size)
+            }
+        }
+
+        @Test
+        fun `paginates matched groups and reports total`() {
+            runTest {
+                val mockStudyId = UUID.randomUUID()
+                val groups = (0 until 5).map { anonymousGroup(statusMock<StudyDeploymentStatus.Invited>()) }
+
+                coEvery {
+                    services.recruitmentService.getParticipantGroupStatusList(mockStudyId)
+                } returns groups
+                coEvery { dataStreamService.getLatestUpdatedAt(any()) } returns Instant.fromEpochSeconds(0)
+
+                val sut = createSut()
+
+                val firstPage = sut.getParticipantGroupsStatus(mockStudyId, page = 0, size = 2)
+                assertEquals(2, firstPage.groups.size)
+                assertEquals(5, firstPage.total)
+                assertEquals(groups[0].id, firstPage.groups[0].participantGroupId)
+                assertEquals(groups[1].id, firstPage.groups[1].participantGroupId)
+                // groupStatuses must be page-aligned, not the full list.
+                assertEquals(2, firstPage.groupStatuses.size)
+
+                val lastPage = sut.getParticipantGroupsStatus(mockStudyId, page = 2, size = 2)
+                assertEquals(1, lastPage.groups.size)
+                assertEquals(5, lastPage.total)
+                assertEquals(groups[4].id, lastPage.groups[0].participantGroupId)
+
+                // Only the two enriched pages (2 + 1 groups) trigger a last-upload lookup.
+                coVerify(exactly = 3) { dataStreamService.getLatestUpdatedAt(any()) }
+            }
+        }
+
+        @Test
+        fun `page offset beyond the collection returns an empty page instead of overflowing`() {
+            runTest {
+                val mockStudyId = UUID.randomUUID()
+                val groups = listOf(anonymousGroup(statusMock<StudyDeploymentStatus.Invited>()))
+
+                coEvery {
+                    services.recruitmentService.getParticipantGroupStatusList(mockStudyId)
+                } returns groups
+
+                val sut = createSut()
+
+                // page * size (1073741824 * 4) overflows Int back to 0 without the Long guard.
+                val result = sut.getParticipantGroupsStatus(mockStudyId, page = 1073741824, size = 4)
+
+                assertEquals(0, result.groups.size)
+                assertEquals(1, result.total)
+                // No page to enrich, so no last-upload lookups happen.
+                coVerify(exactly = 0) { dataStreamService.getLatestUpdatedAt(any()) }
+            }
+        }
+
+        @Test
+        fun `filtering keeps groups and statuses aligned`() {
+            runTest {
+                val mockStudyId = UUID.randomUUID()
+                val matchEai = EmailAccountIdentity("match@example.com")
+                val otherEai = EmailAccountIdentity("other@example.com")
+                val matchGroup =
+                    participantGroupStatus(setOf(Participant(matchEai)), statusMock<StudyDeploymentStatus.Invited>())
+                val otherGroup =
+                    participantGroupStatus(setOf(Participant(otherEai)), statusMock<StudyDeploymentStatus.Invited>())
+
+                coEvery {
+                    services.recruitmentService.getParticipantGroupStatusList(mockStudyId)
+                } returns listOf(matchGroup, otherGroup)
+                coEvery { accountService.findByAccountIdentity(matchEai) } returns
+                    Account(email = matchEai.emailAddress.address)
+                coEvery { dataStreamService.getLatestUpdatedAt(any()) } returns null
+
+                val sut = createSut()
+
+                val result = sut.getParticipantGroupsStatus(mockStudyId, search = "match@")
+
+                assertEquals(1, result.groups.size)
+                assertEquals(matchGroup.id, result.groups.single().participantGroupId)
+                // A filtered result must not leak the full, unfiltered status list.
+                assertEquals(1, result.groupStatuses.size)
+            }
+        }
+
+        @Test
+        fun `status filter returns only matching deployment states`() {
+            runTest {
+                val mockStudyId = UUID.randomUUID()
+                val invitedGroup = anonymousGroup(statusMock<StudyDeploymentStatus.Invited>())
+                val runningGroup = anonymousGroup(statusMock<StudyDeploymentStatus.Running>())
+
+                coEvery {
+                    services.recruitmentService.getParticipantGroupStatusList(mockStudyId)
+                } returns listOf(invitedGroup, runningGroup)
+                coEvery { dataStreamService.getLatestUpdatedAt(any()) } returns null
+
+                val sut = createSut()
+
+                val result = sut.getParticipantGroupsStatus(mockStudyId, status = "Running")
+
+                assertEquals(1, result.groups.size)
+                assertEquals(runningGroup.id, result.groups.single().participantGroupId)
+                assertEquals(1, result.groupStatuses.size)
+            }
+        }
+
+        @Test
+        fun `legacy unfiltered call returns the full status list with a null total`() {
+            runTest {
+                val mockStudyId = UUID.randomUUID()
+                val inDeployment = anonymousGroup(statusMock<StudyDeploymentStatus.Invited>())
+                val staged = mockk<ParticipantGroupStatus.Staged>()
+
+                coEvery {
+                    services.recruitmentService.getParticipantGroupStatusList(mockStudyId)
+                } returns listOf(inDeployment, staged)
+                coEvery { dataStreamService.getLatestUpdatedAt(any()) } returns null
+
+                val sut = createSut()
+
+                val result = sut.getParticipantGroupsStatus(mockStudyId)
+
+                // Only in-deployment groups are enriched, but the legacy call keeps the full status list.
+                assertEquals(1, result.groups.size)
+                assertEquals(2, result.groupStatuses.size)
+                assertNull(result.total)
+            }
+        }
+    }
+
+    @Nested
+    inner class GetParticipantGroupStatusCounts {
+        @Test
+        fun `counts deployment states and totals every group`() {
+            runTest {
+                val mockStudyId = UUID.randomUUID()
+
+                // Counting only inspects the deployment-status subtype, so mock the group directly
+                // instead of building it via fromDeploymentStatus (which needs per-subtype stubs).
+                fun deployment(status: StudyDeploymentStatus) =
+                    mockk<ParticipantGroupStatus.InDeployment>().apply {
+                        every { studyDeploymentStatus } returns status
+                    }
+                val statuses =
+                    listOf(
+                        deployment(mockk<StudyDeploymentStatus.Invited>()),
+                        deployment(mockk<StudyDeploymentStatus.Invited>()),
+                        deployment(mockk<StudyDeploymentStatus.DeployingDevices>()),
+                        deployment(mockk<StudyDeploymentStatus.Running>()),
+                        deployment(mockk<StudyDeploymentStatus.Stopped>()),
+                        mockk<ParticipantGroupStatus.Staged>(),
+                    )
+
+                coEvery {
+                    services.recruitmentService.getParticipantGroupStatusList(mockStudyId)
+                } returns statuses
+
+                val sut = createSut()
+
+                val counts = sut.getParticipantGroupStatusCounts(mockStudyId)
+
+                assertEquals(2, counts.invited)
+                assertEquals(1, counts.deployingDevices)
+                assertEquals(1, counts.running)
+                assertEquals(1, counts.stopped)
+                // total counts every participant group, including non-deployed (staged) ones.
+                assertEquals(6, counts.total)
+                // Counting must not do the expensive per-group enrichment.
+                coVerify(exactly = 0) { dataStreamService.getLatestUpdatedAt(any()) }
+                coVerify(exactly = 0) { accountService.findByAccountIdentity(any()) }
             }
         }
     }

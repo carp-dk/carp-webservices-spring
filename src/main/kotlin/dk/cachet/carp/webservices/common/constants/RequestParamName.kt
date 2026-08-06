@@ -9,6 +9,8 @@ object RequestParamName {
     const val QUERY = "query"
     const val SORT = "sort"
     const val PAGE = "page"
+    const val SIZE = "size"
+    const val STATUS = "status"
     const val EMAIL = "email"
     const val ROLE = "role"
     const val OFFSET = "offset"

@@ -4,6 +4,7 @@ import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.common.application.users.AccountIdentity
 import dk.cachet.carp.common.application.users.EmailAccountIdentity
 import dk.cachet.carp.common.application.users.UsernameAccountIdentity
+import dk.cachet.carp.deployments.application.StudyDeploymentStatus
 import dk.cachet.carp.studies.application.users.Participant
 import dk.cachet.carp.studies.application.users.ParticipantGroupStatus
 import dk.cachet.carp.webservices.account.service.AccountService
@@ -14,6 +15,7 @@ import dk.cachet.carp.webservices.security.authorization.Claim
 import dk.cachet.carp.webservices.security.authorization.Role
 import dk.cachet.carp.webservices.security.config.SecurityCoroutineContext
 import dk.cachet.carp.webservices.study.domain.*
+import dk.cachet.carp.webservices.study.dto.DeploymentStatusCountsDto
 import dk.cachet.carp.webservices.study.dto.ParticipantAccountSummaryDto
 import dk.cachet.carp.webservices.study.dto.ParticipantAccountsRequestDto
 import dk.cachet.carp.webservices.study.dto.ParticipantAccountsResponseDto
@@ -240,62 +242,156 @@ class RecruitmentServiceWrapper(
                 .map { InactiveDeploymentInfo(UUID(it.deploymentId), it.lastDataUpload.toKotlinInstant()) }
         }
 
-    override suspend fun getParticipantGroupsStatus(studyId: UUID): ParticipantGroupsStatus =
+    override suspend fun getParticipantGroupsStatus(
+        studyId: UUID,
+        page: Int?,
+        size: Int?,
+        search: String?,
+        status: String?,
+    ): ParticipantGroupsStatus =
         withContext(Dispatchers.IO + SecurityCoroutineContext()) {
-            val participantGroupStatusList = core.getParticipantGroupStatusList(studyId)
+            val allStatuses = core.getParticipantGroupStatusList(studyId)
+
+            // Filtering/searching run against the core status list (deployment state + account identity
+            // from the recruitment snapshot), so deciding which rows match needs no Keycloak or
+            // data-stream calls.
+            var matched = allStatuses.filterIsInstance<ParticipantGroupStatus.InDeployment>()
+            if (!status.isNullOrBlank()) {
+                matched = matched.filter { it.studyDeploymentStatus.matchesStateName(status) }
+            }
+            if (!search.isNullOrBlank()) {
+                val needle = search.lowercase()
+                matched = matched.filter { it.matchesSearch(needle) }
+            }
+
+            val paginating = page != null && size != null
+            // A completely unfiltered, unpaged call is the legacy contract that returns everything.
+            val isLegacyUnfiltered =
+                !paginating && search.isNullOrBlank() && status.isNullOrBlank()
+            val total = matched.size
+
+            // Enrich ONLY the requested page — the expensive per-group account resolution and
+            // last-upload lookup become O(page) instead of O(all). Offset is computed as Long so a
+            // large page * size can't overflow Int and wrap back to an earlier page; an offset past
+            // the end yields an empty page.
+            val pageOfGroups =
+                if (paginating) {
+                    val offset = page.toLong() * size.toLong()
+                    if (offset >= matched.size) emptyList() else matched.drop(offset.toInt()).take(size)
+                } else {
+                    matched
+                }
             val lastUploadByDeployment = mutableMapOf<UUID, Instant?>()
+            val participantGroupInfoList = pageOfGroups.map { enrichGroup(it, lastUploadByDeployment) }
 
-            val participantGroupInfoList =
-                participantGroupStatusList
-                    .filterIsInstance<ParticipantGroupStatus.InDeployment>()
-                    .map { groupStatus ->
-                        val accountsByParticipant =
-                            groupStatus.participants.associateWith { participant ->
-                                // Generated (anonymous) accounts are username-only with no name/email to
-                                // enrich, and they always exist, so we resolve them locally instead of
-                                // making a Keycloak call per participant.
-                                // TODO(account-existence): local resolution ASSUMES the generated account
-                                //  exists rather than verifying it. See project_account_lookup_n1 for the
-                                //  long-term fix (per-study Keycloak group or a local participant read model).
-                                when (participant.accountIdentity) {
-                                    is UsernameAccountIdentity ->
-                                        Account.fromAccountIdentity(participant.accountIdentity)
-                                            .apply { role = Role.PARTICIPANT }
-                                    else -> accountService.findByAccountIdentity(participant.accountIdentity)
-                                }
-                            }
-
-                        val lastDataUpload =
-                            if (accountsByParticipant.values.any { it != null }) {
-                                lastUploadByDeployment.getOrPut(groupStatus.studyDeploymentStatus.studyDeploymentId) {
-                                    dataStreamService.getLatestUpdatedAt(
-                                        groupStatus.studyDeploymentStatus.studyDeploymentId,
-                                    )
-                                }
-                            } else {
-                                null
-                            }
-
-                        val participantAccounts =
-                            groupStatus.participants.map { participant ->
-                                val participantAccount = ParticipantAccount.fromParticipant(participant)
-                                val account = accountsByParticipant[participant]
-
-                                if (account != null) {
-                                    participantAccount.lateInitFrom(account)
-
-                                    // TODO: we cannot track this for participants, only for deployments
-                                    participantAccount.dateOfLastDataUpload = lastDataUpload
-                                }
-
-                                participantAccount
-                            }
-
-                        ParticipantGroupInfo(groupStatus.id, groupStatus.studyDeploymentStatus, participantAccounts)
-                    }
-
-            ParticipantGroupsStatus(participantGroupInfoList, participantGroupStatusList)
+            ParticipantGroupsStatus(
+                groups = participantGroupInfoList,
+                // Only the legacy unfiltered call keeps the full status list; as soon as the result is
+                // filtered/searched/paged, `groupStatuses` must mirror `groups` so the two collections
+                // never disagree (e.g. clients reading representation names off `groupStatuses`).
+                groupStatuses = if (isLegacyUnfiltered) allStatuses else pageOfGroups,
+                total = if (paginating) total else null,
+            )
         }
+
+    override suspend fun getParticipantGroupStatusCounts(studyId: UUID): DeploymentStatusCountsDto =
+        withContext(Dispatchers.IO + SecurityCoroutineContext()) {
+            val statuses = core.getParticipantGroupStatusList(studyId)
+            var invited = 0
+            var deployingDevices = 0
+            var running = 0
+            var stopped = 0
+            statuses.filterIsInstance<ParticipantGroupStatus.InDeployment>().forEach { group ->
+                when (group.studyDeploymentStatus) {
+                    is StudyDeploymentStatus.Invited -> invited++
+                    is StudyDeploymentStatus.DeployingDevices -> deployingDevices++
+                    is StudyDeploymentStatus.Running -> running++
+                    is StudyDeploymentStatus.Stopped -> stopped++
+                }
+            }
+            DeploymentStatusCountsDto(invited, deployingDevices, running, stopped, total = statuses.size)
+        }
+
+    /**
+     * Matches a deployment state against a status-name filter (e.g. "Running"). Uses type checks
+     * rather than reflecting on the class name so it is robust to minification/obfuscation.
+     */
+    private fun StudyDeploymentStatus.matchesStateName(name: String): Boolean =
+        when (this) {
+            is StudyDeploymentStatus.Invited -> name == "Invited"
+            is StudyDeploymentStatus.DeployingDevices -> name == "DeployingDevices"
+            is StudyDeploymentStatus.Running -> name == "Running"
+            is StudyDeploymentStatus.Stopped -> name == "Stopped"
+            else -> false
+        }
+
+    /** Matches a group against a lowercased search needle by deployment id or participant identity. */
+    private fun ParticipantGroupStatus.InDeployment.matchesSearch(needle: String): Boolean {
+        if (id.stringRepresentation.lowercase().contains(needle)) return true
+        if (studyDeploymentStatus.studyDeploymentId.stringRepresentation.lowercase().contains(needle)) {
+            return true
+        }
+        return participants.any { participant ->
+            when (val identity = participant.accountIdentity) {
+                is EmailAccountIdentity -> identity.emailAddress.address.lowercase().contains(needle)
+                is UsernameAccountIdentity -> identity.username.name.lowercase().contains(needle)
+                else -> false
+            }
+        }
+    }
+
+    /**
+     * Enriches a single in-deployment group with participant account data and the deployment's last
+     * upload time. Kept separate so callers can enrich just a page of groups rather than all of them.
+     */
+    private suspend fun enrichGroup(
+        groupStatus: ParticipantGroupStatus.InDeployment,
+        lastUploadByDeployment: MutableMap<UUID, Instant?>,
+    ): ParticipantGroupInfo {
+        val accountsByParticipant =
+            groupStatus.participants.associateWith { participant ->
+                // Generated (anonymous) accounts are username-only with no name/email to enrich, and
+                // they always exist, so we resolve them locally instead of making a Keycloak call per
+                // participant.
+                // TODO(account-existence): local resolution ASSUMES the generated account exists rather
+                //  than verifying it. See project_account_lookup_n1 for the long-term fix (per-study
+                //  Keycloak group or a local participant read model).
+                when (participant.accountIdentity) {
+                    is UsernameAccountIdentity ->
+                        Account.fromAccountIdentity(participant.accountIdentity)
+                            .apply { role = Role.PARTICIPANT }
+                    else -> accountService.findByAccountIdentity(participant.accountIdentity)
+                }
+            }
+
+        val lastDataUpload =
+            if (accountsByParticipant.values.any { it != null }) {
+                lastUploadByDeployment.getOrPut(groupStatus.studyDeploymentStatus.studyDeploymentId) {
+                    dataStreamService.getLatestUpdatedAt(
+                        groupStatus.studyDeploymentStatus.studyDeploymentId,
+                    )
+                }
+            } else {
+                null
+            }
+
+        val participantAccounts =
+            groupStatus.participants.map { participant ->
+                val participantAccount = ParticipantAccount.fromParticipant(participant)
+                val account = accountsByParticipant[participant]
+
+                if (account != null) {
+                    participantAccount.lateInitFrom(account)
+
+                    // TODO: we cannot track this for participants, only for deployments
+                    participantAccount.dateOfLastDataUpload = lastDataUpload
+                }
+
+                participantAccount
+            }
+
+        return ParticipantGroupInfo(groupStatus.id, groupStatus.studyDeploymentStatus, participantAccounts)
+    }
 
     override suspend fun stopParticipantGroup(
         studyId: UUID,

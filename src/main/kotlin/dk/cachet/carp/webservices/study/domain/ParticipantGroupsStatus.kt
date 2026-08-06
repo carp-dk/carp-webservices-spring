@@ -13,6 +13,8 @@ import kotlin.time.Instant
 data class ParticipantGroupsStatus(
     val groups: List<ParticipantGroupInfo>,
     val groupStatuses: List<ParticipantGroupStatus>,
+    // Total number of matching participant groups before paging. Null for unpaged (legacy) calls.
+    val total: Int? = null,
 )
 
 @Serializable

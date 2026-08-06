@@ -8,6 +8,7 @@ import dk.cachet.carp.webservices.security.authorization.Role
 import dk.cachet.carp.webservices.study.domain.InactiveDeploymentInfo
 import dk.cachet.carp.webservices.study.domain.ParticipantGroupsStatus
 import dk.cachet.carp.webservices.study.domain.ParticipantOrderBy
+import dk.cachet.carp.webservices.study.dto.DeploymentStatusCountsDto
 import dk.cachet.carp.webservices.study.dto.ParticipantAccountsRequestDto
 import dk.cachet.carp.webservices.study.dto.ParticipantAccountsResponseDto
 
@@ -47,7 +48,25 @@ interface RecruitmentService {
         limit: Int = -1,
     ): List<InactiveDeploymentInfo>
 
-    suspend fun getParticipantGroupsStatus(studyId: UUID): ParticipantGroupsStatus
+    /**
+     * Paged, filterable participant-group status.
+     *
+     * When [page] and [size] are both provided, returns one page of matching groups plus the total
+     * count; when omitted, returns every group (legacy behavior). [search] matches deployment id and
+     * participant account identity; [status] filters by deployment state (e.g. "Running"). Only the
+     * returned page is enriched with account/last-upload data, so that work is O(page), not O(all).
+     */
+    @Suppress("LongParameterList")
+    suspend fun getParticipantGroupsStatus(
+        studyId: UUID,
+        page: Int? = null,
+        size: Int? = null,
+        search: String? = null,
+        status: String? = null,
+    ): ParticipantGroupsStatus
+
+    /** Aggregate counts of participant-group deployment statuses for the study overview pie chart. */
+    suspend fun getParticipantGroupStatusCounts(studyId: UUID): DeploymentStatusCountsDto
 
     /**
      * Temporary workaround for a bug in carp.core 1.3.0 [RecruitmentServiceHost.stopParticipantGroup],

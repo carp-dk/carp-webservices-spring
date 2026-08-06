@@ -7,6 +7,7 @@ import dk.cachet.carp.studies.infrastructure.StudyServiceRequest
 import dk.cachet.carp.webservices.account.service.AccountService
 import dk.cachet.carp.webservices.common.constants.PathVariableName
 import dk.cachet.carp.webservices.common.constants.RequestParamName
+import dk.cachet.carp.webservices.common.exception.responses.BadRequestException
 import dk.cachet.carp.webservices.common.input.WS_JSON
 import dk.cachet.carp.webservices.common.serialisers.ApplicationRequestSerializer
 import dk.cachet.carp.webservices.security.authentication.domain.Account
@@ -17,6 +18,7 @@ import dk.cachet.carp.webservices.study.domain.InactiveDeploymentInfo
 import dk.cachet.carp.webservices.study.domain.ParticipantGroupsStatus
 import dk.cachet.carp.webservices.study.domain.StudyOverview
 import dk.cachet.carp.webservices.study.dto.AddParticipantsRequestDto
+import dk.cachet.carp.webservices.study.dto.DeploymentStatusCountsDto
 import dk.cachet.carp.webservices.study.dto.ParticipantAccountsRequestDto
 import dk.cachet.carp.webservices.study.dto.ParticipantAccountsResponseDto
 import dk.cachet.carp.webservices.study.serdes.RecruitmentRequestSerializer
@@ -55,6 +57,7 @@ class StudyController(
         const val GET_STUDIES_OVERVIEW = "/api/studies/studies-overview"
         const val PARTICIPANTS_ACCOUNTS = "/api/studies/{${PathVariableName.STUDY_ID}}/participants/accounts"
         const val GET_PARTICIPANT_GROUP_STATUS = "/api/studies/{${PathVariableName.STUDY_ID}}/participantGroup/status"
+        const val GET_PARTICIPANT_GROUP_COUNTS = "/api/studies/{${PathVariableName.STUDY_ID}}/participantGroup/counts"
         const val ADD_PARTICIPANTS = "/api/studies/{${PathVariableName.STUDY_ID}}/participants/add"
         const val GET_INACTIVE_DEPLOYMENTS = "/api/studies/{${PathVariableName.STUDY_ID}}/inactive_deployments"
     }
@@ -111,12 +114,47 @@ class StudyController(
     @GetMapping(value = [GET_PARTICIPANT_GROUP_STATUS])
     @PreAuthorize("canManageStudy(#studyId) or canLimitedManageStudy(#studyId)")
     @ResponseStatus(HttpStatus.OK)
+    @Operation(
+        summary = "Participant group status",
+        description =
+            "Returns participant-group deployment status for a study. When both page and size are " +
+                "given, returns one page of matching groups plus a total; otherwise returns all groups. " +
+                "Supports search (deployment id / account identity) and a status filter.",
+    )
     suspend fun getParticipantGroupStatus(
         @PathVariable(PathVariableName.STUDY_ID) studyId: UUID,
+        @RequestParam(name = RequestParamName.PAGE, required = false) page: Int?,
+        @RequestParam(name = RequestParamName.SIZE, required = false) size: Int?,
+        @RequestParam(name = RequestParamName.QUERY, required = false) search: String?,
+        @RequestParam(name = RequestParamName.STATUS, required = false) status: String?,
     ): String {
         LOGGER.info("Start GET: /api/studies/$studyId/participantGroup/status")
-        val result = recruitmentService.getParticipantGroupsStatus(studyId)
+        // Pagination is opt-in but must be well-formed: both params together, page >= 0, size >= 1.
+        if ((page == null) != (size == null)) {
+            throw BadRequestException("'page' and 'size' must be provided together, or neither.")
+        }
+        if (page != null && page < 0) {
+            throw BadRequestException(RequestParamName.PAGE, page.toString())
+        }
+        if (size != null && size < 1) {
+            throw BadRequestException(RequestParamName.SIZE, size.toString())
+        }
+        val result = recruitmentService.getParticipantGroupsStatus(studyId, page, size, search, status)
         return WS_JSON.encodeToString(ParticipantGroupsStatus.serializer(), result)
+    }
+
+    @GetMapping(value = [GET_PARTICIPANT_GROUP_COUNTS])
+    @PreAuthorize("canManageStudy(#studyId) or canLimitedManageStudy(#studyId)")
+    @ResponseStatus(HttpStatus.OK)
+    @Operation(
+        summary = "Participant group status counts",
+        description = "Aggregate counts of participant-group deployment statuses for the study overview.",
+    )
+    suspend fun getParticipantGroupCounts(
+        @PathVariable(PathVariableName.STUDY_ID) studyId: UUID,
+    ): DeploymentStatusCountsDto {
+        LOGGER.info("Start GET: /api/studies/$studyId/participantGroup/counts")
+        return recruitmentService.getParticipantGroupStatusCounts(studyId)
     }
 
     @DeleteMapping(value = [RESEARCHERS])
