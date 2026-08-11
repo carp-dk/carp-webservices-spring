@@ -134,7 +134,10 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
 
     // FLYWAY
-    implementation("org.flywaydb:flyway-core:${property("flywayVersion")}")
+    // spring-boot-starter-flyway is required on Spring Boot 4: FlywayAutoConfiguration moved out of
+    // spring-boot-autoconfigure into the dedicated spring-boot-flyway module, so flyway-core alone no
+    // longer wires up on-boot migration. The starter pulls spring-boot-flyway + flyway-core (BOM-managed).
+    implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.flywaydb:flyway-database-postgresql:${property("flywayVersion")}")
 
     // S3
