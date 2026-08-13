@@ -1,10 +1,10 @@
 pluginManagement {
-    val kotlinVersion: String by settings
-    val springBootVersion: String by settings
-    val springDependencyManagementVersion: String by settings
-    val flywayVersion: String by settings
-    val detektVersion: String by settings
-    val ktlintVersion: String by settings
+    val kotlinVersion = providers.gradleProperty("kotlinVersion").get()
+    val springBootVersion = providers.gradleProperty("springBootVersion").get()
+    val springDependencyManagementVersion = providers.gradleProperty("springDependencyManagementVersion").get()
+    val flywayVersion = providers.gradleProperty("flywayVersion").get()
+    val detektVersion = providers.gradleProperty("detektVersion").get()
+    val ktlintVersion = providers.gradleProperty("ktlintVersion").get()
 
     plugins {
         kotlin("jvm") version kotlinVersion
