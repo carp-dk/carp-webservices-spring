@@ -184,9 +184,13 @@ Unless there is a better reason to choose differently, start with:
 
 Use these as references:
 
-- [core-1.3-data-migration.md](/Users/cyy/Projects/carp-webservices-spring/docs/core-1.3-data-migration.md)
-- [Core13DataMigrationRunner.kt](/Users/cyy/Projects/carp-webservices-spring/src/main/kotlin/dk/cachet/carp/webservices/migration/Core13DataMigrationRunner.kt)
-- [Core13SnapshotTransformer.kt](/Users/cyy/Projects/carp-webservices-spring/src/main/kotlin/dk/cachet/carp/webservices/migration/Core13SnapshotTransformer.kt)
+The carp.core 1.3 migration has been completed and its runners retired. The files below no longer
+exist on `develop`; read them at the `v2.6.0` tag, e.g.
+`git show v2.6.0:docs/core-1.3-data-migration.md`.
+
+- `docs/core-1.3-data-migration.md`
+- `src/main/kotlin/dk/cachet/carp/webservices/migration/Core13DataMigrationRunner.kt`
+- `src/main/kotlin/dk/cachet/carp/webservices/migration/Core13SnapshotTransformer.kt`
 
 ## Recommended next-session starting point
 
