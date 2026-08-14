@@ -1,6 +1,5 @@
 package dk.cachet.carp.webservices.consent.domain
 
-import com.google.gson.annotations.SerializedName
 import dk.cachet.carp.webservices.common.audit.Auditable
 import io.hypersistence.utils.hibernate.type.json.JsonBinaryType
 import jakarta.persistence.*
@@ -24,7 +23,6 @@ data class ConsentDocument(
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Int = 0,
     /** The [deploymentId] of the consent document. */
-    @SerializedName("deployment_id")
     var deploymentId: String? = null,
     /** The [data] object containing the json object parsed. */
     @JdbcTypeCode(SqlTypes.JSON)

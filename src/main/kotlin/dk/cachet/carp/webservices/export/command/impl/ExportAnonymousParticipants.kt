@@ -188,7 +188,9 @@ class ExportAnonymousParticipants(
                 // otherwise throw and fail the entire batch).
                 if (userId == null || link == null) {
                     skipped++
-                    LOGGER?.warn("Skipping anonymous account with missing field (userId=$userId, hasLink=${link != null})")
+                    LOGGER?.warn(
+                        "Skipping anonymous account with missing field (userId=$userId, hasLink=${link != null})",
+                    )
                     return@collect
                 }
                 if (!UUIDRegex.matches(userId)) {

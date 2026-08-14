@@ -1,6 +1,6 @@
 package dk.cachet.carp.webservices.common.query
 
-import com.google.common.base.CaseFormat
+import dk.cachet.carp.webservices.common.extensions.toCamelCase
 import org.springframework.data.domain.Sort
 
 /**
@@ -37,7 +37,7 @@ object QueryUtil {
      * @return The lower case format.
      */
     fun toCamelCase(value: String): String {
-        return CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, value)
+        return value.toCamelCase()
     }
 
     /**

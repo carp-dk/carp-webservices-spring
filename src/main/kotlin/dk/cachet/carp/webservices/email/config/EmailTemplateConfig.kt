@@ -1,6 +1,5 @@
 package dk.cachet.carp.webservices.email.config
 
-import org.apache.commons.codec.CharEncoding
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.thymeleaf.templatemode.TemplateMode
@@ -22,7 +21,7 @@ class EmailTemplateConfig {
         templateResolver.prefix = "/templates/email/"
         templateResolver.suffix = ".html"
         templateResolver.templateMode = TemplateMode.HTML
-        templateResolver.characterEncoding = CharEncoding.UTF_8
+        templateResolver.characterEncoding = Charsets.UTF_8.name()
         templateResolver.isCacheable = false
 
         return templateResolver

@@ -50,7 +50,9 @@ class AnonymousAccountCleanupService(
                 // can't finish (round-robin fairness — a stuck study must not starve the others).
                 store.markAttempted(study.studyId)
                 deletedThisRun += sweepStudyGroup(study.studyId, study.deleteAfter, maxAccountsPerRun - deletedThisRun)
-            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") e: Exception,
+            ) {
                 // Keep the schedule row and move on; the study is retried on the next run.
                 LOGGER.error("Failed to clean up anonymous accounts for study ${study.studyId}", e)
             }

@@ -241,7 +241,9 @@ class AnonymousServiceImp(
                     accountCount,
                     Instant.now(),
                 )
-            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") e: Exception,
+            ) {
                 // Best-effort: a failed schedule write must NOT fail the generation (that would ERROR the
                 // export and regenerate duplicates on retry). Worst case the accounts aren't auto-cleaned.
                 LOGGER.error("Failed to record anonymous-account cleanup schedule for study $studyId", e)

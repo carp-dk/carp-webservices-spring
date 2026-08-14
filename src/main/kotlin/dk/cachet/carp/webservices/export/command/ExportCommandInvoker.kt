@@ -31,7 +31,9 @@ class ExportCommandInvokerImpl(
                 command.execute()
 
                 exportRepository.updateExportStatus(ExportStatus.AVAILABLE, command.entry.id)
-            } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") e: Throwable,
+            ) {
                 LOGGER.error("Export ${command.entry.id} (type ${command.entry.type}) failed", e)
                 exportRepository.updateExportStatus(ExportStatus.ERROR, command.entry.id)
             }
