@@ -100,9 +100,11 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-mail")
     implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
-    implementation("org.springframework.boot:spring-boot-starter-freemarker")
     implementation("org.springframework.boot:spring-boot-configuration-processor")
-    implementation("org.springframework.boot:spring-boot-devtools")
+    // Must be developmentOnly, not implementation: bootJar excludes developmentOnly artifacts, so this
+    // keeps devtools out of the deployed carp-platform.jar while bootRun still gets it. Declared as
+    // implementation it was being packaged, disabling template/static-resource caching in production.
+    developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
 
     // SECURITY
@@ -146,17 +148,8 @@ dependencies {
     // MICROMETER
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 
-    // GOOGLE Core Libraries
-    implementation("com.google.guava:guava:${property("guavaVersion")}")
-
     // Webflux
     implementation("org.springframework.boot:spring-boot-starter-webflux")
-
-    // GSON Library
-    implementation("com.google.code.gson:gson:${property("gsonVersion")}")
-
-    // Apache Commons Compress
-    implementation("org.apache.commons:commons-compress:${property("commonsCompressVersion")}")
 
     // Unit Test
     testImplementation(kotlin("test"))
