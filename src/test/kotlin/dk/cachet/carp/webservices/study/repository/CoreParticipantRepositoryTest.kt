@@ -1,11 +1,19 @@
 package dk.cachet.carp.webservices.study.repository
 
 import dk.cachet.carp.common.application.UUID
+import dk.cachet.carp.common.application.users.AssignedTo
+import dk.cachet.carp.common.application.users.EmailAccountIdentity
+import dk.cachet.carp.studies.application.users.AssignedParticipantRoles
+import dk.cachet.carp.studies.application.users.Participant
+import dk.cachet.carp.studies.application.users.ParticipantGroupRepresentation
 import dk.cachet.carp.studies.domain.users.RecruitmentSnapshot
+import dk.cachet.carp.studies.domain.users.StagedParticipantGroup
 import dk.cachet.carp.webservices.common.exception.responses.ResourceNotFoundException
 import dk.cachet.carp.webservices.common.input.WS_JSON
 import dk.cachet.carp.webservices.study.domain.Recruitment
 import dk.cachet.carp.webservices.study.domain.normalization.RecruitmentNormalizationStore
+import dk.cachet.carp.webservices.study.domain.normalization.RecruitmentNormalizer
+import dk.cachet.carp.webservices.study.domain.normalization.RecruitmentRows
 import io.mockk.*
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
@@ -16,7 +24,10 @@ import dk.cachet.carp.studies.domain.users.Recruitment as CoreRecruitment
 
 class CoreParticipantRepositoryTest {
     private val mockRepository: RecruitmentRepository = mockk()
-    private val mockStore: RecruitmentNormalizationStore = mockk()
+    private val mockStore: RecruitmentNormalizationStore = mockk(relaxUnitFun = true)
+
+    /** No normalized rows — the snapshots under test carry no participants or groups. */
+    private val noRows = RecruitmentRows(emptyList(), emptyList(), emptyList())
 
     @Nested
     inner class AddRecruitment {
@@ -45,7 +56,7 @@ class CoreParticipantRepositoryTest {
                     mockExistingRecruitment
                 coEvery { mockRepository.save(ofType<Recruitment>()) } returns mockSavedRecruitment
 
-                val sut = CoreParticipantRepository(mockRepository, mockStore, false)
+                val sut = CoreParticipantRepository(mockRepository, mockStore)
 
                 sut.addRecruitment(mockCoreRecruitment)
 
@@ -90,7 +101,7 @@ class CoreParticipantRepositoryTest {
                     mockExistingRecruitment
                 coEvery { mockRepository.save(ofType<Recruitment>()) } returns mockSavedRecruitment
 
-                val sut = CoreParticipantRepository(mockRepository, mockStore, false)
+                val sut = CoreParticipantRepository(mockRepository, mockStore)
 
                 assertThrows<IllegalStateException> {
                     sut.addRecruitment(mockCoreRecruitment)
@@ -120,9 +131,11 @@ class CoreParticipantRepositoryTest {
                     )
                 val mockRecruitment =
                     mockk<Recruitment>().apply {
+                        every { id } returns 1
                         every { snapshot } returns
                             WS_JSON.encodeToString(RecruitmentSnapshot.serializer(), mockSnapshot)
                     }
+                every { mockStore.readRows(1) } returns noRows
                 coEvery { mockRepository.findRecruitmentByStudyId(mockUUID1.stringRepresentation) } returns
                     mockRecruitment
 
@@ -133,7 +146,7 @@ class CoreParticipantRepositoryTest {
                             mockRecruitment.snapshot!!,
                         ),
                     )
-                val sut = CoreParticipantRepository(mockRepository, mockStore, false)
+                val sut = CoreParticipantRepository(mockRepository, mockStore)
 
                 val result = sut.getRecruitment(mockUUID1)
 
@@ -149,7 +162,7 @@ class CoreParticipantRepositoryTest {
                 coEvery { mockRepository.findRecruitmentByStudyId(mockUUID.stringRepresentation) } returns
                     mockRecruitment
 
-                val sut = CoreParticipantRepository(mockRepository, mockStore, false)
+                val sut = CoreParticipantRepository(mockRepository, mockStore)
 
                 val result = sut.getRecruitment(mockUUID)
 
@@ -165,10 +178,10 @@ class CoreParticipantRepositoryTest {
         fun `should map the resolved study id to a UUID`() {
             val deploymentId = UUID.randomUUID()
             val studyId = UUID.randomUUID()
-            every { mockRepository.findStudyIdByDeploymentId(deploymentId.stringRepresentation) } returns
+            every { mockRepository.findStudyIdByNormalizedGroupId(deploymentId.stringRepresentation) } returns
                 studyId.stringRepresentation
 
-            val sut = CoreParticipantRepository(mockRepository, mockStore, false)
+            val sut = CoreParticipantRepository(mockRepository, mockStore)
 
             assertEquals(studyId, sut.getStudyIdByDeploymentId(deploymentId))
         }
@@ -176,9 +189,9 @@ class CoreParticipantRepositoryTest {
         @Test
         fun `should return null when no recruitment contains the deployment`() {
             val deploymentId = UUID.randomUUID()
-            every { mockRepository.findStudyIdByDeploymentId(deploymentId.stringRepresentation) } returns null
+            every { mockRepository.findStudyIdByNormalizedGroupId(deploymentId.stringRepresentation) } returns null
 
-            val sut = CoreParticipantRepository(mockRepository, mockStore, false)
+            val sut = CoreParticipantRepository(mockRepository, mockStore)
 
             assertNull(sut.getStudyIdByDeploymentId(deploymentId))
         }
@@ -202,14 +215,16 @@ class CoreParticipantRepositoryTest {
                     )
                 val mockRecruitment =
                     mockk<Recruitment>().apply {
+                        every { id } returns 1
                         every { snapshot } returns
                             WS_JSON.encodeToString(RecruitmentSnapshot.serializer(), mockSnapshot)
                     }
+                every { mockStore.readRows(1) } returns noRows
                 coEvery { mockRepository.findRecruitmentByStudyId(mockUUID1.stringRepresentation) } returns
                     mockRecruitment
                 coEvery { mockRepository.deleteByStudyId(mockUUID1.stringRepresentation) } just Runs
 
-                val sut = CoreParticipantRepository(mockRepository, mockStore, false)
+                val sut = CoreParticipantRepository(mockRepository, mockStore)
 
                 val result = sut.removeStudy(mockUUID1)
 
@@ -227,7 +242,7 @@ class CoreParticipantRepositoryTest {
                 coEvery { mockRepository.findRecruitmentByStudyId(mockUUID.stringRepresentation) } returns
                     mockRecruitment
 
-                val sut = CoreParticipantRepository(mockRepository, mockStore, false)
+                val sut = CoreParticipantRepository(mockRepository, mockStore)
 
                 val result = sut.removeStudy(mockUUID)
 
@@ -251,7 +266,7 @@ class CoreParticipantRepositoryTest {
 
                 coEvery { mockRepository.findRecruitmentByStudyId(mockUUID1.stringRepresentation) } returns null
 
-                val sut = CoreParticipantRepository(mockRepository, mockStore, false)
+                val sut = CoreParticipantRepository(mockRepository, mockStore)
 
                 assertThrows<ResourceNotFoundException> {
                     sut.updateRecruitment(mockRecruitment)
@@ -298,7 +313,7 @@ class CoreParticipantRepositoryTest {
                     mockRecruitmentFound
                 coEvery { mockRepository.save(ofType<Recruitment>()) } returns mockk()
 
-                val sut = CoreParticipantRepository(mockRepository, mockStore, false)
+                val sut = CoreParticipantRepository(mockRepository, mockStore)
 
                 sut.updateRecruitment(mockCoreRecruitment)
 
@@ -315,6 +330,86 @@ class CoreParticipantRepositoryTest {
                         },
                     )
                 }
+            }
+        }
+    }
+
+    /**
+     * Participant and group data lives in the normalized tables; the blob keeps only the envelope.
+     * These cover the split itself — the other cases above use recruitments with neither.
+     */
+    @Nested
+    inner class NormalizedStore {
+        private val studyId = UUID.randomUUID()
+        private val alice = Participant(EmailAccountIdentity("alice@example.com"), UUID.randomUUID())
+        private val group =
+            StagedParticipantGroup(UUID.randomUUID(), ParticipantGroupRepresentation("Group A")).apply {
+                addParticipants(setOf(AssignedParticipantRoles(alice.id, AssignedTo.All)))
+            }
+        private val populatedSnapshot =
+            RecruitmentSnapshot(
+                id = UUID.randomUUID(),
+                studyId = studyId,
+                version = 1,
+                studyProtocol = null,
+                createdOn = Clock.System.now(),
+                invitation = null,
+                participants = setOf(alice),
+                participantGroups = mapOf(group.id to group),
+            )
+
+        @Test
+        fun `add writes rows to the store and only the envelope to the blob`() {
+            runTest {
+                val coreRecruitment = mockk<CoreRecruitment>()
+                every { coreRecruitment.studyId } returns studyId
+                every { coreRecruitment.getSnapshot() } returns populatedSnapshot
+                coEvery { mockRepository.findRecruitmentByStudyId(studyId.stringRepresentation) } returns null
+                coEvery { mockRepository.save(ofType<Recruitment>()) } returns
+                    mockk<Recruitment>().apply { every { id } returns 7 }
+
+                val sut = CoreParticipantRepository(mockRepository, mockStore)
+
+                sut.addRecruitment(coreRecruitment)
+
+                verify {
+                    mockRepository.save(
+                        match {
+                            val persisted =
+                                WS_JSON.decodeFromString(RecruitmentSnapshot.serializer(), it.snapshot!!)
+                            persisted.participants.isEmpty() && persisted.participantGroups.isEmpty()
+                        },
+                    )
+                }
+                verify {
+                    mockStore.replace(
+                        7,
+                        match { it.participants.single().participantId == alice.id.stringRepresentation },
+                    )
+                }
+            }
+        }
+
+        @Test
+        fun `read reconstructs participants and groups from the rows`() {
+            runTest {
+                val envelope = populatedSnapshot.copy(participants = emptySet(), participantGroups = emptyMap())
+                val stored =
+                    mockk<Recruitment>().apply {
+                        every { id } returns 7
+                        every { snapshot } returns
+                            WS_JSON.encodeToString(RecruitmentSnapshot.serializer(), envelope)
+                    }
+                coEvery { mockRepository.findRecruitmentByStudyId(studyId.stringRepresentation) } returns stored
+                val rows = RecruitmentNormalizer.decompose(populatedSnapshot)
+                every { mockStore.readRows(7) } returns
+                    RecruitmentRows(rows.participants, rows.groups, rows.members)
+
+                val sut = CoreParticipantRepository(mockRepository, mockStore)
+
+                val result = sut.getRecruitment(studyId)
+
+                assertEquals(populatedSnapshot, result!!.getSnapshot())
             }
         }
     }

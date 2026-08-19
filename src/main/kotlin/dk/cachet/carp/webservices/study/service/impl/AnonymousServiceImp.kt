@@ -27,10 +27,8 @@ import dk.cachet.carp.webservices.study.repository.AnonymousAccountCleanupStore
 import dk.cachet.carp.webservices.study.repository.RecruitmentRepository
 import dk.cachet.carp.webservices.study.service.AnonymousService
 import kotlinx.coroutines.*
-import kotlinx.serialization.encodeToString
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
@@ -50,8 +48,6 @@ class AnonymousServiceImp(
     private val normalizationStore: RecruitmentNormalizationStore,
     private val anonymousAccountCleanupStore: AnonymousAccountCleanupStore,
     transactionManager: PlatformTransactionManager,
-    @Value("\${carp.recruitment.normalized-store-enabled:false}")
-    private val normalizedStoreEnabled: Boolean,
 ) : AnonymousService {
     val studyService = services.studyService
 
@@ -210,18 +206,10 @@ class AnonymousServiceImp(
             // (e.g. recruitment participants without their deployments). Runs synchronously on this IO
             // thread, which carries the security context via SecurityCoroutineContext.
             transactionTemplate.executeWithoutResult {
-                if (normalizedStoreEnabled) {
-                    val recruitment =
-                        recruitmentRepository.findRecruitmentByStudyId(studyId.stringRepresentation)
-                            ?: throw ResourceNotFoundException("Recruitment with studyId $studyId is not found.")
-                    normalizationStore.append(recruitment.id, studyId.stringRepresentation, participants, groups)
-                } else {
-                    recruitmentRepository.bulkAddParticipantsAndGroups(
-                        studyId.stringRepresentation,
-                        objectMapper.writeValueAsString(participants),
-                        WS_JSON.encodeToString(groups),
-                    )
-                }
+                val recruitment =
+                    recruitmentRepository.findRecruitmentByStudyId(studyId.stringRepresentation)
+                        ?: throw ResourceNotFoundException("Recruitment with studyId $studyId is not found.")
+                normalizationStore.append(recruitment.id, studyId.stringRepresentation, participants, groups)
                 deploymentRepository.addAll(deployments)
                 participantGroupRepository.addAll(participation)
             }
