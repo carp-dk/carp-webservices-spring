@@ -42,7 +42,9 @@ class DocumentController(
         const val APPEND = "/append"
 
         /** Others */
-        const val DEFAULT_PAGE_SIZE = 250000
+        // A page of documents is JSONB-laden, so the page size bounds how much of the heap one request
+        // can claim on the JVM that is also ingesting live data. Callers page with `page`.
+        const val DEFAULT_PAGE_SIZE = 1000
     }
 
     @GetMapping(value = [DOCUMENTS])
