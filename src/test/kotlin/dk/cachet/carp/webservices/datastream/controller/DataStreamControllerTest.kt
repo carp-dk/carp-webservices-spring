@@ -108,6 +108,62 @@ class DataStreamControllerTest {
     }
 
     @Nested
+    inner class ResponseDialect {
+        // Both data-stream endpoints must answer the same request with the same bytes. The gzip endpoint
+        // used to return the core result unserialized, so Jackson shaped it and a read came back as
+        // {"empty":...,"sequences":...} instead of the carp.core dialect every client already parses.
+        // The handlers are suspend functions, so call them directly: MockMvc would need async dispatch
+        // to expose a response body.
+        private val controller = DataStreamController(dataStreamService, authorizationService)
+
+        @Test
+        fun `a read returns the same body on the plain and gzip endpoints`() {
+            runTest {
+                val dataStream =
+                    DataStreamId(
+                        studyDeploymentId = UUID.randomUUID(),
+                        deviceRoleName = "Primary Phone",
+                        dataType = DataType("dk.cachet.carp", "heartbeat"),
+                    )
+                val rpcRequest = DataStreamServiceRequest.GetDataStream(dataStream, 0, null)
+                val serializedRequest = WS_JSON.encodeToString(DataStreamServiceRequest.Serializer, rpcRequest)
+
+                coEvery { core.getDataStream(any(), any(), any()) } returns MutableDataStreamBatchDecorator()
+
+                val plain = controller.invoke(serializedRequest).body
+                val gzipped = controller.handleCompressedData(compressData(serializedRequest)).body
+
+                assertEquals(plain, gzipped)
+                // The carp.core dialect: a batch is a list of sequences, not an object with an `empty` flag.
+                assertEquals("[]", plain)
+            }
+        }
+
+        @Test
+        fun `an append returns the same body on the plain and gzip endpoints`() {
+            runTest {
+                val rpcRequest =
+                    DataStreamServiceRequest.AppendToDataStreams(
+                        UUID.randomUUID(),
+                        MutableDataStreamBatchDecorator(),
+                    )
+                val serializedRequest = WS_JSON.encodeToString(DataStreamServiceRequest.Serializer, rpcRequest)
+
+                coEvery { core.appendToDataStreams(any(), any()) } returns Unit
+
+                val plain = controller.invoke(serializedRequest).body
+                val gzipped = controller.handleCompressedData(compressData(serializedRequest)).body
+
+                // The wire bytes are unchanged by the fix: this body used to be a raw `Unit` that Jackson
+                // rendered as {} downstream. That agreement is why the upload path this endpoint exists
+                // for never showed the divergence, and why the fix is safe for it.
+                assertEquals(plain, gzipped)
+                assertEquals("{}", plain)
+            }
+        }
+    }
+
+    @Nested
     inner class HandleCompressedData {
         val urlPath = "/api/data-stream-service-zip"
 

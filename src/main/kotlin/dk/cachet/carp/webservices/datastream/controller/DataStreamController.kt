@@ -95,6 +95,9 @@ class DataStreamController(
         LOGGER.info("Start POST: $DATA_STREAM_SERVICE_GZIP")
         val decompressedData = decompressGzip(data)
         val request = WS_JSON.decodeFromString(DataStreamServiceRequest.Serializer, decompressedData)
-        return dataStreamService.core.invoke(request).let { ResponseEntity.ok(it) }
+        val ret = dataStreamService.core.invoke(request)
+        // Same serializer as the uncompressed endpoint: returning `ret` directly let Jackson shape the
+        // response, so a read through this URL came back in a different JSON dialect than its sibling.
+        return serializer.serializeResponse(request, ret).let { ResponseEntity.ok(it) }
     }
 }
