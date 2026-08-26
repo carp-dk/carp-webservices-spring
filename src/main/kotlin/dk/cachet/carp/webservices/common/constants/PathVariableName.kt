@@ -14,4 +14,5 @@ object PathVariableName {
     const val COLLECTION_NAME = "collection-name"
     const val ACCOUNT_ID = "account-id"
     const val PROTOCOL_ID = "protocol-id"
+    const val SHORT_CODE = "short-code"
 }

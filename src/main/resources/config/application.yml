@@ -142,6 +142,8 @@ com:
           - /swagger-ui/**
           - /v3/api-docs/**
           - /doc/**
+          # Public, unauthenticated self-signup by short code - see SelfSignupController.
+          - /api/self-signup/**
         ops:
           - iss: ${keycloak.auth-server-url}/realms/${keycloak.realm}
             username-claim: preferred_username
@@ -275,6 +277,19 @@ cleanup:
     # Max accounts deleted per request to the extension; a study is swept over several such calls.
     per-request-limit: "${ANONYMOUS_CLEANUP_PER_REQUEST_LIMIT:10000}"
     max-studies-per-scan: "${ANONYMOUS_CLEANUP_MAX_STUDIES_PER_SCAN:500}"
+
+self-signup:
+  rate-limit:
+    # Basic per-IP abuse guard on the public, unauthenticated self-signup endpoint.
+    per-ip-per-minute: "${SELF_SIGNUP_RATE_LIMIT_PER_IP_PER_MINUTE:20}"
+    retention-hours: "${SELF_SIGNUP_RATE_LIMIT_RETENTION_HOURS:1}"
+    cleanup-cron: "${SELF_SIGNUP_RATE_LIMIT_CLEANUP_CRON:0 0 * * * ?}"
+  reservation:
+    # How long a claimed capacity reservation (see SelfSignupReservationStore) holds a slot before it
+    # expires and stops counting toward the cap - generous headroom for a Keycloak call plus persisting
+    # the participant, while still bounding how long an interrupted request can hold a slot.
+    ttl-seconds: "${SELF_SIGNUP_RESERVATION_TTL_SECONDS:300}"
+    cleanup-cron: "${SELF_SIGNUP_RESERVATION_CLEANUP_CRON:0 */5 * * * ?}"
 
 environment:
   url: "${CAWS_URL}"

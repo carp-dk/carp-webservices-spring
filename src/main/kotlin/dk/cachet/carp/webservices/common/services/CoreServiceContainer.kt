@@ -1,5 +1,6 @@
 package dk.cachet.carp.webservices.common.services
 
+import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.common.application.services.createApplicationServiceAdapter
 import dk.cachet.carp.data.infrastructure.DataStreamServiceDecorator
 import dk.cachet.carp.deployments.application.DeploymentService
@@ -124,4 +125,23 @@ class CoreServiceContainer(
         StudyServiceDecorator(
             _studyService,
         ) { command -> ApplicationServiceRequestAuthorizer(studyServiceAuthorizer, command) }
+
+    /**
+     * A read-only, undecorated view of the study service, with NO authorization check. Only for trusted,
+     * non-request-scoped internal callers that have already established authorization by other means -
+     * e.g. self-signup's public endpoint, which has no authenticated principal on the request at all and
+     * instead gates access via its own short-code lookup and capacity reservation. Deliberately typed as
+     * [UnauthorizedStudyReader] rather than the full [StudyService] - narrower than `_studyService` itself
+     * - so a future caller reaching for this from another unauthenticated context can only ever read study
+     * details/status, not accidentally call a mutating/lifecycle method (`goLive`, `setProtocol`, `remove`,
+     * ...) that was never meant to be reachable without [StudyServiceAuthorizer]. Never call this from a
+     * controller or anything else reachable from an HTTP request without an equivalent independent
+     * authorization check.
+     */
+    final val internalStudyService: UnauthorizedStudyReader =
+        object : UnauthorizedStudyReader {
+            override suspend fun getStudyDetails(studyId: UUID) = _studyService.getStudyDetails(studyId)
+
+            override suspend fun getStudyStatus(studyId: UUID) = _studyService.getStudyStatus(studyId)
+        }
 }

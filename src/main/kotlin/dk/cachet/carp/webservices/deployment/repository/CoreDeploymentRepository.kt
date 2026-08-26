@@ -29,7 +29,7 @@ class CoreDeploymentRepository(
     private val auth: AuthorizationService,
     private val jdbcTemplate: JdbcTemplate,
     private val auditorAware: AuditorAware<String>,
-) : DeploymentRepository {
+) : DeploymentRepository, DeploymentBatchWriter {
     companion object {
         private val LOGGER: Logger = LogManager.getLogger()
     }
@@ -64,7 +64,7 @@ class CoreDeploymentRepository(
      * for one batch share a single transaction (propagation REQUIRED joins that transaction).
      */
     @Suppress("MagicNumber", "MaxLineLength")
-    fun addAll(studyDeployments: List<StudyDeployment>) {
+    override fun addAll(studyDeployments: List<StudyDeployment>) {
         val timestamp = Timestamp.from(java.time.Instant.now())
         val auditor = auditorAware.currentAuditor.orElse("system")
         val sql =

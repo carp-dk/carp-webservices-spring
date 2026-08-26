@@ -32,7 +32,7 @@ class CoreParticipationRepository(
     private val validationMessage: MessageBase,
     private val jdbcTemplate: JdbcTemplate,
     private val auditorAware: AuditorAware<String>,
-) : ParticipationRepository {
+) : ParticipationRepository, ParticipationBatchWriter {
     companion object {
         private val LOGGER: Logger = LogManager.getLogger()
     }
@@ -149,7 +149,7 @@ class CoreParticipationRepository(
      * share a single transaction (propagation REQUIRED joins that transaction).
      */
     @Suppress("MaxLineLength", "MagicNumber")
-    fun addAll(groups: List<WSParticipantGroup>) {
+    override fun addAll(groups: List<WSParticipantGroup>) {
         val timestamp = Timestamp.from(java.time.Instant.now())
         val auditor = auditorAware.currentAuditor.orElse("system")
         val sql =

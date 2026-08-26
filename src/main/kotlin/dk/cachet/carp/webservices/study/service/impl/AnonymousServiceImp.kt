@@ -19,8 +19,8 @@ import dk.cachet.carp.webservices.common.input.WS_JSON
 import dk.cachet.carp.webservices.common.services.CoreServiceContainer
 import dk.cachet.carp.webservices.deployment.domain.ParticipantGroup
 import dk.cachet.carp.webservices.deployment.domain.StudyDeployment
-import dk.cachet.carp.webservices.deployment.repository.CoreDeploymentRepository
-import dk.cachet.carp.webservices.deployment.repository.CoreParticipationRepository
+import dk.cachet.carp.webservices.deployment.repository.DeploymentBatchWriter
+import dk.cachet.carp.webservices.deployment.repository.ParticipationBatchWriter
 import dk.cachet.carp.webservices.security.config.SecurityCoroutineContext
 import dk.cachet.carp.webservices.study.domain.normalization.RecruitmentNormalizationStore
 import dk.cachet.carp.webservices.study.repository.AnonymousAccountCleanupStore
@@ -42,14 +42,20 @@ import dk.cachet.carp.deployments.domain.StudyDeployment as CoreStudyDeployment
 class AnonymousServiceImp(
     private val objectMapper: ObjectMapper,
     services: CoreServiceContainer,
-    private val deploymentRepository: CoreDeploymentRepository,
+    // Narrowed to write-only interfaces, not the full CoreDeploymentRepository/CoreParticipationRepository:
+    // this class runs partly on self-signup's unauthenticated public endpoint (addSelfSignupParticipant),
+    // with no other authorization check for these dependencies - same rationale as internalStudyService
+    // below. Only .addAll(...) is ever called here; narrowing means a future change calling .remove(...)/
+    // .update(...) from that unauthenticated path is a compile error, not a review miss.
+    private val deploymentRepository: DeploymentBatchWriter,
     private val recruitmentRepository: RecruitmentRepository,
-    private val participantGroupRepository: CoreParticipationRepository,
+    private val participantGroupRepository: ParticipationBatchWriter,
     private val normalizationStore: RecruitmentNormalizationStore,
     private val anonymousAccountCleanupStore: AnonymousAccountCleanupStore,
     transactionManager: PlatformTransactionManager,
 ) : AnonymousService {
     val studyService = services.studyService
+    private val internalStudyService = services.internalStudyService
 
     private val transactionTemplate = TransactionTemplate(transactionManager)
 
@@ -190,7 +196,6 @@ class AnonymousServiceImp(
         Entities(participants, participantGroups, deployments, participation)
     }
 
-    @Suppress("DestructuringDeclarationWithTooManyEntries")
     override suspend fun bulkAddParticipantsAndGroups(
         studyId: UUID,
         roleName: String,
@@ -198,23 +203,56 @@ class AnonymousServiceImp(
     ): List<StagedParticipantGroup> =
         withContext(Dispatchers.IO + SecurityCoroutineContext()) {
             val study = studyService.getStudyDetails(studyId)
-
-            val (participants, groups, deployments, participation) = buildParticipants(pair, roleName, study)
-
-            // One transaction per batch: the recruitment rows, deployments and participant groups either
-            // all commit or all roll back, so a failure part-way through a batch cannot leave orphaned rows
-            // (e.g. recruitment participants without their deployments). Runs synchronously on this IO
-            // thread, which carries the security context via SecurityCoroutineContext.
-            transactionTemplate.executeWithoutResult {
-                val recruitment =
-                    recruitmentRepository.findRecruitmentByStudyId(studyId.stringRepresentation)
-                        ?: throw ResourceNotFoundException("Recruitment with studyId $studyId is not found.")
-                normalizationStore.append(recruitment.id, studyId.stringRepresentation, participants, groups)
-                deploymentRepository.addAll(deployments)
-                participantGroupRepository.addAll(participation)
-            }
-            groups.values.toList()
+            addParticipantsAndGroupsCore(studyId, roleName, pair, study)
         }
+
+    override suspend fun addSelfSignupParticipant(
+        studyId: UUID,
+        roleName: String,
+        accountId: String,
+        magicLink: String,
+        reserveCapacity: () -> Unit,
+    ): StagedParticipantGroup =
+        withContext(Dispatchers.IO + SecurityCoroutineContext()) {
+            // No ManageStudy claim is available here (the caller is an unauthenticated public request), so
+            // this reads via the undecorated internal service rather than studyService.
+            val study = internalStudyService.getStudyDetails(studyId)
+            addParticipantsAndGroupsCore(studyId, roleName, listOf(accountId to magicLink), study, reserveCapacity)
+                .single()
+        }
+
+    @Suppress("DestructuringDeclarationWithTooManyEntries")
+    private suspend fun addParticipantsAndGroupsCore(
+        studyId: UUID,
+        roleName: String,
+        pair: List<Pair<String, String>>,
+        study: StudyDetails,
+        beforeCommit: () -> Unit = {},
+    ): List<StagedParticipantGroup> {
+        val (participants, groups, deployments, participation) = buildParticipants(pair, roleName, study)
+
+        // One transaction per batch: the recruitment rows, deployments and participant groups either
+        // all commit or all roll back, so a failure part-way through a batch cannot leave orphaned rows
+        // (e.g. recruitment participants without their deployments). Runs synchronously on this IO
+        // thread, which carries the security context via SecurityCoroutineContext.
+        //
+        // beforeCommit runs FIRST, inside this same transaction - self-signup uses it to atomically check
+        // and consume its participant cap (see SelfSignupPublicServiceImpl). Doing that check here, rather
+        // than as an earlier, separately-committed step, is deliberate: if beforeCommit throws, or the
+        // process dies anywhere before this block commits, NOTHING in it (including a capacity counter
+        // bump) is left half-applied - there is no window in which capacity is consumed without a durable
+        // participant record to show for it.
+        transactionTemplate.executeWithoutResult {
+            beforeCommit()
+            val recruitment =
+                recruitmentRepository.findRecruitmentByStudyId(studyId.stringRepresentation)
+                    ?: throw ResourceNotFoundException("Recruitment with studyId $studyId is not found.")
+            normalizationStore.append(recruitment.id, studyId.stringRepresentation, participants, groups)
+            deploymentRepository.addAll(deployments)
+            participantGroupRepository.addAll(participation)
+        }
+        return groups.values.toList()
+    }
 
     override suspend fun recordCleanupSchedule(
         studyId: UUID,
