@@ -15,6 +15,7 @@ import dk.cachet.carp.webservices.file.util.FileUtil
 import dk.cachet.carp.webservices.security.config.SecurityCoroutineContext
 import dk.cachet.carp.webservices.study.domain.AnonymousParticipant
 import dk.cachet.carp.webservices.study.domain.AnonymousParticipantRequest
+import dk.cachet.carp.webservices.study.repository.AnonymousAccountCleanupStore
 import dk.cachet.carp.webservices.study.service.AnonymousService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -22,10 +23,10 @@ import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import java.nio.file.Path
 import kotlin.time.Clock
-import kotlin.time.Duration.Companion.days
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 import kotlin.time.toJavaInstant
+import kotlin.time.toKotlinDuration
 
 /**
  * Generates anonymous participants for a study and writes their magic links to a CSV export.
@@ -52,13 +53,6 @@ class ExportAnonymousParticipants(
     companion object {
         const val MAX_AMOUNT = 5000000
         const val CSV_HEADER = "username,study_deployment_id,access_link,expiry_date"
-
-        /**
-         * Safety margin added to link expiry before anonymous accounts become eligible for deletion.
-         * Generous on purpose — anonymous accounts don't accumulate fast, so a long cushion against clock
-         * skew / late redemption / cleanup-job cadence costs little.
-         */
-        val CLEANUP_BUFFER = 30.days
         val LOGGER: Logger? = LogManager.getLogger()
     }
 
@@ -222,7 +216,7 @@ class ExportAnonymousParticipants(
             val deleteAfter =
                 Clock.System.now() +
                     payload.expirationSeconds.toDuration(DurationUnit.SECONDS) +
-                    CLEANUP_BUFFER
+                    AnonymousAccountCleanupStore.CLEANUP_BUFFER.toKotlinDuration()
             anonymousService.recordCleanupSchedule(studyId, deleteAfter.toJavaInstant(), received)
         }
     }

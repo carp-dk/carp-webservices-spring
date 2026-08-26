@@ -3,6 +3,7 @@ package dk.cachet.carp.webservices.study.repository
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Component
 import java.sql.Timestamp
+import java.time.Duration
 import java.time.Instant
 
 /** A study whose anonymous accounts are past their deletion time; [accountCount] bounds a cleanup run. */
@@ -21,6 +22,16 @@ data class ExpiredAnonymousAccounts(
 class AnonymousAccountCleanupStore(
     private val jdbcTemplate: JdbcTemplate,
 ) {
+    companion object {
+        /**
+         * Safety margin added to link expiry before an anonymous account becomes eligible for deletion -
+         * generous on purpose so cleanup never races expiry / clock skew / a late redemption. Shared by
+         * every caller that schedules cleanup against this table (bulk anonymous-participant export,
+         * self-signup) so the margin can't drift between them.
+         */
+        val CLEANUP_BUFFER: Duration = Duration.ofDays(30)
+    }
+
     /**
      * Insert or extend the deletion schedule for [studyId]. [deleteAfter] is the time the study's accounts
      * become eligible for deletion (latest link expiry + safety buffer, computed by the caller). On an existing

@@ -18,7 +18,7 @@ The Export section of the project provides tools and functionalities for generat
 Anonymous accounts are one-time-use: once their magic link expires the account can no longer be logged into, so it becomes dead weight in Keycloak. To allow these accounts to be reclaimed later, every fast-pipeline generation now records a **cleanup schedule** for the study.
 
 - **What is recorded**: one row per study in the `anonymous_account_cleanup` table, holding a `delete_after` timestamp and a cumulative `account_count`. All accounts generated for a study via the fast pipeline are members of a single Keycloak group keyed by the study id, so the study is the natural cleanup unit.
-- **`delete_after`**: the latest link expiry across all of the study's generations **plus a 30-day safety buffer** (`ExportAnonymousParticipants.CLEANUP_BUFFER`). It is *extended* on every subsequent generation ("reset the timer"), so a study's accounts only become eligible once the last-generated batch is well past expiry. The buffer cushions clock skew, late link redemption, and the cleanup job's cadence.
+- **`delete_after`**: the latest link expiry across all of the study's generations **plus a 30-day safety buffer** (`AnonymousAccountCleanupStore.CLEANUP_BUFFER`). It is *extended* on every subsequent generation ("reset the timer"), so a study's accounts only become eligible once the last-generated batch is well past expiry. The buffer cushions clock skew, late link redemption, and the cleanup job's cadence.
 - **Coverage**: the schedule is keyed on accounts *created in Keycloak* (not just those the app could use), so accounts skipped during generation (e.g. a malformed response) are still covered.
 
 ### Account Cleanup (deletion)
