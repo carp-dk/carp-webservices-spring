@@ -175,6 +175,36 @@ class KeycloakFacadeTest {
         }
 
     @Test
+    fun `createAnonymousAccountsBulk rejects an expirationSeconds beyond Int range instead of wrapping it`() =
+        runBlocking {
+            val server = MockWebServer()
+            server.start()
+            try {
+                // Only the token fetch is enqueued: a plain toInt() would silently wrap the out-of-range
+                // value and proceed to POST /bulk-users/anonymous (creating real Keycloak accounts with a
+                // garbage expiry); Math.toIntExact must throw before that request is ever made.
+                server.enqueue(tokenResponse("token"))
+
+                val facade =
+                    KeycloakFacade(
+                        server.url("/").toString().trimEnd('/'),
+                        realm,
+                        clientId,
+                        clientSecret,
+                        environmentUtil,
+                    )
+
+                assertThrows<ArithmeticException> {
+                    facade.createAnonymousAccountsBulk(1, Int.MAX_VALUE.toLong() + 1, clientId, null, null, null)
+                }
+
+                assertEquals(1, server.requestCount) // only the token fetch, never the bulk POST
+            } finally {
+                server.shutdown()
+            }
+        }
+
+    @Test
     fun `deleteAnonymousAccounts sends limit, createdBefore and cursor and parses the result`() =
         runBlocking {
             val server = MockWebServer()

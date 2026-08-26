@@ -187,7 +187,11 @@ class KeycloakFacade
                     count,
                     clientId,
                     redirectUri,
-                    expirationSeconds?.toInt() ?: (60 * 60 * 24),
+                    // Math.toIntExact, not a plain toInt(): a plain narrowing cast would silently wrap an
+                    // out-of-Int-range value to a negative/garbage number rather than failing, producing an
+                    // invalid or already-expired magic link only after the Keycloak accounts have already
+                    // been created. This throws instead, before any account is created.
+                    expirationSeconds?.let { Math.toIntExact(it) } ?: (60 * 60 * 24),
                     studyId,
                     Role.PARTICIPANT.name.lowercase(),
                     "inDeployment",

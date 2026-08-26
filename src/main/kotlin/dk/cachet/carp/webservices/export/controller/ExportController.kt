@@ -9,6 +9,7 @@ import dk.cachet.carp.webservices.export.domain.dto.SummaryRequest
 import dk.cachet.carp.webservices.export.service.ExportService
 import dk.cachet.carp.webservices.study.domain.AnonymousParticipantRequest
 import io.swagger.v3.oas.annotations.Operation
+import jakarta.validation.Valid
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.springframework.core.io.Resource
@@ -69,7 +70,7 @@ class ExportController(
     @PreAuthorize("canManageStudy(#studyId) or canLimitedManageStudy(#studyId)")
     suspend fun exportAnonymousParticipants(
         @PathVariable(PathVariableName.STUDY_ID) studyId: UUID,
-        @RequestBody request: AnonymousParticipantRequest,
+        @Valid @RequestBody request: AnonymousParticipantRequest,
     ): Export {
         LOGGER.info("Start POST: $EXPORT_BASE$ANONYMOUS_PARTICIPANTS")
 
