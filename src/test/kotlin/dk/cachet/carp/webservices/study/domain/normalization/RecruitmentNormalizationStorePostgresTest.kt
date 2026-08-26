@@ -14,12 +14,16 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.core.io.ClassPathResource
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.jdbc.datasource.DataSourceTransactionManager
 import org.springframework.jdbc.datasource.DriverManagerDataSource
 import org.springframework.jdbc.datasource.init.ScriptUtils
+import org.springframework.transaction.support.TransactionTemplate
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.postgresql.PostgreSQLContainer
+import java.util.concurrent.Executors
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.time.Instant
 
 /**
@@ -31,6 +35,7 @@ import kotlin.time.Instant
 class RecruitmentNormalizationStorePostgresTest {
     private lateinit var jdbc: JdbcTemplate
     private lateinit var store: RecruitmentNormalizationStore
+    private lateinit var transactionTemplate: TransactionTemplate
     private val studyId = UUID.randomUUID()
 
     @BeforeEach
@@ -44,6 +49,7 @@ class RecruitmentNormalizationStorePostgresTest {
             }
         jdbc = JdbcTemplate(dataSource)
         store = RecruitmentNormalizationStore(jdbc)
+        transactionTemplate = TransactionTemplate(DataSourceTransactionManager(dataSource))
         jdbc.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public")
         jdbc.execute(
             """
@@ -62,7 +68,9 @@ class RecruitmentNormalizationStorePostgresTest {
                 ClassPathResource("db/migration/V8__normalize_recruitment_participants_and_groups.sql"),
             )
         }
-        jdbc.update("INSERT INTO recruitments (id, snapshot) VALUES (1, '{}'::jsonb)")
+        // `version` must be present: append()/lockAndGetVersion read it via `(snapshot->>'version')::int`,
+        // matching a real carp.core RecruitmentSnapshot, which always has this field.
+        jdbc.update("INSERT INTO recruitments (id, snapshot) VALUES (1, '{\"version\": 0}'::jsonb)")
     }
 
     @Test
@@ -96,6 +104,68 @@ class RecruitmentNormalizationStorePostgresTest {
         assertEquals(2, rows.members.size)
         // sort_order continues: alice=0, bob=1.
         assertEquals(listOf(0, 1), rows.participants.sortedBy { it.sortOrder }.map { it.sortOrder })
+    }
+
+    @Test
+    fun `append advances the persisted version so a stale reader is detectably out of date`() {
+        // Simulates CoreParticipantRepository.updateRecruitment's actual protection: some command reads
+        // the recruitment (capturing its version as a baseline) before append() commits a concurrent
+        // self-signup participant. The baseline captured BEFORE append() must no longer match the version
+        // AFTER append(), which is exactly what a version-mismatch check needs to detect the conflict and
+        // refuse to overwrite (rather than replace() silently deleting the appended participant).
+        //
+        // Each call runs in its own transaction, like append()'s real callers do (see
+        // AnonymousServiceImp/CoreParticipantRepository) - lockAndGetVersion's FOR UPDATE lock is only
+        // meaningful inside a live transaction, and must be released before the next call in this sequence.
+        val baselineVersion = transactionTemplate.execute { store.lockAndGetVersion(1) }
+        assertEquals(0, baselineVersion)
+
+        val bob = Participant(UsernameAccountIdentity("bob"), UUID.randomUUID())
+        val g = stagedGroup("g", setOf(role(bob, AssignedTo.Roles(setOf("nurse")))), deployed = true)
+        transactionTemplate.executeWithoutResult {
+            store.append(1, studyId.stringRepresentation, listOf(bob), mapOf(g.id to g))
+        }
+
+        val versionAfterAppend = transactionTemplate.execute { store.lockAndGetVersion(1) }
+        assertEquals(1, versionAfterAppend)
+        assertNotEquals(baselineVersion, versionAfterAppend)
+
+        // A second append (e.g. a second self-signup request) advances it again, one at a time.
+        val carol = Participant(UsernameAccountIdentity("carol"), UUID.randomUUID())
+        val g2 = stagedGroup("g2", setOf(role(carol, AssignedTo.Roles(setOf("nurse")))), deployed = true)
+        transactionTemplate.executeWithoutResult {
+            store.append(1, studyId.stringRepresentation, listOf(carol), mapOf(g2.id to g2))
+        }
+        assertEquals(2, transactionTemplate.execute { store.lockAndGetVersion(1) })
+    }
+
+    @Test
+    fun `concurrent appends to the same recruitment never assign duplicate sort_order`() {
+        val concurrentCallers = 20
+        val executor = Executors.newFixedThreadPool(concurrentCallers)
+        try {
+            (1..concurrentCallers)
+                .map { i ->
+                    executor.submit {
+                        val participant = Participant(UsernameAccountIdentity("user-$i"), UUID.randomUUID())
+                        val group = stagedGroup("g$i", setOf(role(participant, AssignedTo.All)), deployed = true)
+                        // Each call runs in its OWN transaction, exactly like a separate self-signup HTTP
+                        // request would (AnonymousServiceImp wraps append() in transactionTemplate
+                        // .executeWithoutResult per call) - this is what actually exercises the FOR UPDATE
+                        // lock in append(); calling append() directly, uncommitted, would never race.
+                        transactionTemplate.executeWithoutResult {
+                            store.append(1, studyId.stringRepresentation, listOf(participant), mapOf(group.id to group))
+                        }
+                    }
+                }.forEach { it.get() }
+
+            val sortOrders = store.readRows(1).participants.map { it.sortOrder }
+            assertEquals(concurrentCallers, sortOrders.size)
+            assertEquals(sortOrders.size, sortOrders.toSet().size, "sort_order values must all be distinct")
+            assertEquals((0 until concurrentCallers).toList(), sortOrders.sorted())
+        } finally {
+            executor.shutdown()
+        }
     }
 
     @Test

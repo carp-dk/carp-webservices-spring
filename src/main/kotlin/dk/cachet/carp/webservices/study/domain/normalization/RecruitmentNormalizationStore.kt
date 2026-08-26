@@ -83,6 +83,20 @@ class RecruitmentNormalizationStore(
      * Append [participants] and [groups] to an existing recruitment's tables without touching existing
      * rows (the relational equivalent of the JSONB bulk-append). `sort_order` continues after the current
      * maximum so appended participants sort after existing ones.
+     *
+     * Must run inside a transaction (see class doc): this locks the parent `recruitments` row for the
+     * duration of that transaction (via [lockAndGetVersion]), so concurrent appends for the SAME
+     * recruitment (e.g. a burst of self-signup requests for one study) serialize instead of racing on the
+     * MAX(sort_order) read below - under READ COMMITTED, two concurrent transactions could otherwise both
+     * read the same max and insert different participants with an identical sort_order. A blocked caller
+     * simply waits for the lock holder to commit, after which it sees the up-to-date max; the lock
+     * releases at commit/rollback.
+     *
+     * Also bumps the recruitment's persisted version (see [lockAndGetVersion]/[bumpVersion]): this append
+     * IS an edit to the recruitment, and [CoreParticipantRepository][dk.cachet.carp.webservices.study.repository.CoreParticipantRepository.updateRecruitment]
+     * relies on that version to detect a since-modified recruitment and refuse to overwrite it - without
+     * this, an unrelated concurrent command's stale `replace()` would silently DELETE the rows appended
+     * here, since its desired-state snapshot has no way of knowing about them.
      */
     fun append(
         recruitmentId: Int,
@@ -90,6 +104,9 @@ class RecruitmentNormalizationStore(
         participants: Collection<Participant>,
         groups: Map<UUID, StagedParticipantGroup>,
     ) {
+        val currentVersion = lockAndGetVersion(recruitmentId)
+        bumpVersion(recruitmentId, currentVersion + 1)
+
         val nextSortOrder =
             jdbcTemplate.queryForObject(
                 "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM recruitment_participants WHERE recruitment_id = ?",
@@ -99,6 +116,43 @@ class RecruitmentNormalizationStore(
         insertParticipants(recruitmentId, studyId, RecruitmentNormalizer.participantRows(participants, nextSortOrder))
         insertGroups(recruitmentId, studyId, RecruitmentNormalizer.groupRows(groups))
         insertMembers(studyId, RecruitmentNormalizer.memberRows(groups))
+    }
+
+    /**
+     * Lock [recruitmentId]'s row for the remainder of the caller's transaction and return the version
+     * currently embedded in its JSONB snapshot envelope - the same value carp.core's aggregates track as
+     * `AggregateRoot.fromSnapshotVersion` (see `Snapshot.version`: "the number of edits made to the object
+     * represented by this snapshot"). Every writer of this recruitment (this class's [append], and
+     * `CoreParticipantRepository.updateRecruitment`) must call this FIRST, inside the same transaction as
+     * its write, so a concurrent writer for the same recruitment blocks until this transaction commits -
+     * that ordering is what makes the version comparison in `updateRecruitment` race-free rather than a
+     * check-then-act gap.
+     */
+    fun lockAndGetVersion(recruitmentId: Int): Int =
+        checkNotNull(
+            jdbcTemplate.queryForObject(
+                "SELECT (snapshot->>'version')::int FROM recruitments WHERE id = ? FOR UPDATE",
+                Int::class.java,
+                recruitmentId,
+            ),
+        ) { "Recruitment $recruitmentId has no snapshot; it should already exist by the time this is called." }
+
+    /**
+     * Advance [recruitmentId]'s persisted version to [newVersion]. Only [append] needs this: a
+     * carp.core-driven `replace()` (via `updateRecruitment`) writes its own new version as part of the
+     * normal snapshot it saves, but `append()` writes directly to the normalized child tables and never
+     * touches the snapshot otherwise, so without this its edit would be invisible to a concurrent
+     * version check.
+     */
+    private fun bumpVersion(
+        recruitmentId: Int,
+        newVersion: Int,
+    ) {
+        jdbcTemplate.update(
+            "UPDATE recruitments SET snapshot = jsonb_set(snapshot, '{version}', to_jsonb(?)) WHERE id = ?",
+            newVersion,
+            recruitmentId,
+        )
     }
 
     /** Read the persisted normalized rows for [recruitmentId] (for verification / reconstruction). */

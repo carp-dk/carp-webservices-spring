@@ -8,6 +8,7 @@ import dk.cachet.carp.studies.application.users.Participant
 import dk.cachet.carp.studies.application.users.ParticipantGroupRepresentation
 import dk.cachet.carp.studies.domain.users.RecruitmentSnapshot
 import dk.cachet.carp.studies.domain.users.StagedParticipantGroup
+import dk.cachet.carp.webservices.common.exception.responses.ConflictException
 import dk.cachet.carp.webservices.common.exception.responses.ResourceNotFoundException
 import dk.cachet.carp.webservices.common.input.WS_JSON
 import dk.cachet.carp.webservices.study.domain.Recruitment
@@ -18,6 +19,7 @@ import io.mockk.*
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.assertThrows
+import org.springframework.transaction.PlatformTransactionManager
 import kotlin.test.*
 import kotlin.time.Clock
 import dk.cachet.carp.studies.domain.users.Recruitment as CoreRecruitment
@@ -25,6 +27,10 @@ import dk.cachet.carp.studies.domain.users.Recruitment as CoreRecruitment
 class CoreParticipantRepositoryTest {
     private val mockRepository: RecruitmentRepository = mockk()
     private val mockStore: RecruitmentNormalizationStore = mockk(relaxUnitFun = true)
+
+    // Relaxed: TransactionTemplate.execute only needs getTransaction()/commit()/rollback() to be callable
+    // no-ops here, since these are plain unit tests with no real database transaction to manage.
+    private val mockTransactionManager: PlatformTransactionManager = mockk(relaxed = true)
 
     /** No normalized rows — the snapshots under test carry no participants or groups. */
     private val noRows = RecruitmentRows(emptyList(), emptyList(), emptyList())
@@ -56,7 +62,7 @@ class CoreParticipantRepositoryTest {
                     mockExistingRecruitment
                 coEvery { mockRepository.save(ofType<Recruitment>()) } returns mockSavedRecruitment
 
-                val sut = CoreParticipantRepository(mockRepository, mockStore)
+                val sut = CoreParticipantRepository(mockRepository, mockStore, mockTransactionManager)
 
                 sut.addRecruitment(mockCoreRecruitment)
 
@@ -101,7 +107,7 @@ class CoreParticipantRepositoryTest {
                     mockExistingRecruitment
                 coEvery { mockRepository.save(ofType<Recruitment>()) } returns mockSavedRecruitment
 
-                val sut = CoreParticipantRepository(mockRepository, mockStore)
+                val sut = CoreParticipantRepository(mockRepository, mockStore, mockTransactionManager)
 
                 assertThrows<IllegalStateException> {
                     sut.addRecruitment(mockCoreRecruitment)
@@ -146,7 +152,7 @@ class CoreParticipantRepositoryTest {
                             mockRecruitment.snapshot!!,
                         ),
                     )
-                val sut = CoreParticipantRepository(mockRepository, mockStore)
+                val sut = CoreParticipantRepository(mockRepository, mockStore, mockTransactionManager)
 
                 val result = sut.getRecruitment(mockUUID1)
 
@@ -162,7 +168,7 @@ class CoreParticipantRepositoryTest {
                 coEvery { mockRepository.findRecruitmentByStudyId(mockUUID.stringRepresentation) } returns
                     mockRecruitment
 
-                val sut = CoreParticipantRepository(mockRepository, mockStore)
+                val sut = CoreParticipantRepository(mockRepository, mockStore, mockTransactionManager)
 
                 val result = sut.getRecruitment(mockUUID)
 
@@ -181,7 +187,7 @@ class CoreParticipantRepositoryTest {
             every { mockRepository.findStudyIdByNormalizedGroupId(deploymentId.stringRepresentation) } returns
                 studyId.stringRepresentation
 
-            val sut = CoreParticipantRepository(mockRepository, mockStore)
+            val sut = CoreParticipantRepository(mockRepository, mockStore, mockTransactionManager)
 
             assertEquals(studyId, sut.getStudyIdByDeploymentId(deploymentId))
         }
@@ -191,7 +197,7 @@ class CoreParticipantRepositoryTest {
             val deploymentId = UUID.randomUUID()
             every { mockRepository.findStudyIdByNormalizedGroupId(deploymentId.stringRepresentation) } returns null
 
-            val sut = CoreParticipantRepository(mockRepository, mockStore)
+            val sut = CoreParticipantRepository(mockRepository, mockStore, mockTransactionManager)
 
             assertNull(sut.getStudyIdByDeploymentId(deploymentId))
         }
@@ -224,7 +230,7 @@ class CoreParticipantRepositoryTest {
                     mockRecruitment
                 coEvery { mockRepository.deleteByStudyId(mockUUID1.stringRepresentation) } just Runs
 
-                val sut = CoreParticipantRepository(mockRepository, mockStore)
+                val sut = CoreParticipantRepository(mockRepository, mockStore, mockTransactionManager)
 
                 val result = sut.removeStudy(mockUUID1)
 
@@ -242,7 +248,7 @@ class CoreParticipantRepositoryTest {
                 coEvery { mockRepository.findRecruitmentByStudyId(mockUUID.stringRepresentation) } returns
                     mockRecruitment
 
-                val sut = CoreParticipantRepository(mockRepository, mockStore)
+                val sut = CoreParticipantRepository(mockRepository, mockStore, mockTransactionManager)
 
                 val result = sut.removeStudy(mockUUID)
 
@@ -266,7 +272,7 @@ class CoreParticipantRepositoryTest {
 
                 coEvery { mockRepository.findRecruitmentByStudyId(mockUUID1.stringRepresentation) } returns null
 
-                val sut = CoreParticipantRepository(mockRepository, mockStore)
+                val sut = CoreParticipantRepository(mockRepository, mockStore, mockTransactionManager)
 
                 assertThrows<ResourceNotFoundException> {
                     sut.updateRecruitment(mockRecruitment)
@@ -294,6 +300,9 @@ class CoreParticipantRepositoryTest {
                     mockk<CoreRecruitment>().apply {
                         every { studyId } returns mockUUID1
                         every { getSnapshot() } returns newMockSnapshot
+                        // The version this command's in-memory aggregate was loaded from; matches what
+                        // lockAndGetVersion reports below, so the concurrency check passes.
+                        every { fromSnapshotVersion } returns 2
                     }
                 val oldMockSnapshot =
                     RecruitmentSnapshot(
@@ -312,8 +321,9 @@ class CoreParticipantRepositoryTest {
                 coEvery { mockRepository.findRecruitmentByStudyId(mockUUID1.stringRepresentation) } returns
                     mockRecruitmentFound
                 coEvery { mockRepository.save(ofType<Recruitment>()) } returns mockk()
+                every { mockStore.lockAndGetVersion(any()) } returns 2
 
-                val sut = CoreParticipantRepository(mockRepository, mockStore)
+                val sut = CoreParticipantRepository(mockRepository, mockStore, mockTransactionManager)
 
                 sut.updateRecruitment(mockCoreRecruitment)
 
@@ -330,6 +340,32 @@ class CoreParticipantRepositoryTest {
                         },
                     )
                 }
+            }
+        }
+
+        @Test
+        fun `should refuse to overwrite when the recruitment changed since it was read`() {
+            runTest {
+                val mockUUID1 = UUID.randomUUID()
+                val mockUUID2 = UUID.randomUUID()
+                val mockCoreRecruitment =
+                    mockk<CoreRecruitment>().apply {
+                        every { studyId } returns mockUUID1
+                        // This command's in-memory aggregate was loaded from version 2, but e.g. a
+                        // concurrent self-signup append() has since bumped the persisted version to 3.
+                        every { fromSnapshotVersion } returns 2
+                    }
+                val mockRecruitmentFound = Recruitment(id = 5)
+                coEvery { mockRepository.findRecruitmentByStudyId(mockUUID1.stringRepresentation) } returns
+                    mockRecruitmentFound
+                every { mockStore.lockAndGetVersion(5) } returns 3
+
+                val sut = CoreParticipantRepository(mockRepository, mockStore, mockTransactionManager)
+
+                assertThrows<ConflictException> { sut.updateRecruitment(mockCoreRecruitment) }
+
+                verify(exactly = 0) { mockRepository.save(any()) }
+                verify(exactly = 0) { mockStore.replace(any(), any()) }
             }
         }
     }
@@ -368,7 +404,7 @@ class CoreParticipantRepositoryTest {
                 coEvery { mockRepository.save(ofType<Recruitment>()) } returns
                     mockk<Recruitment>().apply { every { id } returns 7 }
 
-                val sut = CoreParticipantRepository(mockRepository, mockStore)
+                val sut = CoreParticipantRepository(mockRepository, mockStore, mockTransactionManager)
 
                 sut.addRecruitment(coreRecruitment)
 
@@ -405,7 +441,7 @@ class CoreParticipantRepositoryTest {
                 every { mockStore.readRows(7) } returns
                     RecruitmentRows(rows.participants, rows.groups, rows.members)
 
-                val sut = CoreParticipantRepository(mockRepository, mockStore)
+                val sut = CoreParticipantRepository(mockRepository, mockStore, mockTransactionManager)
 
                 val result = sut.getRecruitment(studyId)
 

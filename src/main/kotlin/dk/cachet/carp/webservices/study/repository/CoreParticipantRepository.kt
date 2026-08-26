@@ -3,6 +3,7 @@ package dk.cachet.carp.webservices.study.repository
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.studies.domain.users.ParticipantRepository
 import dk.cachet.carp.studies.domain.users.RecruitmentSnapshot
+import dk.cachet.carp.webservices.common.exception.responses.ConflictException
 import dk.cachet.carp.webservices.common.exception.responses.ResourceNotFoundException
 import dk.cachet.carp.webservices.common.input.WS_JSON
 import dk.cachet.carp.webservices.study.domain.Recruitment
@@ -13,50 +14,80 @@ import kotlinx.coroutines.withContext
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.TransactionDefinition
+import org.springframework.transaction.support.TransactionTemplate
 import dk.cachet.carp.studies.domain.users.Recruitment as CoreRecruitment
 
 @Service
-@Transactional
 class CoreParticipantRepository(
     private val recruitmentRepository: RecruitmentRepository,
     private val normalizationStore: RecruitmentNormalizationStore,
+    transactionManager: PlatformTransactionManager,
 ) : ParticipantRepository {
     companion object {
         private val LOGGER: Logger = LogManager.getLogger()
     }
 
+    // Programmatic, not @Transactional: these suspend functions run their bodies inside
+    // withContext(Dispatchers.IO), and with the classic (non-reactive) PlatformTransactionManager this app
+    // uses, Spring's @Transactional AOP proxy commits as soon as that dispatch suspends - i.e. BEFORE the
+    // dispatched body (the actual DB calls) ever runs - so it cannot make a lock-then-write sequence
+    // atomic. TransactionTemplate.execute is a plain synchronous call with no coroutine suspension point,
+    // so the transaction/connection it opens stays bound to the IO-dispatcher thread for the whole lambda,
+    // which is what addRecruitment/updateRecruitment need to hold their row lock across multiple statements.
+    private val transactionTemplate = TransactionTemplate(transactionManager)
+
+    // REPEATABLE READ, not just a transaction boundary: getRecruitment/getRecruitmentWithParticipantGroup
+    // each do two separate reads (the envelope via findRecruitmentByStudyId, then the normalized
+    // participant/group rows via reconstructFromTables) that need to reflect the SAME point in time. At the
+    // default READ COMMITTED, each read takes its own fresh snapshot, so a concurrent append()/
+    // updateRecruitment() committing in between could make the second read see a state the first read's
+    // version doesn't match - a torn read. REPEATABLE READ fixes the whole transaction's snapshot as of its
+    // first query, so both reads here are guaranteed consistent with each other.
+    private val readTransactionTemplate =
+        TransactionTemplate(transactionManager).apply {
+            isolationLevel = TransactionDefinition.ISOLATION_REPEATABLE_READ
+            isReadOnly = true
+        }
+
     override suspend fun addRecruitment(recruitment: CoreRecruitment) =
         withContext(Dispatchers.IO) {
             val studyId = recruitment.studyId.stringRepresentation
-            val existingRecruitment = recruitmentRepository.findRecruitmentByStudyId(studyId)
+            transactionTemplate.executeWithoutResult {
+                val existingRecruitment = recruitmentRepository.findRecruitmentByStudyId(studyId)
 
-            check(existingRecruitment == null) { "A recruitment already exists for the study with id $studyId." }
+                check(existingRecruitment == null) { "A recruitment already exists for the study with id $studyId." }
 
-            val normalized = RecruitmentNormalizer.decompose(recruitment.getSnapshot())
-            val newRecruitment = Recruitment().apply { this.snapshot = normalized.envelopeSnapshot }
-            val saved = recruitmentRepository.save(newRecruitment)
-            normalizationStore.replace(saved.id, normalized)
-            LOGGER.info("New recruitment with id ${saved.id} is saved for study with id $studyId.")
+                val normalized = RecruitmentNormalizer.decompose(recruitment.getSnapshot())
+                val newRecruitment = Recruitment().apply { this.snapshot = normalized.envelopeSnapshot }
+                val saved = recruitmentRepository.save(newRecruitment)
+                normalizationStore.replace(saved.id, normalized)
+                LOGGER.info("New recruitment with id ${saved.id} is saved for study with id $studyId.")
+            }
         }
 
     override suspend fun getRecruitment(studyId: UUID): CoreRecruitment? =
         withContext(Dispatchers.IO) {
-            val existingRecruitment = recruitmentRepository.findRecruitmentByStudyId(studyId.stringRepresentation)
+            readTransactionTemplate.execute {
+                val existingRecruitment = recruitmentRepository.findRecruitmentByStudyId(studyId.stringRepresentation)
 
-            if (existingRecruitment == null) {
-                LOGGER.info("Recruitment for studyId $studyId is not found.")
-                return@withContext null
+                if (existingRecruitment == null) {
+                    LOGGER.info("Recruitment for studyId $studyId is not found.")
+                    return@execute null
+                }
+
+                reconstructFromTables(existingRecruitment)
             }
-
-            reconstructFromTables(existingRecruitment)
         }
 
     override suspend fun getRecruitmentWithParticipantGroup(groupId: UUID): CoreRecruitment? =
         withContext(Dispatchers.IO) {
-            recruitmentRepository
-                .findRecruitmentByNormalizedGroupId(groupId.stringRepresentation)
-                ?.let(::reconstructFromTables)
+            readTransactionTemplate.execute {
+                recruitmentRepository
+                    .findRecruitmentByNormalizedGroupId(groupId.stringRepresentation)
+                    ?.let(::reconstructFromTables)
+            }
         }
 
     /**
@@ -79,15 +110,43 @@ class CoreParticipantRepository(
     override suspend fun updateRecruitment(recruitment: CoreRecruitment) =
         withContext(Dispatchers.IO) {
             val studyId = recruitment.studyId.stringRepresentation
-            val recruitmentFound =
-                recruitmentRepository.findRecruitmentByStudyId(studyId)
-                    ?: throw ResourceNotFoundException("Recruitment with studyId $studyId is not found.")
+            transactionTemplate.executeWithoutResult {
+                val recruitmentFound =
+                    recruitmentRepository.findRecruitmentByStudyId(studyId)
+                        ?: throw ResourceNotFoundException("Recruitment with studyId $studyId is not found.")
 
-            val normalized = RecruitmentNormalizer.decompose(recruitment.getSnapshot())
-            recruitmentFound.snapshot = normalized.envelopeSnapshot
-            recruitmentRepository.save(recruitmentFound)
-            normalizationStore.replace(recruitmentFound.id, normalized)
-            LOGGER.info("Recruitment with studyId $studyId is updated.")
+                // [recruitment] was read (and this command applied to it) against a snapshot version that
+                // may now be stale - e.g. a self-signup append() may have committed a new participant
+                // since. Its fromSnapshotVersion is exactly what AggregateRoot's doc says a repository
+                // write should verify against ("this value should be used to verify whether the expected
+                // version is edited"). lockAndGetVersion locks the row first, so this check and the write
+                // below are atomic with respect to any concurrent append()/updateRecruitment() for the same
+                // recruitment - closing the check-then-act gap, not just detecting it after the fact. On a
+                // mismatch, replace()'s diff would otherwise silently DELETE rows it has no way of knowing
+                // about; failing loudly here lets the caller retry instead of losing data.
+                //
+                // fromSnapshotVersion is only null for an aggregate never loaded via fromSnapshot(...); every
+                // real caller of updateRecruitment loads through fromSnapshot first, so this should never be
+                // null here. checkNotNull fails loudly if that ever changes, rather than silently skipping
+                // the whole guard (a fail-open null check would let replace() overwrite unconditionally).
+                val expectedVersion =
+                    checkNotNull(recruitment.fromSnapshotVersion) {
+                        "Recruitment for study $studyId has no snapshot version; refusing to update without one."
+                    }
+                val currentVersion = normalizationStore.lockAndGetVersion(recruitmentFound.id)
+                if (currentVersion != expectedVersion) {
+                    throw ConflictException(
+                        "Recruitment for study $studyId was modified concurrently (expected version " +
+                            "$expectedVersion, found $currentVersion); refusing to overwrite.",
+                    )
+                }
+
+                val normalized = RecruitmentNormalizer.decompose(recruitment.getSnapshot())
+                recruitmentFound.snapshot = normalized.envelopeSnapshot
+                recruitmentRepository.save(recruitmentFound)
+                normalizationStore.replace(recruitmentFound.id, normalized)
+                LOGGER.info("Recruitment with studyId $studyId is updated.")
+            }
         }
 
     /**
