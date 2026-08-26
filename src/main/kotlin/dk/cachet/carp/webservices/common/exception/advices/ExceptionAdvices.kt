@@ -2,8 +2,10 @@ package dk.cachet.carp.webservices.common.exception.advices
 
 import cz.jirutka.rsql.parser.RSQLParserException
 import dk.cachet.carp.webservices.common.exception.responses.BadRequestException
+import dk.cachet.carp.webservices.common.exception.responses.ConflictException
 import dk.cachet.carp.webservices.common.exception.responses.ForbiddenException
 import dk.cachet.carp.webservices.common.exception.responses.ResourceNotFoundException
+import dk.cachet.carp.webservices.common.exception.responses.TooManyRequestsException
 import dk.cachet.carp.webservices.common.exception.responses.UnauthorizedException
 import dk.cachet.carp.webservices.common.exception.serialization.SerializationException
 import dk.cachet.carp.webservices.common.notification.service.INotificationService
@@ -226,7 +228,12 @@ internal class ExceptionAdvices(
                 getURIPathFromWebRequest(request),
             )
         LOGGER.error("Resource not found: {}", errorResponse)
-        notificationService.sendExceptionNotification(errorResponse)
+        // See ResourceNotFoundException.quiet: skip the notification for a not-found that's an expected
+        // outcome of hitting a public endpoint under its normal limits, not an application error worth
+        // paging on - mirrors ConflictException.quiet's handling above.
+        if (ex !is ResourceNotFoundException || !ex.quiet) {
+            notificationService.sendExceptionNotification(errorResponse)
+        }
         return ResponseEntity(errorResponse, HttpStatus.NOT_FOUND)
     }
 
@@ -254,7 +261,9 @@ internal class ExceptionAdvices(
     // 409
     @ResponseBody
     @ResponseStatus(code = HttpStatus.CONFLICT)
-    @ExceptionHandler(value = [InvalidDataAccessApiUsageException::class, DataAccessException::class])
+    @ExceptionHandler(
+        value = [InvalidDataAccessApiUsageException::class, DataAccessException::class, ConflictException::class],
+    )
     protected fun handleConflict(
         ex: RuntimeException,
         request: WebRequest,
@@ -267,8 +276,37 @@ internal class ExceptionAdvices(
                 getURIPathFromWebRequest(request),
             )
         LOGGER.error("Conflict exception: {}", errorResponse)
-        notificationService.sendExceptionNotification(errorResponse)
+        // See ConflictException.quiet: skip the notification for conflicts that are an expected outcome of
+        // hitting a public endpoint under its normal limits, not an application error worth paging on.
+        if (ex !is ConflictException || !ex.quiet) {
+            notificationService.sendExceptionNotification(errorResponse)
+        }
         return ResponseEntity(errorResponse, HttpStatus.CONFLICT)
+    }
+
+    // 429
+    @ResponseBody
+    @ResponseStatus(code = HttpStatus.TOO_MANY_REQUESTS)
+    @ExceptionHandler(value = [TooManyRequestsException::class])
+    protected fun handleTooManyRequests(
+        ex: RuntimeException,
+        request: WebRequest,
+    ): ResponseEntity<CarpErrorResponse> {
+        val errorResponse =
+            CarpErrorResponse(
+                HttpStatus.TOO_MANY_REQUESTS.value(),
+                ex::class.qualifiedName.orEmpty(),
+                ex.message.orEmpty(),
+                getURIPathFromWebRequest(request),
+            )
+        LOGGER.warn("Too many requests: {}", errorResponse)
+        // Deliberately no sendExceptionNotification() here, unlike every other handler in this class: a
+        // 429 is an EXPECTED outcome of rate limiting a public endpoint, not an application error worth
+        // paging on. This can currently only be thrown from self-signup's unauthenticated public endpoint
+        // (see TooManyRequestsException), so any caller can trigger it on demand - notifying per-occurrence
+        // would let an attacker flood the client-errors Teams channel simply by exceeding the limit
+        // repeatedly, and could also get the webhook itself throttled, silencing genuinely important alerts.
+        return ResponseEntity(errorResponse, HttpStatus.TOO_MANY_REQUESTS)
     }
 
     // 500 - DEFAULT
