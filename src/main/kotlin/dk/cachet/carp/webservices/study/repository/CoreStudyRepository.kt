@@ -21,14 +21,13 @@ import kotlinx.serialization.json.buildJsonObject
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
 import dk.cachet.carp.studies.domain.Study as CoreStudy
 
 @Service
-@Transactional
-// See note on @CoreStudyRepository.remove(UUID)
 @Suppress("LongParameterList")
 class CoreStudyRepository(
     private val studyRepository: dk.cachet.carp.webservices.study.repository.StudyRepository,
@@ -41,10 +40,19 @@ class CoreStudyRepository(
     private val objectMapper: ObjectMapper,
     private val validationMessages: MessageBase,
     private val fileService: FileService,
+    transactionManager: PlatformTransactionManager,
 ) : StudyRepository {
     companion object {
         private val LOGGER: Logger = LogManager.getLogger()
     }
+
+    // Programmatic, not @Transactional: remove()'s multi-table delete needs to be atomic, but every
+    // method here is a suspend fun dispatched via withContext(Dispatchers.IO), and Spring's classic
+    // @Transactional AOP proxy commits as soon as that dispatch suspends - before the dispatched body's DB
+    // calls ever run (see CoreParticipantRepository for the same fix, in more detail). The class-level
+    // @Transactional this used to carry (plus remove()'s own `rollbackFor = [Exception::class]`) never
+    // actually provided that atomicity.
+    private val transactionTemplate = TransactionTemplate(transactionManager)
 
     override suspend fun add(study: CoreStudy) =
         withContext(Dispatchers.IO) {
@@ -96,22 +104,27 @@ class CoreStudyRepository(
      * TODO: This should only remove the study from the study repository.
      * TODO: All associated data should be deleted by subscribing to `StudyService.Event.StudyRemoved`
      */
-    @Transactional(rollbackFor = [Exception::class])
     override suspend fun remove(studyId: UUID): Boolean =
         withContext(Dispatchers.IO) {
             val idsToRemove = getDeploymentIdsOrThrow(studyId)
             val collectionIds = collectionRepository.getCollectionIdsByStudyId(studyId.stringRepresentation)
 
-            documentRepository.deleteAllByCollectionIds(collectionIds)
-
-            collectionRepository.deleteAllByDeploymentIds(idsToRemove.map { it.stringRepresentation })
-            consentDocumentRepository.deleteAllByDeploymentIds(idsToRemove.map { it.stringRepresentation })
-            @Suppress("DEPRECATION") // TODO: remove once study deletion migrates to StudyRemoved event handler (#376)
-            dataPointRepository.deleteAllByDeploymentIds(idsToRemove.map { it.stringRepresentation })
+            // Grouped in one real transaction: a failure partway through must not leave some of these
+            // deleted and others not. fileService.deleteAllByStudyId is deliberately NOT included here -
+            // it also deletes from external file storage, which no database transaction can span, so it
+            // only runs after the DB-only deletes below have committed successfully.
+            transactionTemplate.executeWithoutResult {
+                documentRepository.deleteAllByCollectionIds(collectionIds)
+                collectionRepository.deleteAllByDeploymentIds(idsToRemove.map { it.stringRepresentation })
+                consentDocumentRepository.deleteAllByDeploymentIds(idsToRemove.map { it.stringRepresentation })
+                // TODO: remove once study deletion migrates to StudyRemoved event handler (#376)
+                @Suppress("DEPRECATION")
+                dataPointRepository.deleteAllByDeploymentIds(idsToRemove.map { it.stringRepresentation })
+                exportRepository.deleteByStudyId(studyId.stringRepresentation)
+                studyRepository.deleteByStudyId(studyId.stringRepresentation)
+            }
 
             fileService.deleteAllByStudyId(studyId.stringRepresentation)
-            exportRepository.deleteByStudyId(studyId.stringRepresentation)
-            studyRepository.deleteByStudyId(studyId.stringRepresentation)
 
             LOGGER.info("Study with id ${studyId.stringRepresentation} and all associated data deleted.")
 

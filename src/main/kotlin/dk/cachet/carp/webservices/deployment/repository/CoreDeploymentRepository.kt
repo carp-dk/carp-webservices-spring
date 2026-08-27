@@ -15,13 +15,15 @@ import org.apache.logging.log4j.Logger
 import org.springframework.data.domain.AuditorAware
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.ObjectMapper
 import java.sql.Timestamp
 import dk.cachet.carp.deployments.domain.StudyDeployment as CoreStudyDeployment
 
+// No @Transactional: every method here does at most one meaningful DB write (Spring Data JPA repository
+// methods are already individually transactional), so a class-level @Transactional was never protecting
+// anything real here - and being a suspend fun dispatched via withContext(Dispatchers.IO), it wouldn't
+// have worked even if it were needed (see CoreParticipantRepository/CoreStudyRepository for that fix).
 @Service
-@Transactional
 class CoreDeploymentRepository(
     private val studyDeploymentRepository: StudyDeploymentRepository,
     private val objectMapper: ObjectMapper,
@@ -98,12 +100,17 @@ class CoreDeploymentRepository(
             val idsPresent =
                 studyDeploymentRepository.findAllByStudyDeploymentIds(ids)
                     .map { mapWSDeploymentToCore(it).id.stringRepresentation }
+
+            // Revoke claims BEFORE deleting the DB rows. These two writes cross a DB/external-system
+            // boundary that no database transaction can span, so true atomicity isn't achievable - if one
+            // succeeds and the other fails, this order fails safe: a deployment that still exists but lost
+            // its access claim (broken, but not exploitable), rather than a deleted deployment whose
+            // account still carries a live inDeployment claim (a stale-authorization gap).
+            revokeStudyDeploymentClaims(studyDeploymentIds)
             studyDeploymentRepository.deleteByDeploymentIds(idsPresent)
             LOGGER.info("Deployments removed with ids: ${idsPresent.joinToString(", ")}")
-            val idsPresentAsUUIDs = idsPresent.map { UUID(it) }.toSet()
-            revokeStudyDeploymentClaims(studyDeploymentIds)
 
-            idsPresentAsUUIDs
+            idsPresent.map { UUID(it) }.toSet()
         }
 
     override suspend fun update(studyDeployment: CoreStudyDeployment) =

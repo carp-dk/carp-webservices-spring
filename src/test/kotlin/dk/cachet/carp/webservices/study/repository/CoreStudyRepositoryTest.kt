@@ -19,6 +19,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Nested
+import org.springframework.transaction.PlatformTransactionManager
 import tools.jackson.databind.ObjectMapper
 import kotlin.test.*
 import kotlin.time.Clock
@@ -35,6 +36,10 @@ class CoreStudyRepositoryTest {
     val objectMapper: ObjectMapper = ObjectMapper()
     val validationMessages: MessageBase = mockk()
     val fileService: FileService = mockk()
+
+    // Relaxed: TransactionTemplate.execute only needs getTransaction()/commit()/rollback() to be callable
+    // no-ops here, since these are plain unit tests with no real database transaction to manage.
+    val mockTransactionManager: PlatformTransactionManager = mockk(relaxed = true)
 
     @Nested
     inner class Add {
@@ -77,6 +82,7 @@ class CoreStudyRepositoryTest {
                         objectMapper,
                         validationMessages,
                         fileService,
+                        mockTransactionManager,
                     )
 
                 coreStudyRepository.add(study)
@@ -139,6 +145,7 @@ class CoreStudyRepositoryTest {
                         objectMapper,
                         validationMessages,
                         fileService,
+                        mockTransactionManager,
                     )
 
                 assertFailsWith<IllegalStateException> {
@@ -200,6 +207,7 @@ class CoreStudyRepositoryTest {
                         objectMapper,
                         validationMessages,
                         fileService,
+                        mockTransactionManager,
                     )
 
                 val result = coreStudyRepository.getById(mockUUID)
@@ -231,6 +239,7 @@ class CoreStudyRepositoryTest {
                         objectMapper,
                         validationMessages,
                         fileService,
+                        mockTransactionManager,
                     )
 
                 val result = coreStudyRepository.getById(mockUUID)
@@ -313,6 +322,7 @@ class CoreStudyRepositoryTest {
                         objectMapper,
                         validationMessages,
                         fileService,
+                        mockTransactionManager,
                     )
 
                 val result = coreStudyRepository.getForOwner(mockUUID)
@@ -394,6 +404,7 @@ class CoreStudyRepositoryTest {
                         objectMapper,
                         validationMessages,
                         fileService,
+                        mockTransactionManager,
                     )
 
                 val result = coreStudyRepository.remove(mockUUID)
@@ -456,6 +467,7 @@ class CoreStudyRepositoryTest {
                         objectMapper,
                         validationMessages,
                         fileService,
+                        mockTransactionManager,
                     )
 
                 val result = coreStudyRepository.getWSStudyById(mockUUID)
@@ -488,6 +500,7 @@ class CoreStudyRepositoryTest {
                         objectMapper,
                         validationMessages,
                         fileService,
+                        mockTransactionManager,
                     )
 
                 assertFailsWith<IllegalStateException> {
@@ -551,6 +564,7 @@ class CoreStudyRepositoryTest {
                         objectMapper,
                         validationMessages,
                         fileService,
+                        mockTransactionManager,
                     )
 
                 coreStudyRepository.update(coreStudy)
@@ -647,6 +661,7 @@ class CoreStudyRepositoryTest {
                     objectMapper,
                     validationMessages,
                     fileService,
+                    mockTransactionManager,
                 )
 
             val result = coreStudyRepository.findAllByStudyIds(listOf(mockUUID1, mockUUID2))
