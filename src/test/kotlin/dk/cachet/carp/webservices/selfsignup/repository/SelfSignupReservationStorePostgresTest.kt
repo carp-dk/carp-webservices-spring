@@ -60,7 +60,10 @@ class SelfSignupReservationStorePostgresTest {
         }
     }
 
-    private fun insertConfig(maxParticipants: Int = 3, enabled: Boolean = true) {
+    private fun insertConfig(
+        maxParticipants: Int = 3,
+        enabled: Boolean = true,
+    ) {
         configStore.insert(
             StudySelfSignupConfig(
                 studyId = studyId,

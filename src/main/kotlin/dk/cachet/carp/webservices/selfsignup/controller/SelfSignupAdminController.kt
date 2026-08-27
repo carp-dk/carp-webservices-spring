@@ -45,8 +45,9 @@ class SelfSignupAdminController(
     }
 
     @Operation(
-        description = "Current self-signup config/status for the study (short code, enabled, cap, " +
-            "current count), or null if self-signup has never been enabled.",
+        description =
+            "Current self-signup config/status for the study (short code, enabled, cap, " +
+                "current count), or null if self-signup has never been enabled.",
     )
     @GetMapping
     @PreAuthorize("canManageStudy(#studyId) or canLimitedManageStudy(#studyId)")
@@ -58,8 +59,9 @@ class SelfSignupAdminController(
     }
 
     @Operation(
-        description = "Ends self-signup for the study: flips it disabled. The short code and cumulative " +
-            "participant count are kept, so re-enabling later resumes under the same code.",
+        description =
+            "Ends self-signup for the study: flips it disabled. The short code and cumulative " +
+                "participant count are kept, so re-enabling later resumes under the same code.",
     )
     @DeleteMapping
     @ResponseStatus(HttpStatus.OK)
