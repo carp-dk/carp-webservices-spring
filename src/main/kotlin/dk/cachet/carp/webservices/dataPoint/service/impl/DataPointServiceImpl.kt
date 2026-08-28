@@ -7,6 +7,7 @@ import dk.cachet.carp.webservices.common.exception.responses.ResourceNotFoundExc
 import dk.cachet.carp.webservices.common.query.QueryUtil.validateQuery
 import dk.cachet.carp.webservices.common.query.QueryVisitor
 import dk.cachet.carp.webservices.dataPoint.domain.DataPoint
+import dk.cachet.carp.webservices.dataPoint.filter.DataPointSpecifications
 import dk.cachet.carp.webservices.dataPoint.repository.DataPointRepository
 import dk.cachet.carp.webservices.dataPoint.service.DataPointService
 import dk.cachet.carp.webservices.deployment.dto.DeploymentStatisticsResponseDto
@@ -46,19 +47,17 @@ class DataPointServiceImpl(
         val validatedQuery = query?.let { validateQuery(it) }
 
         validatedQuery?.let {
-            val queryForRole =
-                if (role < Role.RESEARCHER) {
-                    // Return data relevant to this user only.
-                    "$validatedQuery;deployment_id==$deploymentId;created_by==$id"
-                } else {
-                    // Return data relevant to this deployment.
-                    "$validatedQuery;deployment_id==$deploymentId"
-                }
-
-            val specification =
+            var specification =
                 RSQLParser()
-                    .parse(queryForRole)
+                    .parse(validatedQuery)
                     .accept(QueryVisitor<DataPoint>())
+                    .and(DataPointSpecifications.belongsToDeploymentId(deploymentId))
+
+            if (role < Role.RESEARCHER) {
+                // Return data relevant to this user only.
+                val belongsToUserSpec = DataPointSpecifications.belongsToUserAccountId(id.stringRepresentation)
+                specification = specification.and(belongsToUserSpec)
+            }
 
             return dataPointRepository.findAll(specification, pageRequest).content
         }
@@ -88,19 +87,17 @@ class DataPointServiceImpl(
         val validatedQuery = query?.let { validateQuery(it) }
 
         validatedQuery?.let {
-            val queryForRole =
-                if (role < Role.RESEARCHER) {
-                    // Return data relevant to this user only.
-                    "$validatedQuery;deployment_id==$deploymentId"
-                } else {
-                    // Return data relevant to this deployment.
-                    "$validatedQuery;deployment_id==$deploymentId"
-                }
-
-            val specification =
+            var specification =
                 RSQLParser()
-                    .parse(queryForRole)
+                    .parse(validatedQuery)
                     .accept(QueryVisitor<DataPoint>())
+                    .and(DataPointSpecifications.belongsToDeploymentId(deploymentId))
+
+            if (role < Role.RESEARCHER) {
+                // Return data relevant to this user only.
+                val belongsToUserSpec = DataPointSpecifications.belongsToUserAccountId(id.stringRepresentation)
+                specification = specification.and(belongsToUserSpec)
+            }
 
             return dataPointRepository.count(specification)
         }
