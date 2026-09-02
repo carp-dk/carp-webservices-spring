@@ -37,9 +37,13 @@ interface FileService {
     /** The [getOne] interface for retrieving a file for a given id. */
     fun getOne(id: Int): File
 
-    /** The [getAll] interface for retrieving all files for a given query and study id. */
+    /**
+     * The [getAll] interface for retrieving all files for a given study id, optionally filtered by
+     * [originalName] (an exact match) or by a deprecated RSQL [query].
+     */
     fun getAll(
         query: String?,
+        originalName: String?,
         studyId: String,
     ): List<File>
 

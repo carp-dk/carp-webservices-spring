@@ -7,6 +7,7 @@ object RequestParamName {
     const val IMAGE = "image"
     const val METADATA = "metadata"
     const val QUERY = "query"
+    const val ORIGINAL_NAME = "original_name"
     const val SORT = "sort"
     const val PAGE = "page"
     const val SIZE = "size"
