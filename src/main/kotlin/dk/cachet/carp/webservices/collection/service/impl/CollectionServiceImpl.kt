@@ -5,6 +5,7 @@ import dk.cachet.carp.webservices.account.service.AccountService
 import dk.cachet.carp.webservices.collection.domain.Collection
 import dk.cachet.carp.webservices.collection.dto.CollectionCreateRequestDto
 import dk.cachet.carp.webservices.collection.dto.CollectionUpdateRequestDto
+import dk.cachet.carp.webservices.collection.filter.CollectionSpecifications
 import dk.cachet.carp.webservices.collection.repository.CollectionRepository
 import dk.cachet.carp.webservices.collection.service.CollectionService
 import dk.cachet.carp.webservices.common.configuration.internationalisation.service.MessageBase
@@ -124,9 +125,12 @@ class CollectionServiceImpl(
         studyId: String,
         query: String?,
     ): List<Collection> {
-        val validatedQuery = query?.let { QueryUtil.validateQuery(it) }
-        val nestedQuery = "$validatedQuery;study_id==$studyId"
-        val specification = RSQLParser().parse(nestedQuery).accept(QueryVisitor<Collection>())
+        val validatedQuery = query?.let { QueryUtil.validateQuery(it) }.orEmpty()
+        val specification =
+            RSQLParser()
+                .parse(validatedQuery)
+                .accept(QueryVisitor<Collection>())
+                .and(CollectionSpecifications.belongsToStudyId(studyId))
         return collectionRepository.findAll(specification)
     }
 

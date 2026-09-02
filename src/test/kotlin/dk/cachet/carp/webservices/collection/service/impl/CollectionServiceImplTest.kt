@@ -13,6 +13,12 @@ import dk.cachet.carp.webservices.security.authentication.domain.Account
 import dk.cachet.carp.webservices.security.authentication.service.AuthenticationService
 import dk.cachet.carp.webservices.security.authorization.Claim
 import io.mockk.*
+import jakarta.persistence.criteria.CriteriaBuilder
+import jakarta.persistence.criteria.CriteriaQuery
+import jakarta.persistence.criteria.Expression
+import jakarta.persistence.criteria.Path
+import jakarta.persistence.criteria.Predicate
+import jakarta.persistence.criteria.Root
 import org.junit.jupiter.api.Nested
 import org.springframework.data.jpa.domain.Specification
 import tools.jackson.databind.ObjectMapper
@@ -393,6 +399,61 @@ class CollectionServiceImplTest {
 
             assertEquals(mockCollections, result)
             verify { collectionRepository.findAll(ofType<Specification<Collection>>()) }
+        }
+
+        /**
+         * Proves that a comma injected into the user-supplied RSQL query (which parses as a top-level
+         * OR, since RSQL AND binds tighter than OR) can no longer escape the study scoping — the scope
+         * is ANDed onto the parsed [Specification] rather than concatenated into the RSQL string.
+         */
+        @Test
+        fun `study scoping cannot be bypassed by a top-level OR in the query`() {
+            val mockStudyId = "123"
+            val specSlot = slot<Specification<Collection>>()
+            every { collectionRepository.findAll(capture(specSlot)) } returns emptyList()
+
+            val sut =
+                CollectionServiceImpl(
+                    collectionRepository,
+                    accountService,
+                    authenticationService,
+                    validationMessages,
+                    objectMapper,
+                )
+
+            // A comma is RSQL's OR operator; a naive "$query;study_id==X" concatenation would let this
+            // branch match every row in the table, regardless of study.
+            sut.getAll(mockStudyId, "foo==bar,baz==bar")
+
+            val root = mockk<Root<Collection>>()
+            val query = mockk<CriteriaQuery<*>>()
+            val builder = mockk<CriteriaBuilder>(relaxed = true)
+
+            val fooPath = mockk<Path<String>>()
+            val bazPath = mockk<Path<String>>()
+            val studyPath = mockk<Path<String>>()
+
+            every { fooPath.javaType } returns String::class.java
+            every { bazPath.javaType } returns String::class.java
+            every { root.get<String>("foo") } returns fooPath
+            every { root.get<String>("baz") } returns bazPath
+            every { root.get<String>("studyId") } returns studyPath
+
+            val fooPredicate = mockk<Predicate>()
+            val bazPredicate = mockk<Predicate>()
+            val studyPredicate = mockk<Predicate>()
+            every { builder.like(fooPath, "bar") } returns fooPredicate
+            every { builder.like(bazPath, "bar") } returns bazPredicate
+            every { builder.equal(studyPath, mockStudyId) } returns studyPredicate
+
+            specSlot.captured.toPredicate(root, query, builder)
+
+            // Whatever the user's OR clause matched, it is still ANDed with the study scope.
+            // Disambiguate against `and(Predicate...)` by matching the fixed-arity
+            // `and(Expression<Boolean>, Expression<Boolean>)` signature explicitly.
+            val studyPredicateAsExpr: Expression<Boolean> = studyPredicate
+            verify(exactly = 1) { builder.equal(studyPath, mockStudyId) }
+            verify(exactly = 1) { builder.and(any<Expression<Boolean>>(), refEq(studyPredicateAsExpr)) }
         }
     }
 
