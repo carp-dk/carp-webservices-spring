@@ -57,20 +57,18 @@ class DocumentServiceImpl(
             val validatedQuery = query?.let { QueryUtil.validateQuery(it) }
 
             validatedQuery?.let {
-                val queryForRole =
-                    if (!isFullyAuthorized) {
-                        // Return data relevant to this user only.
-                        "$validatedQuery;created_by==$id"
-                    } else {
-                        validatedQuery
-                    }
-
-                val specification =
+                var specification =
                     RSQLParser()
-                        .parse(queryForRole)
+                        .parse(validatedQuery)
                         .accept(QueryVisitor<Document>())
+                        .and(belongsToStudySpec)
 
-                return documentRepository.findAll(specification.and(belongsToStudySpec), pageRequest).content
+                if (!isFullyAuthorized) {
+                    // Return data relevant to this user only.
+                    specification = specification.and(belongsToUserSpec)
+                }
+
+                return documentRepository.findAll(specification, pageRequest).content
             }
 
             if (isFullyAuthorized) {
