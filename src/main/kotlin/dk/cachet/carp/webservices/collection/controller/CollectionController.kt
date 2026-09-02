@@ -9,6 +9,7 @@ import dk.cachet.carp.webservices.collection.service.CollectionService
 import dk.cachet.carp.webservices.common.constants.PathVariableName
 import dk.cachet.carp.webservices.common.constants.RequestParamName
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
 import jakarta.validation.Valid
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
@@ -68,11 +69,16 @@ class CollectionController(
         return collectionService.getCollectionByStudyIdAndByName(studyId, collectionName)
     }
 
+    // As of 2026-09, no consumer we checked (carp-portal, carp.sensing-flutter, carp-client-ts) calls
+    // this endpoint at all — the query param appears entirely unused. Candidate for outright removal
+    // once that's confirmed with any other consumers, independently of Document/File below (see their
+    // own removal notes — each is unused on a different timeline).
     @GetMapping
     @PreAuthorize("canManageStudy(#studyId) or canLimitedManageStudy(#studyId)")
     @ResponseStatus(HttpStatus.OK)
     fun getAll(
         @PathVariable(PathVariableName.STUDY_ID) studyId: UUID,
+        @Parameter(deprecated = true, description = "Deprecated. Will be removed in a future release.")
         @RequestParam(RequestParamName.QUERY, required = true) query: String?,
     ): List<Collection> {
         LOGGER.info("Start GET: /api/studies/$studyId/collections?query=$query")

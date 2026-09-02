@@ -13,6 +13,7 @@ import dk.cachet.carp.webservices.document.dto.UpdateDocumentRequestDto
 import dk.cachet.carp.webservices.document.service.DocumentService
 import dk.cachet.carp.webservices.document.service.impl.DocumentTraverser
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
 import org.apache.logging.log4j.LogManager
@@ -47,10 +48,16 @@ class DocumentController(
         const val DEFAULT_PAGE_SIZE = 1000
     }
 
+    // As of 2026-09, no live consumer uses this. carp.sensing-flutter has a query-building code path
+    // for it (collection_id==...) but it's commented out in production behind a "query interface does
+    // not work" TODO — so it's dead code there too. Candidate for outright removal once that's
+    // confirmed with any other consumers, independently of Collection/File (see their own removal
+    // notes — each is unused on a different timeline).
     @GetMapping(value = [DOCUMENTS])
     @PreAuthorize("canManageStudy(#studyId) or canLimitedManageStudy(#studyId)")
     @ResponseStatus(HttpStatus.OK)
     fun getAll(
+        @Parameter(deprecated = true, description = "Deprecated. Will be removed in a future release.")
         @RequestParam(RequestParamName.QUERY) query: String?,
         @RequestParam(RequestParamName.SORT, required = false) sort: String?,
         @RequestParam(RequestParamName.PAGE, required = false) page: Int?,
