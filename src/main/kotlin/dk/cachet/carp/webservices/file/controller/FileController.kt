@@ -7,6 +7,7 @@ import dk.cachet.carp.webservices.file.domain.File
 import dk.cachet.carp.webservices.file.service.FileService
 import dk.cachet.carp.webservices.security.authentication.service.AuthenticationService
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.springframework.core.io.Resource
@@ -43,15 +44,28 @@ class FileController(private val fileService: FileService, private val authentic
         return fileService.getOne(fileId)
     }
 
+    // As of 2026-09, the only known live use of the general RSQL `query` filter across any consumer we
+    // checked (carp-portal, carp.sensing-flutter, carp-client-ts) was carp.sensing-flutter's exact
+    // original_name==<name> file lookup — everything else either omits query entirely or doesn't call
+    // this endpoint at all. `originalName` below is the dedicated, RSQL-free replacement for that one
+    // use case: it's the parameter to keep and to point new/updated clients at. `query` stays working
+    // (with the scope-bypass fixed) only until that client migrates — at which point it, unlike
+    // Collection/Document's `query`, should become removable too. Don't assume it's unused yet.
     @GetMapping(FILE_BASE)
     @PreAuthorize("canManageStudy(#studyId) or canLimitedManageStudy(#studyId)")
     @ResponseStatus(HttpStatus.OK)
     fun getAll(
         @PathVariable(PathVariableName.STUDY_ID) studyId: UUID,
-        @RequestParam(RequestParamName.QUERY) query: String?,
+        @Parameter(
+            deprecated = true,
+            description = "Deprecated — prefer original_name where possible. Will be removed in a future release.",
+        )
+        @RequestParam(RequestParamName.QUERY, required = false) query: String?,
+        // The confirmed-live, RSQL-free replacement for the original_name==<name> pattern above — keep.
+        @RequestParam(RequestParamName.ORIGINAL_NAME, required = false) originalName: String?,
     ): List<File> {
         LOGGER.info("Start GET: /api/studies/$studyId/files")
-        return fileService.getAll(query, studyId.stringRepresentation)
+        return fileService.getAll(query, originalName, studyId.stringRepresentation)
     }
 
     @GetMapping(

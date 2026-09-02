@@ -4,9 +4,11 @@ import cz.jirutka.rsql.parser.RSQLParser
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.webservices.common.configuration.internationalisation.service.MessageBase
 import dk.cachet.carp.webservices.common.exception.responses.ResourceNotFoundException
+import dk.cachet.carp.webservices.common.query.QueryUtil
 import dk.cachet.carp.webservices.common.query.QueryVisitor
 import dk.cachet.carp.webservices.export.service.ResourceExporter
 import dk.cachet.carp.webservices.file.domain.File
+import dk.cachet.carp.webservices.file.filter.FileSpecifications
 import dk.cachet.carp.webservices.file.repository.FileRepository
 import dk.cachet.carp.webservices.file.service.FileService
 import dk.cachet.carp.webservices.file.service.FileStorage
@@ -51,29 +53,43 @@ class FileServiceImpl(
 
     override fun getAll(
         query: String?,
+        originalName: String?,
         studyId: String,
     ): List<File> {
         val id = authenticationService.getId()
         val role = authenticationService.getRole()
         val isFullyAuthorized = role >= Role.RESEARCH_ASSISTANT
 
+        if (originalName != null) {
+            return if (isFullyAuthorized) {
+                fileRepository.findByStudyIdAndOriginalName(studyId, originalName)
+            } else {
+                fileRepository.findByStudyIdAndOriginalNameAndCreatedBy(studyId, originalName, id.stringRepresentation)
+            }
+        }
+
         if (isFullyAuthorized && query == null) {
             return fileRepository.findByStudyId(studyId)
-        } else {
-            query?.let {
-                val queryForRole =
-                    if (!isFullyAuthorized) {
-                        // Return data relevant to this user only.
-                        "$query;created_by==$id;study_id==$studyId"
-                    } else {
-                        // Return data relevant to this study.
-                        "$query;study_id==$studyId"
-                    }
-                val specification = RSQLParser().parse(queryForRole).accept(QueryVisitor<File>())
-                return fileRepository.findAll(specification)
-            }
-            return fileRepository.findByStudyIdAndCreatedBy(studyId, id.stringRepresentation)
         }
+
+        val validatedQuery = query?.let { QueryUtil.validateQuery(it) }
+        validatedQuery?.let {
+            var specification =
+                RSQLParser()
+                    .parse(validatedQuery)
+                    .accept(QueryVisitor<File>())
+                    .and(FileSpecifications.belongsToStudyId(studyId))
+
+            if (!isFullyAuthorized) {
+                // Return data relevant to this user only.
+                val belongsToUserSpec = FileSpecifications.belongsToUserAccountId(id.stringRepresentation)
+                specification = specification.and(belongsToUserSpec)
+            }
+
+            return fileRepository.findAll(specification)
+        }
+
+        return fileRepository.findByStudyIdAndCreatedBy(studyId, id.stringRepresentation)
     }
 
     override fun getOne(id: Int): File {
@@ -213,7 +229,7 @@ class FileServiceImpl(
         deploymentIds: Set<UUID>,
         target: Path,
     ) = withContext(Dispatchers.IO) {
-        getAll(null, studyId.stringRepresentation).onEach {
+        getAll(query = null, originalName = null, studyId = studyId.stringRepresentation).onEach {
             val resource =
                 fileStorage.getResourceAtPath(
                     it.fileName,

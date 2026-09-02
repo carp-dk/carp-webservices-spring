@@ -18,6 +18,17 @@ interface FileRepository : JpaRepository<File, Int>, JpaSpecificationExecutor<Fi
 
     fun findByStudyId(studyId: String): List<File>
 
+    fun findByStudyIdAndOriginalName(
+        studyId: String,
+        originalName: String,
+    ): List<File>
+
+    fun findByStudyIdAndOriginalNameAndCreatedBy(
+        studyId: String,
+        originalName: String,
+        createdBy: String,
+    ): List<File>
+
     fun getAllByUpdatedAtIsBefore(updatedAtBefore: Instant): MutableList<File>
 }
 
