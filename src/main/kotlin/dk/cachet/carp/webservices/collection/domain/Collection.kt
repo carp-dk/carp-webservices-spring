@@ -4,6 +4,7 @@ import dk.cachet.carp.webservices.common.audit.Auditable
 import dk.cachet.carp.webservices.document.domain.Document
 import jakarta.persistence.*
 import jakarta.validation.constraints.NotNull
+import org.hibernate.annotations.BatchSize
 import org.hibernate.annotations.DynamicUpdate
 import tools.jackson.databind.PropertyNamingStrategies
 import tools.jackson.databind.annotation.JsonNaming
@@ -25,5 +26,6 @@ data class Collection(
     @OneToMany(cascade = [CascadeType.ALL], fetch = FetchType.LAZY, orphanRemoval = true)
     @JoinColumn(name = "collectionId")
     @OrderBy("createdAt desc")
+    @BatchSize(size = 25)
     var documents: List<Document>? = null,
 ) : Auditable(), Serializable
