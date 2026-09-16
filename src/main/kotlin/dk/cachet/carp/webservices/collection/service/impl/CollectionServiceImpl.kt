@@ -96,7 +96,7 @@ class CollectionServiceImpl(
                 validationMessages.get("collection.studyId-and-collectionId.not_found", studyId, id),
             )
         }
-        return initializeDocuments(collectionOp.get())
+        return collectionOp.get()
     }
 
     override fun getCollectionByStudyIdAndByName(
@@ -110,7 +110,7 @@ class CollectionServiceImpl(
             LOGGER.info("Collection not yet created, studyId: $studyId, collection name: $name. Returning empty.")
             return Collection(name = name, studyId = studyId, documents = emptyList())
         }
-        return initializeDocuments(collectionOp.get())
+        return collectionOp.get()
     }
 
     /**
@@ -126,10 +126,17 @@ class CollectionServiceImpl(
                 .parse(validatedQuery)
                 .accept(QueryVisitor<Collection>())
                 .and(CollectionSpecifications.belongsToStudyId(studyId))
-        return initializeDocuments(collectionRepository.findAll(specification))
+        // Unlike the other read paths, this one can't be fetch-joined at the repository level: the
+        // Specification is built generically from caller-supplied RSQL, so there's no fixed query to
+        // attach a JOIN FETCH to. open-in-view is disabled, so documents must be initialized before
+        // the transaction (and the Hibernate session with it) closes, or serializing the response
+        // later throws LazyInitializationException. @BatchSize on Collection.documents groups these
+        // into batched IN (...) queries rather than one per row.
+        return collectionRepository.findAll(specification)
+            .also { collections -> collections.forEach { Hibernate.initialize(it.documents) } }
     }
 
-    override fun getAll(studyId: String): List<Collection> {
+    override fun getAllMetadataOnly(studyId: String): List<Collection> {
         return collectionRepository.findAllByStudyId(studyId)
     }
 
@@ -137,15 +144,6 @@ class CollectionServiceImpl(
         studyId: String,
         deploymentId: String,
     ): List<Collection> {
-        return initializeDocuments(collectionRepository.findAllByStudyIdAndDeploymentId(studyId, deploymentId))
+        return collectionRepository.findAllByStudyIdAndDeploymentId(studyId, deploymentId)
     }
-
-    // open-in-view is disabled, so documents must be initialized before the transaction (and the Hibernate
-    // session with it) closes, or serializing the response later throws LazyInitializationException.
-    // @BatchSize on Collection.documents groups these into batched IN (...) queries rather than one per row.
-    private fun initializeDocuments(collection: Collection): Collection =
-        collection.also { Hibernate.initialize(it.documents) }
-
-    private fun initializeDocuments(collections: List<Collection>): List<Collection> =
-        collections.also { list -> list.forEach { Hibernate.initialize(it.documents) } }
 }

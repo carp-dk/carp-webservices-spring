@@ -186,7 +186,7 @@ class DocumentServiceImpl(
         target: Path,
     ) = withContext(Dispatchers.IO) {
         val collections =
-            collectionService.getAll(studyId.stringRepresentation)
+            collectionService.getAllMetadataOnly(studyId.stringRepresentation)
                 .filter {
                     it.studyDeploymentId.isNullOrBlank() ||
                         it.studyDeploymentId in deploymentIds.map { d -> d.stringRepresentation }

@@ -343,7 +343,7 @@ class CollectionServiceImplTest {
     @Nested
     inner class GetAll {
         @Test
-        fun `all collections are returned when no query specified`() {
+        fun `getAllMetadataOnly returns all collections for the study`() {
             val mockStudyId = "123"
             val mockCollections = listOf(mockk<Collection>(relaxed = true))
             every { collectionRepository.findAllByStudyId(mockStudyId) } returns mockCollections
@@ -355,7 +355,7 @@ class CollectionServiceImplTest {
                     validationMessages,
                 )
 
-            val result = sut.getAll(mockStudyId)
+            val result = sut.getAllMetadataOnly(mockStudyId)
 
             assertEquals(mockCollections, result)
         }

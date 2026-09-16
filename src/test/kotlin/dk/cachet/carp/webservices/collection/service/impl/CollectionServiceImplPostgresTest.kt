@@ -161,8 +161,8 @@ class CollectionServiceImplPostgresTest {
     }
 
     @Test
-    fun `export's metadata-only getAll(studyId) leaves documents uninitialized`() {
-        val result = collectionService.getAll(studyId)
+    fun `export's metadata-only getAllMetadataOnly leaves documents uninitialized`() {
+        val result = collectionService.getAllMetadataOnly(studyId)
 
         assertEquals(1, result.size)
         assertFailsWith<LazyInitializationException> { result.single().documents?.size }
