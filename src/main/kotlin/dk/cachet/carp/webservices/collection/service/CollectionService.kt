@@ -37,6 +37,11 @@ interface CollectionService {
         query: String?,
     ): List<Collection>
 
+    /**
+     * Metadata-only lookup: unlike the other `getAll` variants, this does not initialize [Collection.documents],
+     * since its only caller (export) filters on id/studyDeploymentId and fetches documents separately. Don't add
+     * document initialization here without checking that caller.
+     */
     fun getAll(studyId: String): List<Collection>
 
     fun getAllByStudyIdAndDeploymentId(

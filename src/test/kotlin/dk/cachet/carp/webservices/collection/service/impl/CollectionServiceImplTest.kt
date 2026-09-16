@@ -21,7 +21,6 @@ import jakarta.persistence.criteria.Predicate
 import jakarta.persistence.criteria.Root
 import org.junit.jupiter.api.Nested
 import org.springframework.data.jpa.domain.Specification
-import tools.jackson.databind.ObjectMapper
 import java.util.*
 import kotlin.test.*
 
@@ -30,7 +29,6 @@ class CollectionServiceImplTest {
     private val accountService: AccountService = mockk()
     private val authenticationService: AuthenticationService = mockk()
     private val validationMessages: MessageBase = mockk()
-    private val objectMapper: ObjectMapper = mockk()
 
     @Nested
     inner class Delete {
@@ -52,14 +50,12 @@ class CollectionServiceImplTest {
                     setOf(Claim.CollectionOwner(mockCollection.id)),
                 )
             } returns mockk<Account>()
-            coEvery { objectMapper.writeValueAsString(mockCollection) } returns ""
             val sut =
                 CollectionServiceImpl(
                     collectionRepository,
                     accountService,
                     authenticationService,
                     validationMessages,
-                    objectMapper,
                 )
 
             sut.delete(mockStudyId, mockId)
@@ -98,7 +94,6 @@ class CollectionServiceImplTest {
                     accountService,
                     authenticationService,
                     validationMessages,
-                    objectMapper,
                 )
 
             assertFailsWith(ResourceNotFoundException::class) {
@@ -123,14 +118,12 @@ class CollectionServiceImplTest {
                 Optional.of(
                     collection,
                 )
-            coEvery { objectMapper.writeValueAsString(ofType<Collection>()) } returns ""
             val sut =
                 CollectionServiceImpl(
                     collectionRepository,
                     accountService,
                     authenticationService,
                     validationMessages,
-                    objectMapper,
                 )
 
             val result = sut.update(mockStudyId, mockId, updateRequest)
@@ -157,7 +150,6 @@ class CollectionServiceImplTest {
                     accountService,
                     authenticationService,
                     validationMessages,
-                    objectMapper,
                 )
 
             assertFailsWith(ResourceNotFoundException::class) {
@@ -197,7 +189,6 @@ class CollectionServiceImplTest {
                     accountService,
                     authenticationService,
                     validationMessages,
-                    objectMapper,
                 )
 
             val result = sut.create(mockRequest, mockStudyId, mockDeploymentId)
@@ -238,7 +229,6 @@ class CollectionServiceImplTest {
                     accountService,
                     authenticationService,
                     validationMessages,
-                    objectMapper,
                 )
 
             assertFailsWith(AlreadyExistsException::class) {
@@ -260,14 +250,12 @@ class CollectionServiceImplTest {
                 Optional.of(
                     mockCollection,
                 )
-            coEvery { objectMapper.writeValueAsString(mockCollection) } returns ""
             val sut =
                 CollectionServiceImpl(
                     collectionRepository,
                     accountService,
                     authenticationService,
                     validationMessages,
-                    objectMapper,
                 )
 
             val result = sut.getCollectionByStudyIdAndId(mockStudyId, mockId)
@@ -292,7 +280,6 @@ class CollectionServiceImplTest {
                     accountService,
                     authenticationService,
                     validationMessages,
-                    objectMapper,
                 )
 
             assertFailsWith(ResourceNotFoundException::class) {
@@ -312,14 +299,12 @@ class CollectionServiceImplTest {
                 Optional.of(
                     mockCollection,
                 )
-            coEvery { objectMapper.writeValueAsString(mockCollection) } returns ""
             val sut =
                 CollectionServiceImpl(
                     collectionRepository,
                     accountService,
                     authenticationService,
                     validationMessages,
-                    objectMapper,
                 )
 
             val result = sut.getCollectionByStudyIdAndByName(mockStudyId, mockName)
@@ -343,7 +328,6 @@ class CollectionServiceImplTest {
                     accountService,
                     authenticationService,
                     validationMessages,
-                    objectMapper,
                 )
 
             // A missing collection is an expected state (created lazily on first document), not a 404.
@@ -369,7 +353,6 @@ class CollectionServiceImplTest {
                     accountService,
                     authenticationService,
                     validationMessages,
-                    objectMapper,
                 )
 
             val result = sut.getAll(mockStudyId)
@@ -392,7 +375,6 @@ class CollectionServiceImplTest {
                     accountService,
                     authenticationService,
                     validationMessages,
-                    objectMapper,
                 )
 
             val result = sut.getAll(mockStudyId, mockQuery)
@@ -418,7 +400,6 @@ class CollectionServiceImplTest {
                     accountService,
                     authenticationService,
                     validationMessages,
-                    objectMapper,
                 )
 
             // A comma is RSQL's OR operator; a naive "$query;study_id==X" concatenation would let this
@@ -473,7 +454,6 @@ class CollectionServiceImplTest {
                     accountService,
                     authenticationService,
                     validationMessages,
-                    objectMapper,
                 )
 
             val result = sut.getAllByStudyIdAndDeploymentId(mockStudyId, mockDeploymentId)

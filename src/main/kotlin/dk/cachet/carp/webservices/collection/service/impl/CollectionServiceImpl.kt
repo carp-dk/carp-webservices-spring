@@ -18,9 +18,9 @@ import dk.cachet.carp.webservices.security.authorization.Claim
 import kotlinx.coroutines.runBlocking
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
+import org.hibernate.Hibernate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import tools.jackson.databind.ObjectMapper
 
 @Service
 @Transactional
@@ -29,7 +29,6 @@ class CollectionServiceImpl(
     private val accountService: AccountService,
     private val authenticationService: AuthenticationService,
     private val validationMessages: MessageBase,
-    private val objectMapper: ObjectMapper,
 ) : CollectionService {
     companion object {
         private val LOGGER: Logger = LogManager.getLogger()
@@ -97,9 +96,7 @@ class CollectionServiceImpl(
                 validationMessages.get("collection.studyId-and-collectionId.not_found", studyId, id),
             )
         }
-        val collection = collectionOp.get()
-        objectMapper.writeValueAsString(collection)
-        return collection
+        return initializeDocuments(collectionOp.get())
     }
 
     override fun getCollectionByStudyIdAndByName(
@@ -113,9 +110,7 @@ class CollectionServiceImpl(
             LOGGER.info("Collection not yet created, studyId: $studyId, collection name: $name. Returning empty.")
             return Collection(name = name, studyId = studyId, documents = emptyList())
         }
-        val collection = collectionOp.get()
-        objectMapper.writeValueAsString(collection)
-        return collection
+        return initializeDocuments(collectionOp.get())
     }
 
     /**
@@ -131,7 +126,7 @@ class CollectionServiceImpl(
                 .parse(validatedQuery)
                 .accept(QueryVisitor<Collection>())
                 .and(CollectionSpecifications.belongsToStudyId(studyId))
-        return collectionRepository.findAll(specification)
+        return initializeDocuments(collectionRepository.findAll(specification))
     }
 
     override fun getAll(studyId: String): List<Collection> {
@@ -142,6 +137,15 @@ class CollectionServiceImpl(
         studyId: String,
         deploymentId: String,
     ): List<Collection> {
-        return collectionRepository.findAllByStudyIdAndDeploymentId(studyId, deploymentId)
+        return initializeDocuments(collectionRepository.findAllByStudyIdAndDeploymentId(studyId, deploymentId))
     }
+
+    // open-in-view is disabled, so documents must be initialized before the transaction (and the Hibernate
+    // session with it) closes, or serializing the response later throws LazyInitializationException.
+    // @BatchSize on Collection.documents groups these into batched IN (...) queries rather than one per row.
+    private fun initializeDocuments(collection: Collection): Collection =
+        collection.also { Hibernate.initialize(it.documents) }
+
+    private fun initializeDocuments(collections: List<Collection>): List<Collection> =
+        collections.also { list -> list.forEach { Hibernate.initialize(it.documents) } }
 }
