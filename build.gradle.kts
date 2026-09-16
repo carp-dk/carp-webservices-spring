@@ -169,6 +169,7 @@ dependencies {
         exclude("org.junit.vintage", "junit-vintage-engine")
         exclude("org.mockito", "mockito-core")
     }
+    testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
 
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
 }
