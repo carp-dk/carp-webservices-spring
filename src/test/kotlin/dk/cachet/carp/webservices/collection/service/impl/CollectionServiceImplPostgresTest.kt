@@ -4,6 +4,7 @@ import com.ninjasquad.springmockk.MockkBean
 import dk.cachet.carp.webservices.account.service.AccountService
 import dk.cachet.carp.webservices.collection.domain.Collection
 import dk.cachet.carp.webservices.collection.repository.CollectionRepository
+import dk.cachet.carp.webservices.common.audit.JpaAuditConfiguration
 import dk.cachet.carp.webservices.common.configuration.internationalisation.service.MessageBase
 import dk.cachet.carp.webservices.document.domain.Document
 import dk.cachet.carp.webservices.document.repository.DocumentRepository
@@ -11,6 +12,7 @@ import dk.cachet.carp.webservices.security.authentication.service.Authentication
 import jakarta.persistence.EntityManagerFactory
 import org.hibernate.LazyInitializationException
 import org.hibernate.SessionFactory
+import org.hibernate.stat.Statistics
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -29,7 +31,6 @@ import tools.jackson.databind.json.JsonMapper
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
 
 /**
  * Exercises the real [CollectionServiceImpl] against a real Postgres, not just raw Hibernate: a
@@ -45,7 +46,9 @@ import kotlin.test.assertTrue
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import(CollectionServiceImpl::class)
+// JpaAuditConfiguration enables @CreatedDate population (createdAt), which the @OrderBy("createdAt
+// desc") ordering assertions below depend on - @DataJpaTest doesn't pull this in on its own.
+@Import(CollectionServiceImpl::class, JpaAuditConfiguration::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 @Testcontainers(disabledWithoutDocker = true)
 // Without this, the cached ApplicationContext's connection pool outlives the Testcontainers
@@ -94,6 +97,9 @@ class CollectionServiceImplPostgresTest {
             collectionRepository.save(Collection(name = "c1", studyId = studyId, studyDeploymentId = deploymentId))
         collectionId = collection.id
         documentRepository.save(Document(name = "doc-1", collectionId = collectionId))
+        // A gap wide enough that createdAt reliably differs, so @OrderBy("createdAt desc") has an
+        // unambiguous newest-first order to assert on below.
+        Thread.sleep(5)
         documentRepository.save(Document(name = "doc-2", collectionId = collectionId))
     }
 
@@ -101,6 +107,8 @@ class CollectionServiceImplPostgresTest {
     fun `getCollectionByStudyIdAndId serializes successfully after the transaction closes`() {
         val result = collectionService.getCollectionByStudyIdAndId(studyId, collectionId)
 
+        // @OrderBy("createdAt desc") on Collection.documents - doc-2 was created after doc-1.
+        assertEquals(listOf("doc-2", "doc-1"), result.documents?.map { it.name })
         val json = mapper.writeValueAsString(result)
         assertContains(json, "doc-1")
         assertContains(json, "doc-2")
@@ -130,13 +138,46 @@ class CollectionServiceImplPostgresTest {
         val result = collectionService.getAllByStudyIdAndDeploymentId(studyId, deploymentId)
 
         assertEquals(1, result.size)
+        // @OrderBy("createdAt desc") on Collection.documents - doc-2 was created after doc-1.
+        assertEquals(listOf("doc-2", "doc-1"), result.single().documents?.map { it.name })
         val json = mapper.writeValueAsString(result)
         assertContains(json, "doc-1")
         assertContains(json, "doc-2")
     }
 
     @Test
-    fun `loading documents for multiple collections stays batched, not one query per collection`() {
+    fun `getAllByStudyIdAndDeploymentId loads documents for multiple collections in a single fetch-joined query`() {
+        seedFourMoreCollectionsWithADocumentEach()
+
+        val statistics = enableStatementCounting()
+
+        val result = collectionService.getAllByStudyIdAndDeploymentId(studyId, deploymentId)
+
+        assertEquals(5, result.size)
+        // findAllByStudyIdAndDeploymentId is a single `LEFT JOIN FETCH` query - collections and their
+        // documents come back together in one round trip, not via a separate lazy-loaded query.
+        assertEquals(1, statistics.prepareStatementCount)
+    }
+
+    @Test
+    fun `getAll with RSQL query batch-loads documents for multiple collections, not one query per collection`() {
+        seedFourMoreCollectionsWithADocumentEach()
+
+        val statistics = enableStatementCounting()
+
+        // Unlike getAllByStudyIdAndDeploymentId, this path can't be fetch-joined (see
+        // CollectionServiceImpl.getAll) and relies on @BatchSize(25) instead - matches all 5
+        // collections seeded under this studyId. RSQL field names are snake_case (QueryUtil.toCamelCase
+        // converts them to the JPA property name), unlike the studyId used directly elsewhere here.
+        val result = collectionService.getAll(studyId, "study_id=='$studyId'")
+
+        assertEquals(5, result.size)
+        // One query for the collections themselves plus one batched `documents` query grouping all
+        // five parents (@BatchSize(25) easily covers 5) - not five separate per-collection queries.
+        assertEquals(2, statistics.prepareStatementCount)
+    }
+
+    private fun seedFourMoreCollectionsWithADocumentEach() {
         (1..4).forEach { i ->
             val extra =
                 collectionRepository.save(
@@ -144,20 +185,13 @@ class CollectionServiceImplPostgresTest {
                 )
             documentRepository.save(Document(name = "extra-doc-$i", collectionId = extra.id))
         }
+    }
 
+    private fun enableStatementCounting(): Statistics {
         val statistics = entityManagerFactory.unwrap(SessionFactory::class.java).statistics
         statistics.isStatisticsEnabled = true
         statistics.clear()
-
-        val result = collectionService.getAllByStudyIdAndDeploymentId(studyId, deploymentId)
-
-        assertEquals(5, result.size)
-        // One query for the collections themselves plus one batched `documents` query grouping all
-        // five parents (@BatchSize(25) easily covers 5) - not five separate per-collection queries.
-        assertTrue(
-            statistics.prepareStatementCount <= 3,
-            "expected collections + one batched documents query, got ${statistics.prepareStatementCount} statements",
-        )
+        return statistics
     }
 
     @Test
