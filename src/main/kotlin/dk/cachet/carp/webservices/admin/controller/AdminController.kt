@@ -81,7 +81,7 @@ class AdminController(
     )
     @GetMapping(RESEARCHERS)
     @PreAuthorize("isAdmin()")
-    suspend fun getResearchers(): List<AdminResearcherDto> {
+    suspend fun getResearcherAccounts(): List<AdminResearcherDto> {
         LOGGER.info("Start GET: $ADMIN_BASE$RESEARCHERS")
         return adminResearcherService.getResearchers()
     }

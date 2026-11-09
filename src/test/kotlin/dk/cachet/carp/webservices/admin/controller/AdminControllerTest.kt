@@ -124,7 +124,7 @@ class AdminControllerTest {
     @Test
     fun `every admin endpoint requires the admin role`() {
         val handlers = AdminController::class.declaredMemberFunctions
-        val expected = setOf("getServerInfo", "getStudies", "getResearchers", "setAnnouncement")
+        val expected = setOf("getServerInfo", "getStudies", "getResearcherAccounts", "setAnnouncement")
         assertEquals(expected, handlers.map { it.name }.toSet())
         handlers.forEach { assertEquals("isAdmin()", it.findAnnotation<PreAuthorize>()?.value, it.name) }
     }
