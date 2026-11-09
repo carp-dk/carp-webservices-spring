@@ -144,6 +144,8 @@ com:
           - /doc/**
           # Public, unauthenticated self-signup by short code - see SelfSignupController.
           - /api/self-signup/**
+          # Public read of the system announcement - see AnnouncementController.
+          - /api/announcement
         ops:
           - iss: ${keycloak.auth-server-url}/realms/${keycloak.realm}
             username-claim: preferred_username

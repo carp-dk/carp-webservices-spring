@@ -5,6 +5,7 @@ import com.c4_soft.springaddons.security.oidc.spring.SpringAddonsMethodSecurityE
 import com.c4_soft.springaddons.security.oidc.starter.synchronised.resourceserver.DefaultSpringAddonsJwtDecoderFactory
 import com.c4_soft.springaddons.security.oidc.starter.synchronised.resourceserver.SpringAddonsJwtDecoderFactory
 import dk.cachet.carp.common.application.UUID
+import dk.cachet.carp.webservices.admin.controller.AnnouncementController
 import dk.cachet.carp.webservices.security.authentication.service.AuthenticationService
 import dk.cachet.carp.webservices.security.authorization.Claim
 import dk.cachet.carp.webservices.security.authorization.Role
@@ -17,6 +18,8 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver
+import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver
 import org.springframework.web.client.RestTemplate
 import java.time.Duration
 
@@ -56,6 +59,21 @@ class SecurityConfig {
                 setReadTimeout(readTimeout)
             }
         return DefaultSpringAddonsJwtDecoderFactory(RestTemplate(requestFactory))
+    }
+
+    /**
+     * Listing a path under permit-all doesn't stop the resource server from rejecting a bad token: a public
+     * request that carries an expired or invalid bearer token is still answered 401. Clients attach their token
+     * to every call, so the public system announcement ignores it; otherwise a signed-in user whose token has
+     * lapsed would miss e.g. a maintenance notice. Spring Security picks up this bean for the resource server.
+     */
+    @Bean
+    fun bearerTokenResolver(): BearerTokenResolver {
+        val default = DefaultBearerTokenResolver()
+        return BearerTokenResolver { request ->
+            val path = request.requestURI.removePrefix(request.contextPath)
+            if (path == AnnouncementController.ANNOUNCEMENT) null else default.resolve(request)
+        }
     }
 
     @PostConstruct
