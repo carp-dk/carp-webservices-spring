@@ -21,9 +21,11 @@ import dk.cachet.carp.webservices.study.dto.AddParticipantsRequestDto
 import dk.cachet.carp.webservices.study.dto.DeploymentStatusCountsDto
 import dk.cachet.carp.webservices.study.dto.ParticipantAccountsRequestDto
 import dk.cachet.carp.webservices.study.dto.ParticipantAccountsResponseDto
+import dk.cachet.carp.webservices.study.dto.StudyDataUploadsDto
 import dk.cachet.carp.webservices.study.serdes.RecruitmentRequestSerializer
 import dk.cachet.carp.webservices.study.serdes.StudyRequestSerializer
 import dk.cachet.carp.webservices.study.service.RecruitmentService
+import dk.cachet.carp.webservices.study.service.StudyDataUploadService
 import dk.cachet.carp.webservices.study.service.StudyService
 import io.swagger.v3.oas.annotations.Operation
 import jakarta.validation.Valid
@@ -42,6 +44,7 @@ class StudyController(
     private val accountService: AccountService,
     private val studyService: StudyService,
     private val recruitmentService: RecruitmentService,
+    private val studyDataUploadService: StudyDataUploadService,
 ) {
     companion object {
         val LOGGER: Logger = LogManager.getLogger()
@@ -60,6 +63,7 @@ class StudyController(
         const val GET_PARTICIPANT_GROUP_COUNTS = "/api/studies/{${PathVariableName.STUDY_ID}}/participantGroup/counts"
         const val ADD_PARTICIPANTS = "/api/studies/{${PathVariableName.STUDY_ID}}/participants/add"
         const val GET_INACTIVE_DEPLOYMENTS = "/api/studies/{${PathVariableName.STUDY_ID}}/inactive_deployments"
+        const val GET_DATA_UPLOADS = "/api/studies/{${PathVariableName.STUDY_ID}}/data-uploads"
     }
 
     @PostMapping(value = [ADD_RESEARCHER])
@@ -199,6 +203,22 @@ class StudyController(
     ): List<InactiveDeploymentInfo> {
         LOGGER.info("Start GET: /api/studies/$studyId/participants/inactive")
         return runBlocking { recruitmentService.getInactiveDeployments(studyId, lastUpdate, offset, limit) }
+    }
+
+    @Operation(
+        summary = "Data uploaded to a study",
+        description =
+            "Totals across the data streams of the study's deployed participant groups: data streams, " +
+                "measurements and last upload time. Computed on request (one index lookup per data stream) " +
+                "with a statement timeout.",
+    )
+    @GetMapping(value = [GET_DATA_UPLOADS])
+    @PreAuthorize("canManageStudy(#studyId) or canLimitedManageStudy(#studyId)")
+    suspend fun getDataUploads(
+        @PathVariable(PathVariableName.STUDY_ID) studyId: UUID,
+    ): StudyDataUploadsDto {
+        LOGGER.info("Start GET: /api/studies/$studyId/data-uploads")
+        return studyDataUploadService.getDataUploads(studyId)
     }
 
     @Operation(tags = ["study/recruitments.json"])

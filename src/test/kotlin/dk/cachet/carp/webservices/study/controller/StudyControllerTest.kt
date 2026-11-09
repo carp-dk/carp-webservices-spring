@@ -6,7 +6,9 @@ import dk.cachet.carp.webservices.common.exception.responses.BadRequestException
 import dk.cachet.carp.webservices.security.authentication.service.AuthenticationService
 import dk.cachet.carp.webservices.study.domain.ParticipantGroupsStatus
 import dk.cachet.carp.webservices.study.dto.ParticipantAccountsResponseDto
+import dk.cachet.carp.webservices.study.dto.StudyDataUploadsDto
 import dk.cachet.carp.webservices.study.service.RecruitmentService
+import dk.cachet.carp.webservices.study.service.StudyDataUploadService
 import dk.cachet.carp.webservices.study.service.StudyService
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -14,11 +16,15 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
 import org.springframework.http.MediaType
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.post
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
+import java.time.Instant
+import kotlin.reflect.full.findAnnotation
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class StudyControllerTest {
@@ -26,6 +32,7 @@ class StudyControllerTest {
     private val accountService: AccountService = mockk()
     private val studyService: StudyService = mockk()
     private val recruitmentService: RecruitmentService = mockk()
+    private val studyDataUploadService: StudyDataUploadService = mockk()
     private lateinit var mockMvc: MockMvc
 
     @BeforeTest
@@ -33,7 +40,7 @@ class StudyControllerTest {
         mockMvc =
             MockMvcBuilders.standaloneSetup(
                 StudyController(
-                    authenticationService, accountService, studyService, recruitmentService,
+                    authenticationService, accountService, studyService, recruitmentService, studyDataUploadService,
                 ),
             ).build()
     }
@@ -127,7 +134,13 @@ class StudyControllerTest {
         // The handler is a suspend function, so validation happens in the coroutine body; invoke it
         // directly rather than through MockMvc (which would need async dispatch to observe the result).
         private val controller =
-            StudyController(authenticationService, accountService, studyService, recruitmentService)
+            StudyController(
+                authenticationService,
+                accountService,
+                studyService,
+                recruitmentService,
+                studyDataUploadService,
+            )
 
         @Test
         fun `rejects page without size`() {
@@ -215,6 +228,38 @@ class StudyControllerTest {
                     recruitmentService.getParticipantGroupsStatus(studyId, 0, 8, null, null)
                 }
             }
+        }
+    }
+
+    @Nested
+    inner class GetDataUploads {
+        // Called directly, like the participant-group tests, instead of through MockMvc's async dispatch.
+        private val controller =
+            StudyController(
+                authenticationService,
+                accountService,
+                studyService,
+                recruitmentService,
+                studyDataUploadService,
+            )
+
+        @Test
+        fun `returns the study's upload totals`() =
+            runTest {
+                val studyId = UUID.randomUUID()
+                val uploads =
+                    StudyDataUploadsDto(studyId.stringRepresentation, 3, 30, Instant.parse("2025-09-01T12:00:00Z"))
+                coEvery { studyDataUploadService.getDataUploads(studyId) } returns uploads
+
+                assertEquals(uploads, controller.getDataUploads(studyId))
+            }
+
+        @Test
+        fun `is open to the study's researchers and assistants, and so to admins`() {
+            assertEquals(
+                "canManageStudy(#studyId) or canLimitedManageStudy(#studyId)",
+                StudyController::getDataUploads.findAnnotation<PreAuthorize>()?.value,
+            )
         }
     }
 }
