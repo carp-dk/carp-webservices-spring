@@ -2,6 +2,7 @@ package dk.cachet.carp.webservices.study.dto
 
 import dk.cachet.carp.webservices.study.domain.ParticipantOrderBy
 import dk.cachet.carp.webservices.study.domain.SortDirection
+import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.AssertTrue
 import jakarta.validation.constraints.Min
 
@@ -21,6 +22,8 @@ data class ParticipantAccountsRequestDto(
     @field:Min(1)
     val size: Int? = null,
     val search: String? = null,
+    // Named explicitly so the OpenAPI schema matches the JSON; see AdminStudyDto.isLive.
+    @get:Schema(name = "isDeployed")
     val isDeployed: Boolean? = null,
     val sortDirection: SortDirection? = null,
     val sortBy: ParticipantOrderBy? = null,
