@@ -2,6 +2,7 @@ package dk.cachet.carp.webservices.admin.repository
 
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.webservices.admin.domain.AdminStudyRow
+import dk.cachet.carp.webservices.admin.domain.OwnedStudyCounts
 import dk.cachet.carp.webservices.common.jdbc.StatementTimeoutException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -93,12 +94,14 @@ class AdminStudyStorePostgresTest {
         jdbc.update("INSERT INTO files (study_id) VALUES (?), (?)", activeStudy, activeStudy)
     }
 
+    @Suppress("LongParameterList")
     private fun insertStudy(
         studyId: String,
         name: String,
         isLive: Boolean,
         createdAt: String,
         applicationData: String? = null,
+        ownerId: String = owner,
     ) {
         val protocol = applicationData?.let { """, "protocolSnapshot": {"applicationData": ${jsonString(it)}}""" } ?: ""
         jdbc.update(
@@ -106,7 +109,7 @@ class AdminStudyStorePostgresTest {
                 "VALUES (CAST(? AS TIMESTAMP), CAST(? AS TIMESTAMP), CAST(? AS JSONB))",
             createdAt,
             createdAt,
-            """{"id": "$studyId", "name": "$name", "ownerId": "$owner", "isLive": $isLive$protocol}""",
+            """{"id": "$studyId", "name": "$name", "ownerId": "$ownerId", "isLive": $isLive$protocol}""",
         )
     }
 
@@ -183,6 +186,23 @@ class AdminStudyStorePostgresTest {
     fun `the live filter selects live or non-live studies`() {
         assertEquals(listOf(activeStudy), store.findAll(live = true).map { it.studyId })
         assertEquals(listOf(draftStudy), store.findAll(live = false).map { it.studyId })
+    }
+
+    @Test
+    fun `counts owned and live studies per owner`() {
+        val otherOwner = UUID.randomUUID().stringRepresentation
+        insertStudy(
+            UUID.randomUUID().stringRepresentation,
+            "Other",
+            isLive = true,
+            createdAt = "2026-02-01 00:00:00",
+            ownerId = otherOwner,
+        )
+
+        assertEquals(
+            mapOf(owner to OwnedStudyCounts(2, 1), otherOwner to OwnedStudyCounts(1, 1)),
+            store.countStudiesByOwner(),
+        )
     }
 
     companion object {

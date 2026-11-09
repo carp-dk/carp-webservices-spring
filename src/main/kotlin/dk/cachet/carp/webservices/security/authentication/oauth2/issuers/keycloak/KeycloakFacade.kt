@@ -7,6 +7,7 @@ import dk.cachet.carp.common.application.users.UsernameAccountIdentity
 import dk.cachet.carp.webservices.common.environment.EnvironmentProfile
 import dk.cachet.carp.webservices.common.environment.EnvironmentUtil
 import dk.cachet.carp.webservices.security.authentication.domain.Account
+import dk.cachet.carp.webservices.security.authentication.domain.AccountSummary
 import dk.cachet.carp.webservices.security.authentication.oauth2.IssuerFacade
 import dk.cachet.carp.webservices.security.authentication.oauth2.issuers.keycloak.domain.*
 import dk.cachet.carp.webservices.security.authorization.Claim
@@ -79,6 +80,9 @@ class KeycloakFacade
 
             // A health probe must answer quickly; a Keycloak that takes longer than this is reported DOWN.
             private val REACHABILITY_TIMEOUT: Duration = Duration.ofSeconds(2)
+
+            // Page size when listing role members; Keycloak's own default page is 100.
+            const val ROLE_MEMBERS_PAGE_SIZE = 100
         }
 
         // Clock used for token-expiry timing. Production uses the system clock (the Spring constructor);
@@ -434,6 +438,47 @@ class KeycloakFacade
                     .awaitBody<Long>()
             }
         }
+
+        override suspend fun getAccountsWithRole(role: Role): List<AccountSummary> {
+            LOGGER.debug("Listing users with role ${role.name}")
+
+            val accounts = mutableListOf<AccountSummary>()
+            var first = 0
+            do {
+                val page =
+                    withAdminToken { token ->
+                        adminClient.get()
+                            .uri { builder ->
+                                builder.path("/roles/{role}/users")
+                                    .queryParam("first", first)
+                                    .queryParam("max", ROLE_MEMBERS_PAGE_SIZE)
+                                    .queryParam("briefRepresentation", true)
+                                    .build(role.name.lowercase())
+                            }
+                            .headers { it.setBearerAuth(token) }
+                            .retrieve()
+                            .awaitBody<List<BriefUserRepresentation>>()
+                    }
+                page.mapNotNullTo(accounts) { it.toAccountSummary() }
+                first += page.size
+            } while (page.size == ROLE_MEMBERS_PAGE_SIZE)
+
+            return accounts
+        }
+
+        private fun BriefUserRepresentation.toAccountSummary(): AccountSummary? =
+            id?.let {
+                AccountSummary(
+                    id = it,
+                    username = username,
+                    email = email,
+                    firstName = firstName,
+                    lastName = lastName,
+                    enabled = enabled ?: true,
+                    emailVerified = emailVerified ?: false,
+                    createdAt = createdTimestamp?.let(Instant::ofEpochMilli),
+                )
+            }
 
         override suspend fun isReachable(): Boolean =
             try {

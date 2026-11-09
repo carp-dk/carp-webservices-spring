@@ -1,6 +1,7 @@
 package dk.cachet.carp.webservices.admin.repository
 
 import dk.cachet.carp.webservices.admin.domain.AdminStudyRow
+import dk.cachet.carp.webservices.admin.domain.OwnedStudyCounts
 import dk.cachet.carp.webservices.common.jdbc.TimedJdbcTemplate
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.core.RowMapper
@@ -102,4 +103,22 @@ class AdminStudyStore(
                 )
             }
         }
+
+    /** Number of studies (and live studies) each owner has, keyed by owner account id. */
+    fun countStudiesByOwner(): Map<String, OwnedStudyCounts> =
+        timed.run("Counting studies per owner") { jdbc -> countByOwner(jdbc) }
+
+    private fun countByOwner(jdbc: JdbcTemplate): Map<String, OwnedStudyCounts> =
+        jdbc.query(
+            """
+            SELECT snapshot->>'ownerId' AS owner_id,
+                   COUNT(*) AS study_count,
+                   COUNT(*) FILTER (WHERE snapshot->>'isLive' = 'true') AS live_study_count
+            FROM studies
+            WHERE snapshot->>'ownerId' IS NOT NULL
+            GROUP BY snapshot->>'ownerId'
+            """.trimIndent(),
+        ) { rs, _ ->
+            rs.getString("owner_id") to OwnedStudyCounts(rs.getLong("study_count"), rs.getLong("live_study_count"))
+        }.toMap()
 }

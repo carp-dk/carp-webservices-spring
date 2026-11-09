@@ -249,6 +249,56 @@ class KeycloakFacadeTest {
             }
         }
 
+    @Test
+    fun `getAccountsWithRole pages through every role member`() =
+        runBlocking {
+            val server = MockWebServer()
+            server.start()
+            try {
+                val pageSize = KeycloakFacade.ROLE_MEMBERS_PAGE_SIZE
+                val fullPage = (0 until pageSize).joinToString(",", "[", "]") { """{"id":"user-$it"}""" }
+                val lastPage =
+                    """[{"id":"last","username":"last@example.com","email":"last@example.com","firstName":"La",""" +
+                        """"enabled":false,"emailVerified":true,"createdTimestamp":1767225600000}]"""
+                server.enqueue(tokenResponse("token"))
+                server.enqueue(MockResponse().setHeader("Content-Type", "application/json").setBody(fullPage))
+                server.enqueue(MockResponse().setHeader("Content-Type", "application/json").setBody(lastPage))
+
+                val facade =
+                    KeycloakFacade(
+                        server.url("/").toString().trimEnd('/'),
+                        realm,
+                        clientId,
+                        clientSecret,
+                        environmentUtil,
+                    )
+
+                val accounts = facade.getAccountsWithRole(Role.RESEARCHER)
+
+                assertEquals(pageSize + 1, accounts.size)
+                val last = accounts.last()
+                assertEquals("last", last.id)
+                assertEquals("last@example.com", last.email)
+                assertEquals(false, last.enabled)
+                assertEquals(true, last.emailVerified)
+                assertEquals(Instant.parse("2026-01-01T00:00:00Z"), last.createdAt)
+                // Fields Keycloak left out fall back to enabled / not verified / unknown created time.
+                assertEquals(true, accounts.first().enabled)
+                assertEquals(null, accounts.first().createdAt)
+
+                server.takeRequest() // admin token fetch
+                val firstPath = server.takeRequest().path!!
+                val secondPath = server.takeRequest().path!!
+                assertTrue(firstPath.startsWith("/admin/realms/$realm/roles/researcher/users"), "path was $firstPath")
+                assertTrue(firstPath.contains("first=0") && firstPath.contains("max=$pageSize"), firstPath)
+                assertTrue(firstPath.contains("briefRepresentation=true"), firstPath)
+                assertTrue(secondPath.contains("first=$pageSize"), secondPath)
+                assertEquals(3, server.requestCount) // token + two pages; a short page ends the loop
+            } finally {
+                server.shutdown()
+            }
+        }
+
     private fun tokenResponse(accessToken: String) =
         MockResponse()
             .setHeader("Content-Type", "application/json")

@@ -1,9 +1,11 @@
 package dk.cachet.carp.webservices.admin.controller
 
 import dk.cachet.carp.webservices.admin.dto.AdminAnnouncementDto
+import dk.cachet.carp.webservices.admin.dto.AdminResearcherDto
 import dk.cachet.carp.webservices.admin.dto.AdminStudyDto
 import dk.cachet.carp.webservices.admin.dto.ServerInfoDto
 import dk.cachet.carp.webservices.admin.dto.SetAnnouncementRequestDto
+import dk.cachet.carp.webservices.admin.service.AdminResearcherService
 import dk.cachet.carp.webservices.admin.service.AdminStudyService
 import dk.cachet.carp.webservices.admin.service.AnnouncementService
 import dk.cachet.carp.webservices.admin.service.ServerInfoService
@@ -20,12 +22,16 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
-/** System-admin endpoints: server status, an instance-wide study overview, and the system announcement. */
+/**
+ * System-admin endpoints: server status, instance-wide study and researcher overviews, and the system
+ * announcement.
+ */
 @RestController
 @RequestMapping(AdminController.ADMIN_BASE)
 class AdminController(
     private val serverInfoService: ServerInfoService,
     private val adminStudyService: AdminStudyService,
+    private val adminResearcherService: AdminResearcherService,
     private val announcementService: AnnouncementService,
 ) {
     companion object {
@@ -34,6 +40,7 @@ class AdminController(
         const val ADMIN_BASE = "/api/admin"
         const val SERVER_INFO = "/server-info"
         const val STUDIES = "/studies"
+        const val RESEARCHERS = "/researchers"
         const val ANNOUNCEMENT = "/announcement"
     }
 
@@ -64,6 +71,19 @@ class AdminController(
     ): List<AdminStudyDto> {
         LOGGER.info("Start GET: $ADMIN_BASE$STUDIES")
         return adminStudyService.getStudies(live)
+    }
+
+    @Operation(
+        summary = "All researcher accounts on this instance",
+        description =
+            "Every account with the researcher role, newest first, with its Keycloak details (email, name, " +
+                "enabled, email verified, created time) and how many studies (and live studies) it owns.",
+    )
+    @GetMapping(RESEARCHERS)
+    @PreAuthorize("isAdmin()")
+    suspend fun getResearchers(): List<AdminResearcherDto> {
+        LOGGER.info("Start GET: $ADMIN_BASE$RESEARCHERS")
+        return adminResearcherService.getResearchers()
     }
 
     @Operation(

@@ -2,7 +2,9 @@ package dk.cachet.carp.webservices.admin.controller
 
 import dk.cachet.carp.webservices.admin.domain.Announcement
 import dk.cachet.carp.webservices.admin.domain.AnnouncementSeverity
+import dk.cachet.carp.webservices.admin.dto.AdminResearcherDto
 import dk.cachet.carp.webservices.admin.dto.SetAnnouncementRequestDto
+import dk.cachet.carp.webservices.admin.service.AdminResearcherService
 import dk.cachet.carp.webservices.admin.service.AdminStudyService
 import dk.cachet.carp.webservices.admin.service.AnnouncementService
 import dk.cachet.carp.webservices.admin.service.ServerInfoService
@@ -29,6 +31,7 @@ import kotlin.test.assertEquals
 class AdminControllerTest {
     private val serverInfoService = mockk<ServerInfoService>()
     private val adminStudyService = mockk<AdminStudyService>()
+    private val adminResearcherService = mockk<AdminResearcherService>()
     private val announcementService = mockk<AnnouncementService>()
     private lateinit var mockMvc: MockMvc
 
@@ -36,7 +39,9 @@ class AdminControllerTest {
     fun setup() {
         mockMvc =
             MockMvcBuilders
-                .standaloneSetup(AdminController(serverInfoService, adminStudyService, announcementService))
+                .standaloneSetup(
+                    AdminController(serverInfoService, adminStudyService, adminResearcherService, announcementService),
+                )
                 .build()
     }
 
@@ -93,9 +98,34 @@ class AdminControllerTest {
     }
 
     @Test
+    fun `lists researchers`() {
+        coEvery { adminResearcherService.getResearchers() } returns
+            listOf(
+                AdminResearcherDto(
+                    id = "r1",
+                    username = "ann@example.com",
+                    email = "ann@example.com",
+                    fullName = "Ann Lee",
+                    enabled = true,
+                    emailVerified = true,
+                    createdAt = Instant.parse("2026-01-01T00:00:00Z"),
+                    ownedStudyCount = 3,
+                    liveStudyCount = 1,
+                ),
+            )
+
+        performAsync(get("/api/admin/researchers"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].email").value("ann@example.com"))
+            .andExpect(jsonPath("$[0].ownedStudyCount").value(3))
+            .andExpect(jsonPath("$[0].liveStudyCount").value(1))
+    }
+
+    @Test
     fun `every admin endpoint requires the admin role`() {
         val handlers = AdminController::class.declaredMemberFunctions
-        assertEquals(setOf("getServerInfo", "getStudies", "setAnnouncement"), handlers.map { it.name }.toSet())
+        val expected = setOf("getServerInfo", "getStudies", "getResearchers", "setAnnouncement")
+        assertEquals(expected, handlers.map { it.name }.toSet())
         handlers.forEach { assertEquals("isAdmin()", it.findAnnotation<PreAuthorize>()?.value, it.name) }
     }
 }

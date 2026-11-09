@@ -39,6 +39,23 @@ data class UserRepresentation(
         )
 }
 
+/**
+ * The read-only user record Keycloak returns from listings with `briefRepresentation=true`. Kept apart from
+ * [UserRepresentation] because that one is also written back to Keycloak.
+ */
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class BriefUserRepresentation(
+    var id: String? = null,
+    var username: String? = null,
+    var firstName: String? = null,
+    var lastName: String? = null,
+    var email: String? = null,
+    var enabled: Boolean? = null,
+    var emailVerified: Boolean? = null,
+    /** Epoch milliseconds. */
+    var createdTimestamp: Long? = null,
+)
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class RoleRepresentation(
     var id: String? = null,

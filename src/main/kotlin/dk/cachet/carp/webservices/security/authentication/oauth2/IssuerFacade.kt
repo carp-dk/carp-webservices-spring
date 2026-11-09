@@ -3,6 +3,7 @@ package dk.cachet.carp.webservices.security.authentication.oauth2
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.common.application.users.AccountIdentity
 import dk.cachet.carp.webservices.security.authentication.domain.Account
+import dk.cachet.carp.webservices.security.authentication.domain.AccountSummary
 import dk.cachet.carp.webservices.security.authentication.oauth2.issuers.keycloak.domain.BulkDeleteResult
 import dk.cachet.carp.webservices.security.authentication.oauth2.issuers.keycloak.domain.MagicLinkResponse
 import dk.cachet.carp.webservices.security.authentication.oauth2.issuers.keycloak.domain.RequiredActions
@@ -71,6 +72,9 @@ interface IssuerFacade {
     suspend fun getRedirectUrisForClient(): Map<String, List<String>>
 
     suspend fun getCountForRole(role: Role): Long
+
+    /** Every account holding [role] as a direct realm-role mapping, paging through all of them. */
+    suspend fun getAccountsWithRole(role: Role): List<AccountSummary>
 
     /** Whether the issuer answers at all; a cheap, unauthenticated probe for health reporting. Never throws. */
     suspend fun isReachable(): Boolean
