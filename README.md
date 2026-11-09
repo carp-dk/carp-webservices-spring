@@ -58,6 +58,7 @@ The main services of the application are the following:
 * Deployments
 * [Data Streams](docs/ws-datastream.md)
 * [Exports](docs/ws-exports.md)
+* [Admin & Announcement](docs/ws-admin.md)
   
 All of them have a dedicated package with their own controller, service, and persistence layers, however, there are differences in their management.
 
