@@ -71,4 +71,7 @@ interface IssuerFacade {
     suspend fun getRedirectUrisForClient(): Map<String, List<String>>
 
     suspend fun getCountForRole(role: Role): Long
+
+    /** Whether the issuer answers at all; a cheap, unauthenticated probe for health reporting. Never throws. */
+    suspend fun isReachable(): Boolean
 }

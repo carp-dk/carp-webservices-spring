@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.reactive.asFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.springframework.beans.factory.annotation.Autowired
@@ -75,6 +76,9 @@ class KeycloakFacade
             private const val DEFAULT_CONNECT_TIMEOUT_SECONDS = 2L
             private const val DEFAULT_RESPONSE_TIMEOUT_SECONDS = 30L
             private const val DEFAULT_BULK_RESPONSE_TIMEOUT_SECONDS = 2L * 24L * 60L * 60L // 2 days
+
+            // A health probe must answer quickly; a Keycloak that takes longer than this is reported DOWN.
+            private val REACHABILITY_TIMEOUT: Duration = Duration.ofSeconds(2)
         }
 
         // Clock used for token-expiry timing. Production uses the system clock (the Spring constructor);
@@ -430,6 +434,17 @@ class KeycloakFacade
                     .awaitBody<Long>()
             }
         }
+
+        override suspend fun isReachable(): Boolean =
+            try {
+                // GET /realms/{realm} is Keycloak's public realm metadata: no admin token, tiny response.
+                withTimeoutOrNull(REACHABILITY_TIMEOUT.toMillis()) {
+                    resourceClient.get().retrieve().awaitBodilessEntity()
+                } != null
+            } catch (e: WebClientException) {
+                LOGGER.warn("Keycloak reachability probe failed: ${e.message}")
+                false
+            }
 
         // NOTE: Keycloak's user-search endpoint silently caps each response at `max` (default 100) and we
         // don't paginate here. In practice queryAll is only used for exact lookups (0-1 hits) and for
