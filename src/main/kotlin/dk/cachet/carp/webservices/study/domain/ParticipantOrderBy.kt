@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonValue
 enum class ParticipantOrderBy {
     AccountIdentity,
     IsDeployed,
+    InvitedOn,
     ;
 
     @JsonValue
@@ -13,6 +14,7 @@ enum class ParticipantOrderBy {
         when (this) {
             AccountIdentity -> "accountIdentity"
             IsDeployed -> "isDeployed"
+            InvitedOn -> "invitedOn"
         }
 
     companion object {
@@ -22,6 +24,7 @@ enum class ParticipantOrderBy {
             when (value.lowercase()) {
                 "accountidentity", "account_identity", "username", "email" -> AccountIdentity
                 "isdeployed", "is_deployed" -> IsDeployed
+                "invitedon", "invited_on" -> InvitedOn
                 else -> throw IllegalArgumentException("Unsupported sortBy value: $value")
             }
     }

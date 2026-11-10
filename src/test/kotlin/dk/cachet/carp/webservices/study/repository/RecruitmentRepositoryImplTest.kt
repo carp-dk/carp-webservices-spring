@@ -10,6 +10,7 @@ import jakarta.persistence.Query
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.time.Instant
 
 /**
  * Unit coverage for the Kotlin-side logic of [RecruitmentRepositoryImpl] — row mapping and the
@@ -24,7 +25,8 @@ class RecruitmentRepositoryImplTest {
         val query = mockk<Query>(relaxed = true)
         every { entityManager.createNativeQuery(any<String>()) } returns query
         every { query.setParameter(any<String>(), any()) } returns query
-        every { query.resultList } returns listOf(arrayOf<Any?>("""{"id":"p1"}""", true, "deployment-1"))
+        every { query.resultList } returns
+            listOf(arrayOf<Any?>("""{"id":"p1"}""", true, "deployment-1", "2024-10-23T08:41:07.850883Z"))
 
         val result =
             RecruitmentRepositoryImpl(entityManager).queryParticipantAccounts(
@@ -41,6 +43,7 @@ class RecruitmentRepositoryImplTest {
         assertEquals("""{"id":"p1"}""", result[0].participantJson)
         assertEquals(true, result[0].isDeployed)
         assertEquals("deployment-1", result[0].deploymentId)
+        assertEquals(Instant.parse("2024-10-23T08:41:07.850883Z"), result[0].invitedOn)
         verify { query.setParameter("studyId", "study-id") }
         verify { query.setParameter("limit", 10) }
         verify { query.setParameter("offset", 0) }
@@ -56,7 +59,7 @@ class RecruitmentRepositoryImplTest {
             query
         }
         every { query.setParameter(any<String>(), any()) } returns query
-        every { query.resultList } returns listOf(arrayOf<Any?>("""{"id":"p1"}""", false, null))
+        every { query.resultList } returns listOf(arrayOf<Any?>("""{"id":"p1"}""", false, null, null))
 
         val result =
             RecruitmentRepositoryImpl(entityManager).queryParticipantAccounts(
@@ -71,6 +74,7 @@ class RecruitmentRepositoryImplTest {
 
         assertEquals(1, result.size)
         assertEquals(null, result[0].deploymentId)
+        assertEquals(null, result[0].invitedOn)
         assertFalse(capturedSql.contains("LIMIT :limit OFFSET :offset"))
         verify(exactly = 0) { query.setParameter("limit", any()) }
         verify(exactly = 0) { query.setParameter("offset", any()) }

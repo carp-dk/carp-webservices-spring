@@ -4,6 +4,7 @@ import dk.cachet.carp.webservices.study.domain.ParticipantOrderBy
 import dk.cachet.carp.webservices.study.domain.SortDirection
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
+import kotlin.time.Instant
 
 /**
  * Participant search/list/count over the normalized recruitment tables (`recruitment_participants`,
@@ -46,6 +47,28 @@ class RecruitmentRepositoryImpl(
                 JOIN recruitment_participant_groups g ON g.group_id = m.group_id
                 WHERE g.study_id = :studyId AND g.is_deployed
                 ORDER BY m.participant_id, m.group_id
+            )
+            """
+
+        /**
+         * Like [DEPLOYED_PARTICIPANTS_CTE], but keeps each participant's most recently created deployment
+         * and its core `createdOn` (the invitation time). `deployments.created_at` is not used: it drifts
+         * from `createdOn` on older rows. LEFT JOIN so a deployed group without a deployment row still
+         * marks its participants deployed (with no invitation time).
+         */
+        private const val LATEST_DEPLOYED_PARTICIPANTS_CTE =
+            """
+            WITH deployed_participants AS (
+                SELECT DISTINCT ON (m.participant_id)
+                    m.participant_id AS participant_id,
+                    m.group_id AS deployment_id,
+                    d.snapshot->>'createdOn' AS invited_on,
+                    (d.snapshot->>'createdOn')::timestamptz AS invited_on_sort
+                FROM recruitment_participant_group_members m
+                JOIN recruitment_participant_groups g ON g.group_id = m.group_id
+                LEFT JOIN deployments d ON d.snapshot->>'id' = g.group_id
+                WHERE g.study_id = :studyId AND g.is_deployed
+                ORDER BY m.participant_id, invited_on_sort DESC NULLS LAST, m.group_id
             )
             """
     }
@@ -100,11 +123,12 @@ class RecruitmentRepositoryImpl(
         val paginationClause = if (limit != null && offset != null) "LIMIT :limit OFFSET :offset" else ""
 
         val sql = """
-            $DEPLOYED_PARTICIPANTS_CTE
+            $LATEST_DEPLOYED_PARTICIPANTS_CTE
             SELECT
                 (${participantJson("p")})::text AS participant,
                 dp.participant_id IS NOT NULL AS is_deployed,
-                dp.deployment_id
+                dp.deployment_id,
+                dp.invited_on
             FROM recruitment_participants p
             LEFT JOIN deployed_participants dp ON dp.participant_id = p.participant_id
             WHERE p.study_id = :studyId
@@ -129,6 +153,7 @@ class RecruitmentRepositoryImpl(
                 participantJson = row[0].toString(),
                 isDeployed = row[1] as Boolean,
                 deploymentId = row[2] as String?,
+                invitedOn = (row[3] as String?)?.let(Instant::parse),
             )
         }
     }
@@ -211,6 +236,9 @@ class RecruitmentRepositoryImpl(
     ): String {
         val direction = if (sortDirection == SortDirection.Desc) "DESC" else "ASC"
         return when {
+            // Participants without a deployment sort last in both directions; sort_order keeps pages stable.
+            sortBy == ParticipantOrderBy.InvitedOn ->
+                "dp.invited_on_sort $direction NULLS LAST, p.sort_order $direction"
             sortBy == ParticipantOrderBy.IsDeployed ->
                 "CASE WHEN dp.participant_id IS NULL THEN 0 ELSE 1 END $direction, " +
                     "COALESCE(p.username, p.email_address) $direction, p.sort_order $direction"
