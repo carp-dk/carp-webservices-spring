@@ -66,6 +66,9 @@ java {
     targetCompatibility = JavaVersion.VERSION_21
 }
 
+// The Boot BOM pins every kotlinx-serialization module; override it so core/json stay on one version.
+extra["kotlin-serialization.version"] = property("serializationJSONVersion")
+
 dependencies {
     // BOM
     implementation(platform("org.springframework.boot:spring-boot-dependencies:${property("springBootVersion")}"))
