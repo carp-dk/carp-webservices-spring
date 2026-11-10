@@ -4,7 +4,6 @@ import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.common.application.data.DataType
 import dk.cachet.carp.data.application.DataStreamBatch
 import dk.cachet.carp.data.application.DataStreamId
-import dk.cachet.carp.studies.domain.users.ParticipantRepository
 import dk.cachet.carp.webservices.common.services.CoreServiceContainer
 import dk.cachet.carp.webservices.datastream.domain.DataStreamSequence
 import dk.cachet.carp.webservices.datastream.domain.DateTaskQuantityTriple
@@ -18,6 +17,7 @@ import dk.cachet.carp.webservices.datastream.service.createSequence
 import dk.cachet.carp.webservices.datastream.service.fetchValidatedDataStreamId
 import dk.cachet.carp.webservices.datastream.service.validateConfig
 import dk.cachet.carp.webservices.deployment.service.ParticipationService
+import dk.cachet.carp.webservices.study.repository.CoreParticipantRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.logging.log4j.LogManager
@@ -42,7 +42,7 @@ class DataStreamService(
     private val dataStreamSequenceRepository: DataStreamSequenceRepository,
     private val configRepository: DataStreamConfigurationRepository,
     private val objectMapper: ObjectMapper,
-    private val participantRepository: ParticipantRepository,
+    private val participantRepository: CoreParticipantRepository,
     private val participationService: ParticipationService,
     services: CoreServiceContainer,
 ) : DataStreamService {
@@ -141,6 +141,14 @@ class DataStreamService(
         from: Instant,
         to: Instant,
     ): DataStreamsSummaryDto {
+        // Callers are authorized against [studyId] only, so a deployment-scoped request must not reach
+        // a deployment of another study. An unknown deployment fails the same way, so this reveals nothing.
+        if (deploymentId != null && (scope == "deployment" || scope == "participant")) {
+            val deploymentStudyId =
+                withContext(Dispatchers.IO) { participantRepository.getStudyIdByDeploymentId(deploymentId) }
+            require(deploymentStudyId == studyId) { "Deployment $deploymentId does not belong to study $studyId." }
+        }
+
         val protocolApiLevel = getProtocolApiLevel(studyId)
         val isV2 = protocolApiLevel?.let { compareVersions(it, "2.0.0") }?.let { it >= 0 } ?: false
         return if (!isV2) {
