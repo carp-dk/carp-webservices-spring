@@ -9,7 +9,6 @@ import dk.cachet.carp.deployments.domain.users.AccountParticipation
 import dk.cachet.carp.deployments.domain.users.ParticipantGroup
 import dk.cachet.carp.protocols.application.StudyProtocolSnapshot
 import dk.cachet.carp.studies.application.StudyDetails
-import dk.cachet.carp.studies.domain.users.ParticipantRepository
 import dk.cachet.carp.studies.domain.users.Recruitment
 import dk.cachet.carp.studies.infrastructure.StudyServiceDecorator
 import dk.cachet.carp.webservices.common.services.CoreServiceContainer
@@ -22,6 +21,7 @@ import dk.cachet.carp.webservices.datastream.repository.DataStreamSequenceReposi
 import dk.cachet.carp.webservices.datastream.service.core.CoreDataStreamService
 import dk.cachet.carp.webservices.datastream.service.createSequence
 import dk.cachet.carp.webservices.deployment.service.ParticipationService
+import dk.cachet.carp.webservices.study.repository.CoreParticipantRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -65,7 +65,7 @@ class DataStreamServiceTest {
     private val dataStreamSequenceRepository = mockk<DataStreamSequenceRepository>()
     private val configRepository = mockk<DataStreamConfigurationRepository>()
     private val objectMapper = ObjectMapper()
-    private val participantRepository = mockk<ParticipantRepository>()
+    private val participantRepository = mockk<CoreParticipantRepository>()
     private val participationService = mockk<ParticipationService>()
     private val studyService = mockk<StudyServiceDecorator>()
     val services: CoreServiceContainer =
@@ -307,6 +307,7 @@ class DataStreamServiceTest {
                 val to = Instant.fromEpochMilliseconds(1000)
                 val studyId = UUID.randomUUID()
                 val taskType = "survey"
+                every { participantRepository.getStudyIdByDeploymentId(deploymentId) } returns studyId
 
                 val mockListOfDataStreamIds =
                     listOf(
@@ -384,6 +385,7 @@ class DataStreamServiceTest {
                 val to = Instant.fromEpochMilliseconds(1000)
                 val studyId = UUID.randomUUID()
                 val taskType = "survey"
+                every { participantRepository.getStudyIdByDeploymentId(deploymentId) } returns studyId
 
                 val mockListOfDateTaskQuantityTripleDbs =
                     listOf(
@@ -538,11 +540,15 @@ class DataStreamServiceTest {
         @Test
         fun `throws exception if scope is participant but participantId is absent`() {
             runTest {
+                val studyId = UUID.randomUUID()
+                val deploymentId = UUID.randomUUID()
+                every { participantRepository.getStudyIdByDeploymentId(deploymentId) } returns studyId
+
                 val e =
                     assertThrows<IllegalArgumentException> {
                         sut.getDataStreamsSummary(
-                            studyId = UUID.randomUUID(),
-                            deploymentId = UUID.randomUUID(),
+                            studyId = studyId,
+                            deploymentId = deploymentId,
                             participantId = null,
                             scope = "participant",
                             type = "survey",
@@ -582,11 +588,15 @@ class DataStreamServiceTest {
         @Test
         fun `throws if from is not before to`() {
             runTest {
+                val studyId = UUID.randomUUID()
+                val deploymentId = UUID.randomUUID()
+                every { participantRepository.getStudyIdByDeploymentId(deploymentId) } returns studyId
+
                 val e =
                     assertThrows<IllegalArgumentException> {
                         sut.getDataStreamsSummary(
-                            studyId = UUID.randomUUID(),
-                            deploymentId = UUID.randomUUID(),
+                            studyId = studyId,
+                            deploymentId = deploymentId,
                             participantId = null,
                             scope = "deployment",
                             type = "survey",
@@ -607,6 +617,7 @@ class DataStreamServiceTest {
                 val from = Instant.fromEpochMilliseconds(0)
                 val to = Instant.fromEpochMilliseconds(1000)
                 val taskType = "survey"
+                every { participantRepository.getStudyIdByDeploymentId(deploymentId) } returns studyId
 
                 every {
                     dataStreamIdRepository.getAllByDeploymentId(
@@ -647,6 +658,7 @@ class DataStreamServiceTest {
                 val from = Instant.fromEpochMilliseconds(0)
                 val to = Instant.fromEpochMilliseconds(1000)
                 val taskType = "survey"
+                every { participantRepository.getStudyIdByDeploymentId(deploymentId) } returns studyId
 
                 val mockParticipation1 = mockk<Participation>()
                 every { mockParticipation1.participantId } returns participantId
@@ -732,6 +744,74 @@ class DataStreamServiceTest {
                 assertEquals(result.type, taskType)
                 assertEquals(result.from, from)
                 assertEquals(result.to, to)
+            }
+        }
+
+        @Test
+        fun `rejects deployment scope for a deployment of another study`() {
+            runTest {
+                val deploymentId = UUID.randomUUID()
+                every { participantRepository.getStudyIdByDeploymentId(deploymentId) } returns UUID.randomUUID()
+
+                val e =
+                    assertThrows<IllegalArgumentException> {
+                        sut.getDataStreamsSummary(
+                            studyId = UUID.randomUUID(),
+                            deploymentId = deploymentId,
+                            participantId = null,
+                            scope = "deployment",
+                            type = "survey",
+                            from = Instant.fromEpochMilliseconds(0),
+                            to = Instant.fromEpochMilliseconds(1000),
+                        )
+                    }
+
+                assertTrue { e.message?.contains("does not belong to study") == true }
+                verify(exactly = 0) { dataStreamIdRepository.getAllByDeploymentId(any()) }
+            }
+        }
+
+        @Test
+        fun `rejects deployment scope for an unknown deployment`() {
+            runTest {
+                val deploymentId = UUID.randomUUID()
+                every { participantRepository.getStudyIdByDeploymentId(deploymentId) } returns null
+
+                assertThrows<IllegalArgumentException> {
+                    sut.getDataStreamsSummary(
+                        studyId = UUID.randomUUID(),
+                        deploymentId = deploymentId,
+                        participantId = null,
+                        scope = "deployment",
+                        type = "survey",
+                        from = Instant.fromEpochMilliseconds(0),
+                        to = Instant.fromEpochMilliseconds(1000),
+                    )
+                }
+
+                verify(exactly = 0) { dataStreamIdRepository.getAllByDeploymentId(any()) }
+            }
+        }
+
+        @Test
+        fun `rejects participant scope for a deployment of another study`() {
+            runTest {
+                val deploymentId = UUID.randomUUID()
+                every { participantRepository.getStudyIdByDeploymentId(deploymentId) } returns UUID.randomUUID()
+
+                assertThrows<IllegalArgumentException> {
+                    sut.getDataStreamsSummary(
+                        studyId = UUID.randomUUID(),
+                        deploymentId = deploymentId,
+                        participantId = UUID.randomUUID(),
+                        scope = "participant",
+                        type = "survey",
+                        from = Instant.fromEpochMilliseconds(0),
+                        to = Instant.fromEpochMilliseconds(1000),
+                    )
+                }
+
+                coVerify(exactly = 0) { participationService.getParticipantGroup(any()) }
             }
         }
     }
