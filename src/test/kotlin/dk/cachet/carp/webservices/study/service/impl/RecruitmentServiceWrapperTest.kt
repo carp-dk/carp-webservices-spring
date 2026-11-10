@@ -381,8 +381,6 @@ class RecruitmentServiceWrapperTest {
                 val ai2 = EmailAccountIdentity("bravo@example.com")
                 val p1 = Participant(ai1)
                 val p2 = Participant(ai2)
-                val invitedOn = Instant.parse("2024-10-23T08:41:07.850883Z")
-
                 val account1 =
                     Account(
                         firstName = "Alice",
@@ -390,9 +388,15 @@ class RecruitmentServiceWrapperTest {
                         email = ai1.emailAddress.address,
                     )
 
+                val invitedOn = Instant.parse("2024-10-23T08:41:07.850883Z")
                 val participantRows =
                     listOf(
-                        ParticipantAccountQueryRow("""{"stub":1}""", true, "11111111-1111-1111-1111-111111111111"),
+                        ParticipantAccountQueryRow(
+                            """{"stub":1}""",
+                            true,
+                            "11111111-1111-1111-1111-111111111111",
+                            invitedOn,
+                        ),
                         ParticipantAccountQueryRow("""{"stub":2}""", false, null),
                     )
 
@@ -418,14 +422,6 @@ class RecruitmentServiceWrapperTest {
                 } returns p2
                 coEvery { accountService.findByAccountIdentity(ai1) } returns account1
                 coEvery { accountService.findByAccountIdentity(ai2) } returns null
-                val deploymentId = UUID.parse("11111111-1111-1111-1111-111111111111")
-                coEvery { coreDeploymentService.getStudyDeploymentStatusList(setOf(deploymentId)) } returns
-                    listOf(
-                        mockk<StudyDeploymentStatus.Invited>().apply {
-                            every { studyDeploymentId } returns deploymentId
-                            every { createdOn } returns Instant.parse(invitedOn.toString())
-                        },
-                    )
 
                 val sut = createSut()
 
@@ -438,6 +434,8 @@ class RecruitmentServiceWrapperTest {
                 assertEquals(ai1.emailAddress.address, result.content[0].accountIdentity)
                 assertTrue(result.content[0].isDeployed)
                 assertEquals(invitedOn, result.content[0].invitedOn)
+                // invitedOn now comes from the query row; no per-page core deployment lookup.
+                coVerify(exactly = 0) { coreDeploymentService.getStudyDeploymentStatusList(any()) }
                 assertTrue(result.content[0].carpUser)
                 assertEquals(p2.id.stringRepresentation, result.content[1].participantId)
                 assertEquals(ai2.emailAddress.address, result.content[1].accountIdentity)
@@ -452,14 +450,19 @@ class RecruitmentServiceWrapperTest {
             runTest {
                 val mockStudyId = UUID.randomUUID()
                 val request = ParticipantAccountsRequestDto(page = 1, size = 1, isDeployed = true)
+                val invitedOn = Instant.parse("2024-10-23T08:41:07.850883Z")
                 val participantRows =
                     listOf(
-                        ParticipantAccountQueryRow("""{"stub":1}""", true, "11111111-1111-1111-1111-111111111111"),
+                        ParticipantAccountQueryRow(
+                            """{"stub":1}""",
+                            true,
+                            "11111111-1111-1111-1111-111111111111",
+                            invitedOn,
+                        ),
                     )
 
                 val ai1 = EmailAccountIdentity("deployed@example.com")
                 val participant = Participant(ai1)
-                val invitedOn = Instant.parse("2024-10-23T08:41:07.850883Z")
 
                 stubQueryParticipantAccounts(
                     studyId = mockStudyId,
@@ -477,14 +480,6 @@ class RecruitmentServiceWrapperTest {
                 } returns participant
                 coEvery { accountService.findByAccountIdentity(ai1) } returns
                     Account(email = ai1.emailAddress.address)
-                val deploymentId = UUID.parse("11111111-1111-1111-1111-111111111111")
-                coEvery { coreDeploymentService.getStudyDeploymentStatusList(setOf(deploymentId)) } returns
-                    listOf(
-                        mockk<StudyDeploymentStatus.Invited>().apply {
-                            every { studyDeploymentId } returns deploymentId
-                            every { createdOn } returns Instant.parse(invitedOn.toString())
-                        },
-                    )
 
                 val sut = createSut()
 

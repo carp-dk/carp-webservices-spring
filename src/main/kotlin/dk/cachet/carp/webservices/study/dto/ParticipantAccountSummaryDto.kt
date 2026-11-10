@@ -8,8 +8,8 @@ import kotlin.time.Instant
  *
  * [participantId] is the recruitment participant ID, not the CARP account ID.
  * [accountIdentity] is the resolved identity string shown to clients.
- * [invitedOn] is populated for deployed participants when the recruitment snapshot includes
- * a deployment invitation time.
+ * [invitedOn] is the creation time of the participant's most recent deployment; null when the
+ * participant is not deployed.
  * [carpUser] is `true` when the participant identity resolves to an existing CARP account.
  */
 data class ParticipantAccountSummaryDto(

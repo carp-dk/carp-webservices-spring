@@ -148,26 +148,7 @@ class RecruitmentServiceWrapper(
                     request.sortBy,
                 )
 
-            val invitedOnByDeploymentId =
-                participantRows
-                    .mapNotNull { row -> row.deploymentId?.let(UUID::parse) }
-                    .toSet()
-                    .takeIf { it.isNotEmpty() }
-                    ?.let { deploymentIds ->
-                        deploymentCore.getStudyDeploymentStatusList(deploymentIds)
-                            .associate { status ->
-                                status.studyDeploymentId.stringRepresentation to
-                                    Instant.fromEpochSeconds(
-                                        status.createdOn.epochSeconds,
-                                        status.createdOn.nanosecondsOfSecond.toLong(),
-                                    )
-                            }
-                    } ?: emptyMap()
-
-            val content =
-                participantRows.map { participantRow ->
-                    mapParticipantAccountRow(participantRow, invitedOnByDeploymentId)
-                }
+            val content = participantRows.map { participantRow -> mapParticipantAccountRow(participantRow) }
 
             ParticipantAccountsResponseDto(
                 page = request.page,
@@ -184,7 +165,6 @@ class RecruitmentServiceWrapper(
 
     private suspend fun mapParticipantAccountRow(
         participantRow: ParticipantAccountQueryRow,
-        invitedOnByDeploymentId: Map<String, Instant>,
     ): ParticipantAccountSummaryDto {
         val participant =
             objectMapper.readValue(
@@ -212,7 +192,7 @@ class RecruitmentServiceWrapper(
                     else -> null
                 },
             isDeployed = participantRow.isDeployed,
-            invitedOn = participantRow.deploymentId?.let(invitedOnByDeploymentId::get),
+            invitedOn = participantRow.invitedOn,
             carpUser = isAnonymous || foundAccount != null,
         )
     }
