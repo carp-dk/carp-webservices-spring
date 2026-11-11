@@ -15,6 +15,7 @@ import org.apache.logging.log4j.Logger
 import org.springframework.stereotype.Service
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
+import kotlin.time.toKotlinInstant
 
 /**
  * The Class [CoreProtocolRepository].
@@ -127,13 +128,7 @@ class CoreProtocolRepository(
                 LOGGER.warn("Protocol is not found with id: {}", id.stringRepresentation)
                 validationMessages.get("protocol.version_history.not_found", id.stringRepresentation)
             }
-            protocols.map {
-                val createdAt = checkNotNull(it.createdAt)
-                ProtocolVersion(
-                    it.versionTag,
-                    kotlin.time.Instant.fromEpochSeconds(createdAt.epochSecond, createdAt.nano.toLong()),
-                )
-            }
+            protocols.map { ProtocolVersion(it.versionTag, checkNotNull(it.createdAt).toKotlinInstant()) }
         }
 
     /**

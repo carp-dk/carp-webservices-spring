@@ -58,11 +58,7 @@ class StudyServiceWrapper(
                     StudyOverview(
                         studyId = status.studyId,
                         name = status.name,
-                        createdOn =
-                            kotlin.time.Instant.fromEpochSeconds(
-                                status.createdOn.epochSeconds,
-                                status.createdOn.nanosecondsOfSecond.toLong(),
-                            ),
+                        createdOn = status.createdOn,
                         studyProtocolId = status.studyProtocolId,
                         canSetInvitation = status.canSetInvitation,
                         canSetStudyProtocol = status.canSetStudyProtocol,
