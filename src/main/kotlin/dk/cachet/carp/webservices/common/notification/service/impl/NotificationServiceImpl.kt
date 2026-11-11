@@ -4,6 +4,7 @@ import dk.cachet.carp.webservices.common.configuration.internationalisation.serv
 import dk.cachet.carp.webservices.common.environment.EnvironmentProfile
 import dk.cachet.carp.webservices.common.environment.EnvironmentUtil
 import dk.cachet.carp.webservices.common.exception.advices.CarpErrorResponse
+import dk.cachet.carp.webservices.common.exception.advices.ErrorContext
 import dk.cachet.carp.webservices.common.exception.responses.BadRequestException
 import dk.cachet.carp.webservices.common.notification.domain.TeamsChannel
 import dk.cachet.carp.webservices.common.notification.service.INotificationService
@@ -41,6 +42,29 @@ class NotificationServiceImpl(
 
         /** Keeps a digest readable; the remaining groups are summarised in one line. */
         private const val MAX_DIGEST_LINES = 20
+
+        /** The message for a single exception, with where it happened when [context] is known. */
+        internal fun formatException(
+            errorResponse: CarpErrorResponse,
+            context: ErrorContext?,
+            profile: EnvironmentProfile,
+        ): String {
+            val lines =
+                listOfNotNull(
+                    "- Exception Code: ${errorResponse.statusCode}",
+                    "- Exception: ${errorResponse.exception}",
+                    "- Message: ${errorResponse.message}",
+                    "- Path: ${errorResponse.path}",
+                    context?.requestType?.let { "- Request: $it" },
+                    context?.userId?.let { "- User: $it" },
+                    context?.ids?.takeIf { it.isNotEmpty() }?.let { ids ->
+                        "- IDs: " + ids.entries.joinToString(", ") { (name, value) -> "$name=$value" }
+                    },
+                    context?.ref?.let { "- Ref: $it" },
+                    "- Environment: $profile",
+                )
+            return lines.joinToString(NEW_LINE)
+        }
 
         /** The digest message for [repeats] (error group to count), most frequent first. */
         internal fun formatDigest(
@@ -96,7 +120,10 @@ class NotificationServiceImpl(
      * The [sendExceptionNotification] function sends a notification message with the given message.
      * @param errorResponse The errorResponse includes the error code, error message, and the error response.
      */
-    override fun sendExceptionNotification(errorResponse: CarpErrorResponse) {
+    override fun sendExceptionNotification(
+        errorResponse: CarpErrorResponse,
+        context: ErrorContext?,
+    ) {
         val channel = exceptionChannelFor(errorResponse.statusCode)
         if (channel.isNullOrBlank()) return
 
@@ -104,13 +131,7 @@ class NotificationServiceImpl(
         val throttle = throttles.computeIfAbsent(channel) { ExceptionNotificationThrottle(THROTTLE_WINDOW) }
         if (!throttle.tryAcquire(ExceptionNotificationThrottle.groupOf(errorResponse))) return
 
-        val messageBuilder = StringBuilder()
-        messageBuilder.append("- Exception Code: ${errorResponse.statusCode}$NEW_LINE")
-        messageBuilder.append("- Exception: ${errorResponse.exception}$NEW_LINE")
-        messageBuilder.append("- Message: ${errorResponse.message}$NEW_LINE")
-        messageBuilder.append("- Path: ${errorResponse.path}$NEW_LINE")
-        messageBuilder.append("- Environment: ${environment.profile}$NEW_LINE")
-        processException(messageBuilder.toString(), channel)
+        processException(formatException(errorResponse, context, environment.profile), channel)
     }
 
     /**
