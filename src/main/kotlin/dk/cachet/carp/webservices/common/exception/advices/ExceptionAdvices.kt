@@ -10,6 +10,7 @@ import dk.cachet.carp.webservices.common.exception.responses.UnauthorizedExcepti
 import dk.cachet.carp.webservices.common.exception.serialization.SerializationException
 import dk.cachet.carp.webservices.common.notification.service.INotificationService
 import jakarta.persistence.EntityNotFoundException
+import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.hibernate.exception.ConstraintViolationException
@@ -41,8 +42,16 @@ import java.lang.reflect.UndeclaredThrowableException
 /**
  * The Data Class [CarpErrorResponse]
  * The [CarpErrorResponse] sets the error response format for all the exceptions thrown.
+ *
+ * @property ref Reference to the matching log line and Teams message (see [ErrorContext.ref]).
  */
-data class CarpErrorResponse(val statusCode: Int, val exception: String, val message: String, val path: String)
+data class CarpErrorResponse(
+    val statusCode: Int,
+    val exception: String,
+    val message: String,
+    val path: String,
+    val ref: String? = null,
+)
 
 /**
  * The Class [ControllerAdvice].
@@ -67,15 +76,7 @@ internal class ExceptionAdvices(
         status: HttpStatusCode,
         request: WebRequest,
     ): ResponseEntity<Any>? {
-        val errorResponse =
-            CarpErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                ex::class.qualifiedName.orEmpty(),
-                ex.message.orEmpty(),
-                getURIPathFromWebRequest(request),
-            )
-        LOGGER.error("Message not readable: {}", errorResponse)
-        notificationService.sendExceptionNotification(errorResponse)
+        val errorResponse = report(HttpStatus.BAD_REQUEST, ex, ex.message.orEmpty(), request, "Message not readable")
         return ResponseEntity(errorResponse, HttpStatus.BAD_REQUEST)
     }
 
@@ -88,14 +89,7 @@ internal class ExceptionAdvices(
         request: WebRequest,
     ): ResponseEntity<Any>? {
         val errorResponse =
-            CarpErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                ex::class.qualifiedName.orEmpty(),
-                ex.localizedMessage,
-                getURIPathFromWebRequest(request),
-            )
-        LOGGER.error("Missing request parameter: {}", request)
-        notificationService.sendExceptionNotification(errorResponse)
+            report(HttpStatus.BAD_REQUEST, ex, ex.localizedMessage, request, "Missing request parameter")
         return ResponseEntity(errorResponse, HttpStatus.BAD_REQUEST)
     }
 
@@ -108,14 +102,7 @@ internal class ExceptionAdvices(
         request: WebRequest,
     ): ResponseEntity<Any>? {
         val errorResponse =
-            CarpErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                ex::class.qualifiedName.orEmpty(),
-                ex.message.orEmpty(),
-                getURIPathFromWebRequest(request),
-            )
-        LOGGER.error("Argument validation failed: {}", errorResponse)
-        notificationService.sendExceptionNotification(errorResponse)
+            report(HttpStatus.BAD_REQUEST, ex, ex.message.orEmpty(), request, "Argument validation failed")
         return ResponseEntity(errorResponse, HttpStatus.BAD_REQUEST)
     }
 
@@ -135,15 +122,7 @@ internal class ExceptionAdvices(
         ex: RuntimeException,
         request: WebRequest,
     ): ResponseEntity<CarpErrorResponse> {
-        val errorResponse =
-            CarpErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                ex::class.qualifiedName.orEmpty(),
-                ex.message.orEmpty(),
-                getURIPathFromWebRequest(request),
-            )
-        LOGGER.error("Bad Request Exception: {}", errorResponse)
-        notificationService.sendExceptionNotification(errorResponse)
+        val errorResponse = report(HttpStatus.BAD_REQUEST, ex, ex.message.orEmpty(), request, "Bad Request Exception")
         return ResponseEntity(errorResponse, HttpStatus.BAD_REQUEST)
     }
 
@@ -155,15 +134,7 @@ internal class ExceptionAdvices(
         ex: RuntimeException,
         request: WebRequest,
     ): ResponseEntity<CarpErrorResponse> {
-        val errorResponse =
-            CarpErrorResponse(
-                HttpStatus.UNAUTHORIZED.value(),
-                ex::class.qualifiedName.orEmpty(),
-                ex.message.orEmpty(),
-                getURIPathFromWebRequest(request),
-            )
-        LOGGER.error("Unauthorized exception: {}", errorResponse)
-        notificationService.sendExceptionNotification(errorResponse)
+        val errorResponse = report(HttpStatus.UNAUTHORIZED, ex, ex.message.orEmpty(), request, "Unauthorized exception")
         return ResponseEntity(errorResponse, HttpStatus.UNAUTHORIZED)
     }
 
@@ -175,15 +146,7 @@ internal class ExceptionAdvices(
         ex: ForbiddenException,
         request: WebRequest,
     ): ResponseEntity<CarpErrorResponse> {
-        val errorResponse =
-            CarpErrorResponse(
-                HttpStatus.FORBIDDEN.value(),
-                ex::class.qualifiedName.orEmpty(),
-                ex.message.orEmpty(),
-                getURIPathFromWebRequest(request),
-            )
-        LOGGER.error("Authentication exception: {}", errorResponse)
-        notificationService.sendExceptionNotification(errorResponse)
+        val errorResponse = report(HttpStatus.FORBIDDEN, ex, ex.message.orEmpty(), request, "Authentication exception")
         return ResponseEntity(errorResponse, HttpStatus.FORBIDDEN)
     }
 
@@ -194,15 +157,7 @@ internal class ExceptionAdvices(
         ex: AccessDeniedException,
         request: WebRequest,
     ): ResponseEntity<CarpErrorResponse> {
-        val errorResponse =
-            CarpErrorResponse(
-                HttpStatus.FORBIDDEN.value(),
-                ex::class.qualifiedName.orEmpty(),
-                ex.message.orEmpty(),
-                getURIPathFromWebRequest(request),
-            )
-        LOGGER.error("Access denied exception: {}", errorResponse)
-        notificationService.sendExceptionNotification(errorResponse)
+        val errorResponse = report(HttpStatus.FORBIDDEN, ex, ex.message.orEmpty(), request, "Access denied exception")
         return ResponseEntity(errorResponse, HttpStatus.FORBIDDEN)
     }
 
@@ -220,20 +175,18 @@ internal class ExceptionAdvices(
         ex: RuntimeException,
         request: WebRequest,
     ): ResponseEntity<CarpErrorResponse> {
-        val errorResponse =
-            CarpErrorResponse(
-                HttpStatus.NOT_FOUND.value(),
-                ex::class.qualifiedName.orEmpty(),
-                ex.message.orEmpty(),
-                getURIPathFromWebRequest(request),
-            )
-        LOGGER.error("Resource not found: {}", errorResponse)
         // See ResourceNotFoundException.quiet: skip the notification for a not-found that's an expected
         // outcome of hitting a public endpoint under its normal limits, not an application error worth
-        // paging on - mirrors ConflictException.quiet's handling above.
-        if (ex !is ResourceNotFoundException || !ex.quiet) {
-            notificationService.sendExceptionNotification(errorResponse)
-        }
+        // paging on - mirrors ConflictException.quiet's handling below.
+        val errorResponse =
+            report(
+                HttpStatus.NOT_FOUND,
+                ex,
+                ex.message.orEmpty(),
+                request,
+                "Resource not found",
+                notify = ex !is ResourceNotFoundException || !ex.quiet,
+            )
         return ResponseEntity(errorResponse, HttpStatus.NOT_FOUND)
     }
 
@@ -247,14 +200,7 @@ internal class ExceptionAdvices(
         request: WebRequest,
     ): ResponseEntity<Any>? {
         val errorResponse =
-            CarpErrorResponse(
-                HttpStatus.METHOD_NOT_ALLOWED.value(),
-                ex::class.qualifiedName.orEmpty(),
-                ex.message.orEmpty(),
-                getURIPathFromWebRequest(request),
-            )
-        LOGGER.error("Request method not supported: {}", errorResponse)
-        notificationService.sendExceptionNotification(errorResponse)
+            report(HttpStatus.METHOD_NOT_ALLOWED, ex, ex.message.orEmpty(), request, "Request method not supported")
         return ResponseEntity(errorResponse, HttpStatus.METHOD_NOT_ALLOWED)
     }
 
@@ -268,19 +214,17 @@ internal class ExceptionAdvices(
         ex: RuntimeException,
         request: WebRequest,
     ): ResponseEntity<CarpErrorResponse> {
-        val errorResponse =
-            CarpErrorResponse(
-                HttpStatus.CONFLICT.value(),
-                ex::class.qualifiedName.orEmpty(),
-                ex.message.orEmpty(),
-                getURIPathFromWebRequest(request),
-            )
-        LOGGER.error("Conflict exception: {}", errorResponse)
         // See ConflictException.quiet: skip the notification for conflicts that are an expected outcome of
         // hitting a public endpoint under its normal limits, not an application error worth paging on.
-        if (ex !is ConflictException || !ex.quiet) {
-            notificationService.sendExceptionNotification(errorResponse)
-        }
+        val errorResponse =
+            report(
+                HttpStatus.CONFLICT,
+                ex,
+                ex.message.orEmpty(),
+                request,
+                "Conflict exception",
+                notify = ex !is ConflictException || !ex.quiet,
+            )
         return ResponseEntity(errorResponse, HttpStatus.CONFLICT)
     }
 
@@ -293,14 +237,16 @@ internal class ExceptionAdvices(
         request: WebRequest,
     ): ResponseEntity<CarpErrorResponse> {
         val errorResponse =
-            CarpErrorResponse(
-                HttpStatus.TOO_MANY_REQUESTS.value(),
-                ex::class.qualifiedName.orEmpty(),
+            report(
+                HttpStatus.TOO_MANY_REQUESTS,
+                ex,
                 ex.message.orEmpty(),
-                getURIPathFromWebRequest(request),
+                request,
+                "Too many requests",
+                notify = false,
+                level = Level.WARN,
             )
-        LOGGER.warn("Too many requests: {}", errorResponse)
-        // Deliberately no sendExceptionNotification() here, unlike every other handler in this class: a
+        // Deliberately no notification here, unlike every other handler in this class: a
         // 429 is an EXPECTED outcome of rate limiting a public endpoint, not an application error worth
         // paging on. This can currently only be thrown from self-signup's unauthenticated public endpoint
         // (see TooManyRequestsException), so any caller can trigger it on demand - notifying per-occurrence
@@ -317,14 +263,7 @@ internal class ExceptionAdvices(
         request: WebRequest,
     ): ResponseEntity<CarpErrorResponse> {
         val errorResponse =
-            CarpErrorResponse(
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                ex::class.qualifiedName.orEmpty(),
-                ex.message.orEmpty(),
-                getURIPathFromWebRequest(request),
-            )
-        LOGGER.error("Uncaught Exception: {}", errorResponse)
-        notificationService.sendExceptionNotification(errorResponse)
+            report(HttpStatus.INTERNAL_SERVER_ERROR, ex, ex.message.orEmpty(), request, "Uncaught Exception")
         return ResponseEntity(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR)
     }
 
@@ -335,15 +274,42 @@ internal class ExceptionAdvices(
         request: WebRequest,
     ): ResponseEntity<CarpErrorResponse> {
         val errorResponse =
-            CarpErrorResponse(
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                ex::class.qualifiedName.orEmpty(),
+            report(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                ex.undeclaredThrowable,
                 ex.undeclaredThrowable.message.orEmpty(),
-                getURIPathFromWebRequest(request),
+                request,
+                "UndeclaredThrowableException",
+                exceptionName = ex::class.qualifiedName.orEmpty(),
             )
-        LOGGER.error("UndeclaredThrowableException: {}", errorResponse)
-        notificationService.sendExceptionNotification(errorResponse)
         return ResponseEntity(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR)
+    }
+
+    /**
+     * Builds the [CarpErrorResponse] for [ex], logs it with its [ErrorContext] (with the stack trace for server
+     * errors), and posts it to Teams unless [notify] is false.
+     */
+    @Suppress("LongParameterList")
+    private fun report(
+        status: HttpStatus,
+        ex: Throwable,
+        message: String,
+        request: WebRequest,
+        label: String,
+        notify: Boolean = true,
+        level: Level = Level.ERROR,
+        exceptionName: String = ex::class.qualifiedName.orEmpty(),
+    ): CarpErrorResponse {
+        val context = ErrorContext.of(request)
+        val errorResponse =
+            CarpErrorResponse(status.value(), exceptionName, message, getURIPathFromWebRequest(request), context.ref)
+        if (status.is5xxServerError) {
+            LOGGER.log(level, "{} [{}]: {}", label, context, errorResponse, ex)
+        } else {
+            LOGGER.log(level, "{} [{}]: {}", label, context, errorResponse)
+        }
+        if (notify) notificationService.sendExceptionNotification(errorResponse, context)
+        return errorResponse
     }
 
     private fun getURIPathFromWebRequest(request: WebRequest): String {
