@@ -10,20 +10,27 @@ import org.springframework.web.filter.CorsFilter
 
 @Configuration
 class CorsConfig {
-    // It handles CORS preflight requests and intercepts CORS requests
+    companion object {
+        /**
+         * Any origin may call the API, but never with credentials. Clients authenticate with a bearer token in the
+         * `Authorization` header (the portal through @carp-dk/client, the mobile apps), not with cookies; allowing
+         * credentials together with any origin would let any website make cookie-authenticated calls.
+         */
+        fun corsConfiguration(): CorsConfiguration =
+            CorsConfiguration().apply {
+                allowCredentials = false
+                addAllowedOriginPattern("*")
+                addAllowedHeader("*")
+                addAllowedMethod("*")
+            }
+    }
+
+    /** Answers CORS preflight requests and adds CORS headers, ahead of every other filter. */
     @Bean
-    fun corsFilter(): CorsFilter? {
+    fun corsFilter(): FilterRegistrationBean<CorsFilter> {
         val source = UrlBasedCorsConfigurationSource()
-        val config = CorsConfiguration()
-        config.allowCredentials = true
-        config.addAllowedOriginPattern("*")
-        config.addAllowedHeader("*")
-        config.addAllowedMethod("*")
-        source.registerCorsConfiguration("/**", config)
+        source.registerCorsConfiguration("/**", corsConfiguration())
 
-        val bean = FilterRegistrationBean(CorsFilter(source))
-        bean.order = Ordered.HIGHEST_PRECEDENCE
-
-        return CorsFilter(source)
+        return FilterRegistrationBean(CorsFilter(source)).apply { order = Ordered.HIGHEST_PRECEDENCE }
     }
 }
