@@ -10,7 +10,6 @@ x-keycloak-dev-commands: &keycloak-dev-commands
     # Cap Keycloak's DB pool (Quarkus default is 100) so it cannot monopolise the shared Postgres
     # (max_connections=100). With CAWS's 20-connection pool this bounds app usage at 70 of 100.
     - --db-pool-max-size=50
-    - --features=token-exchange
     - "--db-url=jdbc:postgresql://carp-postgres-${PROFILE}:5432/keycloak"
     - "--db-username=${ADMIN_USER}"
     - "--db-password=${ADMIN_PASSWORD}"
@@ -19,6 +18,8 @@ x-keycloak-dev-commands: &keycloak-dev-commands
     - "--hostname-admin=${KC_URL}"
     - "--proxy-headers=xforwarded"
     - "--http-enabled=true"
+    # start-dev binds to localhost since 26.6; bind all interfaces so the container port mapping works.
+    - "--http-host=0.0.0.0"
 
 x-keycloak-prod-commands: &keycloak-prod-commands
   command:
@@ -27,7 +28,6 @@ x-keycloak-prod-commands: &keycloak-prod-commands
     # Cap Keycloak's DB pool (Quarkus default is 100) so it cannot monopolise the shared Postgres
     # (max_connections=100). With CAWS's 20-connection pool this bounds app usage at 70 of 100.
     - --db-pool-max-size=50
-    - --features=token-exchange
     - "--db-url=jdbc:postgresql://carp-postgres-${PROFILE}:5432/keycloak"
     - "--db-username=${ADMIN_USER}"
     - "--db-password=${ADMIN_PASSWORD}"
@@ -113,19 +113,21 @@ services:
     <<: [*carp-base-config]
     container_name: "carp-keycloak-${PROFILE}"
     environment:
-      - "KEYCLOAK_ADMIN=${ADMIN_USER}"
-      - "KEYCLOAK_ADMIN_PASSWORD=${ADMIN_PASSWORD}"
+      - "KC_BOOTSTRAP_ADMIN_USERNAME=${ADMIN_USER}"
+      - "KC_BOOTSTRAP_ADMIN_PASSWORD=${ADMIN_PASSWORD}"
       - "JAVA_OPTS_APPEND=-XX:InitialRAMPercentage=50.0 -XX:MaxRAMPercentage=75.0"
-    image: quay.io/keycloak/keycloak:25.0.6
+    image: quay.io/keycloak/keycloak:26.8.2
     ports:
       - "${KC_PORT}:8080"
     profiles:
       - base
     volumes:
-      - ./deployment/keycloak/carp-realm.json:/opt/keycloak/data/import/carp-realm.json
+      # A directory mount, not a file mount: since 26.2 --import-realm needs files named <realm>-realm.json,
+      # and the directory hides the empty carp-realm.json placeholder the old file mount left in the volume.
+      - ./deployment/keycloak/import:/opt/keycloak/data/import:ro
       - ./deployment/keycloak/carp-theme.jar:/opt/keycloak/providers/carp-theme.jar
       - ./deployment/keycloak/magic-links.jar:/opt/keycloak/providers/magic-links.jar
-      - ./deployment/keycloak/carp-keycloak-extension-1.0.2.jar:/opt/keycloak/providers/carp-keycloak-extension-1.0.2.jar
+      - ./deployment/keycloak/carp-keycloak-extension-1.0.3.jar:/opt/keycloak/providers/carp-keycloak-extension-1.0.3.jar
       - keycloak:/opt/keycloak/data
 
   keycloak-dev:
