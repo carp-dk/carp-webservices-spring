@@ -225,7 +225,9 @@ management:
     health:
       cache:
         time-to-live: 5000
-      show-details: always
+      # /actuator/** is public, so only the overall status is shown there. The admin server-info endpoint
+      # still reports each component, as it calls the health endpoint directly.
+      show-details: never
 
   info:
     build:
