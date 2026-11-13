@@ -16,6 +16,9 @@ import org.apache.logging.log4j.Logger
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.Authentication
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.web.bind.annotation.*
 import kotlin.time.Instant
 
@@ -33,6 +36,19 @@ class DataStreamController(
         const val DATA_STREAM_SERVICE_GZIP = "/api/data-stream-service-zip"
         const val DATA_STREAMS_SUMMARY = "/api/data-stream-service/summary"
         const val DATA_STREAM_QUERY_BY_TIME = "/api/data-stream-service/query-by-time"
+
+        /**
+         * Who made the request, for the log: the JWT subject (account id) and `azp` (the Keycloak client the
+         * token was issued to), so heavy or looping callers can be traced. Never throws; absent parts are `-`.
+         */
+        internal fun callerOf(authentication: Authentication?): String {
+            val token = (authentication as? JwtAuthenticationToken)?.token
+            val user = token?.subject ?: "-"
+            val client = runCatching { token?.getClaimAsString("azp") }.getOrNull() ?: "-"
+            return "user=$user, client=$client"
+        }
+
+        private fun caller(): String = callerOf(SecurityContextHolder.getContext().authentication)
     }
 
     @GetMapping(value = [DATA_STREAMS_SUMMARY])
@@ -51,7 +67,7 @@ class DataStreamController(
         LOGGER.info(
             "Start GET: /api/data-streams/summary" +
                 "?studyId=$studyId&deploymentId=$deploymentId&" +
-                "participantId=$participantId&scope=$scope&type=$type&from=$from&to=$to",
+                "participantId=$participantId&scope=$scope&type=$type&from=$from&to=$to (${caller()})",
         )
 
         return dataStreamService.getDataStreamsSummary(studyId, deploymentId, participantId, scope, type, from, to)
@@ -68,7 +84,7 @@ class DataStreamController(
         // Body and response are both core (carp.core) types, so mobile clients reuse the serializers
         // they already have: DataStreamId in, DataStreamBatch out. `from`/`to` are plain query params.
         val dataStream = WS_JSON.decodeFromString(DataStreamId.serializer(), dataStreamId)
-        LOGGER.info("Start POST: $DATA_STREAM_QUERY_BY_TIME -> dataStream=$dataStream&from=$from&to=$to")
+        LOGGER.info("Start POST: $DATA_STREAM_QUERY_BY_TIME -> dataStream=$dataStream&from=$from&to=$to (${caller()})")
         // Mirror core DataStreamServiceRequest.GetDataStream authorization: require the caller to be in
         // the study deployment. `require` grants system admins implicitly.
         authorizationService.require(Claim.InDeployment(dataStream.studyDeploymentId))
@@ -82,7 +98,7 @@ class DataStreamController(
         @RequestBody httpMessage: String,
     ): ResponseEntity<Any> {
         val request = WS_JSON.decodeFromString(DataStreamServiceRequest.Serializer, httpMessage)
-        LOGGER.info("Start POST: $DATA_STREAM_SERVICE -> ${request::class.simpleName}")
+        LOGGER.info("Start POST: $DATA_STREAM_SERVICE -> ${request::class.simpleName} (${caller()})")
         val ret = dataStreamService.core.invoke(request)
         return serializer.serializeResponse(request, ret).let { ResponseEntity.ok(it) }
     }
@@ -92,7 +108,7 @@ class DataStreamController(
     suspend fun handleCompressedData(
         @RequestBody data: ByteArray,
     ): ResponseEntity<Any> {
-        LOGGER.info("Start POST: $DATA_STREAM_SERVICE_GZIP")
+        LOGGER.info("Start POST: $DATA_STREAM_SERVICE_GZIP (${caller()})")
         val decompressedData = decompressGzip(data)
         val request = WS_JSON.decodeFromString(DataStreamServiceRequest.Serializer, decompressedData)
         val ret = dataStreamService.core.invoke(request)
