@@ -18,6 +18,8 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
 import org.springframework.format.support.DefaultFormattingConversionService
 import org.springframework.http.MediaType
+import org.springframework.security.oauth2.jwt.Jwt
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
@@ -45,6 +47,30 @@ class DataStreamControllerTest {
                 DataStreamController(dataStreamService, authorizationService),
             ).setConversionService(conversionService).build()
         coEvery { dataStreamService.core } returns core
+    }
+
+    @Nested
+    inner class CallerOf {
+        private fun jwt(vararg claims: Pair<String, Any>): JwtAuthenticationToken =
+            JwtAuthenticationToken(
+                Jwt.withTokenValue("token").header("alg", "none").claims { it.putAll(claims) }.build(),
+            )
+
+        @Test
+        fun `names the account and the client the token was issued to`() {
+            val caller = DataStreamController.callerOf(jwt("sub" to "user-1", "azp" to "carp-study-app"))
+            assertEquals("user=user-1, client=carp-study-app", caller)
+        }
+
+        @Test
+        fun `marks a missing azp claim`() {
+            assertEquals("user=user-1, client=-", DataStreamController.callerOf(jwt("sub" to "user-1")))
+        }
+
+        @Test
+        fun `does not fail without a JWT authentication`() {
+            assertEquals("user=-, client=-", DataStreamController.callerOf(null))
+        }
     }
 
     @Nested
