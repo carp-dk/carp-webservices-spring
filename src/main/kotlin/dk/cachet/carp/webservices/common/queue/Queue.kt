@@ -21,6 +21,15 @@ class Queue(environment: Environment) {
     val emailSendingPlq = environment.getProperty("rabbit.email.sending.plq")!!
     val emailSendingPlx = environment.getProperty("rabbit.email.sending.plx")!!
 
+    /**
+     * Third-party (wearables) queues. CARP Gardener declares these too, so names, types and arguments must stay
+     * exactly as Gardener's: RabbitMQ refuses a redeclaration with different ones (PRECONDITION_FAILED).
+     */
+    val thirdPartyQueue = environment.getProperty("rabbit.third-party.processing.queue")!!
+    val thirdPartyDirectExchange = environment.getProperty("rabbit.third-party.processing.direct-ex")!!
+    val thirdPartyDlq = environment.getProperty("rabbit.third-party.processing.dlq")!!
+    val thirdPartyDlx = environment.getProperty("rabbit.third-party.processing.dlx")!!
+
     /** Study queues */
     val studiesQueue = environment.getProperty("rabbit.study.queue")!!
     val studiesDirectExchange = environment.getProperty("rabbit.study.direct-ex")!!
@@ -49,6 +58,16 @@ class Queue(environment: Environment) {
     @Bean
     fun emailSendingPLX(): FanoutExchange {
         return FanoutExchange(emailSendingPlx)
+    }
+
+    @Bean
+    fun thirdPartyDirectExchange(): DirectExchange {
+        return DirectExchange(thirdPartyDirectExchange)
+    }
+
+    @Bean
+    fun thirdPartyDLX(): FanoutExchange {
+        return FanoutExchange(thirdPartyDlx)
     }
 
     @Bean
@@ -93,6 +112,19 @@ class Queue(environment: Environment) {
     }
 
     @Bean
+    fun thirdPartyQueue(): Queue {
+        return QueueBuilder
+            .durable(thirdPartyQueue)
+            .withArgument("x-dead-letter-exchange", thirdPartyDlx)
+            .build()
+    }
+
+    @Bean
+    fun thirdPartyDLQ(): Queue {
+        return QueueBuilder.durable(thirdPartyDlq).build()
+    }
+
+    @Bean
     fun studyQueue(): Queue {
         return QueueBuilder
             .durable(studiesQueue)
@@ -134,6 +166,16 @@ class Queue(environment: Environment) {
     @Bean
     fun emailSendingParkingLotBinding(): Binding {
         return BindingBuilder.bind(emailSendingPLQ()).to(emailSendingPLX())
+    }
+
+    @Bean
+    fun thirdPartyBinding(): Binding {
+        return BindingBuilder.bind(thirdPartyQueue()).to(thirdPartyDirectExchange()).with(thirdPartyQueue)
+    }
+
+    @Bean
+    fun thirdPartyQueueDeadLetterBinding(): Binding {
+        return BindingBuilder.bind(thirdPartyDLQ()).to(thirdPartyDLX())
     }
 
     @Bean
