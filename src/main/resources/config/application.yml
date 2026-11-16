@@ -194,6 +194,15 @@ rabbit:
       plq: ${rabbit.email.sending.queue}.plq
       plx: ${rabbit.email.sending.queue}.plx
 
+  # Wearables data published by CARP Gardener as data stream appends. Gardener declares the same exchange/queues;
+  # keep the names in step with its RABBITMQ__EXCHANGE__NAME / RABBITMQ__QUEUE__NAME.
+  third-party:
+    processing:
+      queue: third-party-queue-${spring.profiles.active}
+      direct-ex: third-party-direct-exchange-${spring.profiles.active}
+      dlq: ${rabbit.third-party.processing.queue}.dlq
+      dlx: ${rabbit.third-party.processing.queue}.dlx
+
   study:
     queue: study-queue-${spring.profiles.active}
     direct-ex: study-direct-exchange-${spring.profiles.active}
