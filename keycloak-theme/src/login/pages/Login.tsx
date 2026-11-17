@@ -182,7 +182,7 @@ const Login = (
                         : {})}
                       onChange={toggleSignedIn}
                       name="rememberMe"
-                      inputProps={{ "aria-label": "controlled" }}
+                      slotProps={{ input: { "aria-label": "controlled" } }}
                     />
                   }
                   label={msgStr("rememberMe")}

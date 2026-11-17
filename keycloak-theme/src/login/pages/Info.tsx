@@ -69,7 +69,7 @@ const Info = (
         {(() => {
           if (!skipLink && pageRedirectUri !== undefined) {
             return (
-              <Box display="flex" justifyContent="center" mt={4}>
+              <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
                 <CarpButton href={pageRedirectUri} variant="contained">
                   {msgStr("backToApplication")}
                 </CarpButton>
@@ -78,7 +78,7 @@ const Info = (
           }
           if (actionUri !== undefined) {
             return (
-              <Box display="flex" justifyContent="center" mt={4}>
+              <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
                 <CarpButton href={actionUri} variant="contained">
                   {msgStr("proceedWithAction")}
                 </CarpButton>
@@ -87,7 +87,7 @@ const Info = (
           }
           if (client.baseUrl !== undefined) {
             return (
-              <Box display="flex" justifyContent="center" mt={4}>
+              <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
                 <CarpButton href={client.baseUrl} variant="contained">
                   {msgStr("backToApplication")}
                 </CarpButton>
