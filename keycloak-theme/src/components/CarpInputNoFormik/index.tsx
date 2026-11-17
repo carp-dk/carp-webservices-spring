@@ -56,10 +56,6 @@ const CarpInputNoFormik = ({
     <StyledInput
       name={name as string}
       label={label}
-      inputProps={{
-        "data-testid": rows ? "single-line-input" : "multi-line-input",
-        onAnimationStart: handleAnimationStart,
-      }}
       id={id || (name as string)}
       placeholder={placeholder}
       value={value}
@@ -72,9 +68,15 @@ const CarpInputNoFormik = ({
       rows={rows}
       multiline={!!rows}
       disabled={disabled}
-      InputLabelProps={{
-        shrink: isAutoFilled || name !== "",
-        ...inputLabelProps,
+      slotProps={{
+        htmlInput: {
+          "data-testid": rows ? "single-line-input" : "multi-line-input",
+          onAnimationStart: handleAnimationStart,
+        },
+        inputLabel: {
+          shrink: isAutoFilled || name !== "",
+          ...inputLabelProps,
+        },
       }}
       required={required}
     />

@@ -1,6 +1,9 @@
-import { createUseI18n } from "keycloakify/login";
+import { i18nBuilder } from "keycloakify/login";
+import type { ThemeName } from "../kc.gen";
 
-export const { useI18n, ofTypeI18n } = createUseI18n({
+export const { useI18n, ofTypeI18n } = i18nBuilder
+  .withThemeName<ThemeName>()
+  .withCustomTranslations({
   en: {
     alphanumericalCharsOnly: "Only alphanumerical characters",
     gender: "Gender",
@@ -57,6 +60,7 @@ export const { useI18n, ofTypeI18n } = createUseI18n({
     passwordRequired: "Adgangskode er påkrævet",
     passwordsDontMatch: "Adgangskoderne matcher ikke",
   },
-});
+  })
+  .build();
 
 export type I18n = typeof ofTypeI18n;
