@@ -1,6 +1,8 @@
 package dk.cachet.carp.webservices.datastream.listener
 
 import com.rabbitmq.client.BuiltinExchangeType
+import dk.cachet.carp.webservices.common.exception.advices.CarpErrorResponse
+import dk.cachet.carp.webservices.common.notification.service.INotificationService
 import dk.cachet.carp.webservices.common.queue.ListenerRetryConfig
 import dk.cachet.carp.webservices.common.queue.Queue
 import dk.cachet.carp.webservices.datastream.listener.ThirdPartyDataStreamListenerTest.Companion.DEPLOYMENT_ID
@@ -9,32 +11,37 @@ import dk.cachet.carp.webservices.datastream.service.core.CoreDataStreamService
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.slot
+import io.mockk.verify
+import kotlinx.serialization.SerializationException
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.amqp.core.Message
+import org.springframework.amqp.core.MessageListener
 import org.springframework.amqp.core.MessageProperties
-import org.springframework.amqp.rabbit.config.RetryInterceptorBuilder
+import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory
+import org.springframework.amqp.rabbit.config.SimpleRabbitListenerEndpoint
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory
 import org.springframework.amqp.rabbit.core.RabbitAdmin
 import org.springframework.amqp.rabbit.core.RabbitTemplate
-import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer
-import org.springframework.amqp.rabbit.retry.RejectAndDontRequeueRecoverer
-import org.springframework.boot.retry.RetryPolicySettings
+import org.springframework.boot.amqp.autoconfigure.RabbitAutoConfiguration
+import org.springframework.boot.autoconfigure.AutoConfigurations
+import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.dao.DataAccessResourceFailureException
 import org.springframework.mock.env.MockEnvironment
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
-import java.time.Duration
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * Runs the third-party queue against a real broker: the topology CAWS declares must be accepted next to the one
- * CARP Gardener declares, and failed messages must end up in Gardener's dead-letter queue.
+ * CARP Gardener declares, and failed messages must end up in Gardener's dead-letter queue, reported exactly once.
  */
 @Testcontainers(disabledWithoutDocker = true)
 class ThirdPartyQueueRabbitTest {
@@ -58,9 +65,25 @@ class ThirdPartyQueueRabbitTest {
     }
 
     private val dataStreamService: CoreDataStreamService = mockk()
+    private val notificationService: INotificationService = mockk(relaxed = true)
     private lateinit var connectionFactory: CachingConnectionFactory
     private lateinit var template: RabbitTemplate
-    private lateinit var container: SimpleMessageListenerContainer
+
+    /** The application's listener setup: Boot's Rabbit auto-configuration with CAWS's retry tweak and factory. */
+    private val contextRunner =
+        ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(RabbitAutoConfiguration::class.java))
+            .withUserConfiguration(ListenerRetryConfig::class.java, ThirdPartyListenerConfig::class.java)
+            .withBean(ThirdPartyDeadLetterAlert::class.java, { ThirdPartyDeadLetterAlert(notificationService) })
+            .withPropertyValues(
+                "spring.rabbitmq.host=${rabbit.host}",
+                "spring.rabbitmq.port=${rabbit.getMappedPort(5672)}",
+                "spring.rabbitmq.username=admin",
+                "spring.rabbitmq.password=admin",
+                "spring.rabbitmq.listener.simple.retry.enabled=true",
+                "spring.rabbitmq.listener.simple.retry.max-retries=$MAX_RETRIES",
+                "spring.rabbitmq.listener.simple.retry.initial-interval=10ms",
+            )
 
     @BeforeEach
     fun setup() {
@@ -73,19 +96,10 @@ class ThirdPartyQueueRabbitTest {
 
         declareAsGardener()
         declareAsCaws()
-
-        container =
-            SimpleMessageListenerContainer(connectionFactory).apply {
-                setQueueNames(QUEUE)
-                setMessageListener { ThirdPartyDataStreamListener(dataStreamService).receive(it) }
-                setAdviceChain(bootLikeRetry())
-                start()
-            }
     }
 
     @AfterEach
     fun teardown() {
-        container.stop()
         RabbitAdmin(connectionFactory).apply {
             deleteQueue(QUEUE)
             deleteQueue(DLQ)
@@ -96,42 +110,75 @@ class ThirdPartyQueueRabbitTest {
     }
 
     @Test
-    fun `stores a valid message and dead-letters nothing`() {
-        coEvery { dataStreamService.appendToDataStreams(any(), any()) } returns Unit
+    fun `stores a valid message and dead-letters nothing`() =
+        withListener {
+            coEvery { dataStreamService.appendToDataStreams(any(), any()) } returns Unit
 
-        publish(GARDENER_PAYLOAD)
+            publish(GARDENER_PAYLOAD)
 
-        coVerify(timeout = RECEIVE_TIMEOUT_MS) { dataStreamService.appendToDataStreams(DEPLOYMENT_ID, any()) }
-        assertNull(template.receive(DLQ, 500))
-    }
-
-    @Test
-    fun `dead-letters a malformed message`() {
-        publish("{not json")
-
-        assertDeadLettered("{not json")
-        coVerify(exactly = 0) { dataStreamService.appendToDataStreams(any(), any()) }
-    }
+            coVerify(timeout = RECEIVE_TIMEOUT_MS) { dataStreamService.appendToDataStreams(DEPLOYMENT_ID, any()) }
+            assertNull(template.receive(DLQ, 500))
+            verify(exactly = 0) { notificationService.sendExceptionNotification(any(), any()) }
+        }
 
     @Test
-    fun `dead-letters data for closed data streams without retrying`() {
-        coEvery { dataStreamService.appendToDataStreams(any(), any()) } throws IllegalStateException("closed")
+    fun `dead-letters and reports a malformed message`() =
+        withListener {
+            publish("{not json")
 
-        publish(GARDENER_PAYLOAD)
-
-        assertDeadLettered(GARDENER_PAYLOAD)
-        coVerify(exactly = 1) { dataStreamService.appendToDataStreams(any(), any()) }
-    }
+            assertDeadLettered("{not json")
+            coVerify(exactly = 0) { dataStreamService.appendToDataStreams(any(), any()) }
+            assertReportedOnce(SerializationException::class.java)
+        }
 
     @Test
-    fun `retries other failures before dead-lettering`() {
-        coEvery { dataStreamService.appendToDataStreams(any(), any()) } throws
-            DataAccessResourceFailureException("database unavailable")
+    fun `dead-letters and reports data for closed data streams without retrying`() =
+        withListener {
+            coEvery { dataStreamService.appendToDataStreams(any(), any()) } throws IllegalStateException("closed")
 
-        publish(GARDENER_PAYLOAD)
+            publish(GARDENER_PAYLOAD)
 
-        assertDeadLettered(GARDENER_PAYLOAD)
-        coVerify(exactly = 1 + MAX_RETRIES.toInt()) { dataStreamService.appendToDataStreams(any(), any()) }
+            assertDeadLettered(GARDENER_PAYLOAD)
+            coVerify(exactly = 1) { dataStreamService.appendToDataStreams(any(), any()) }
+            assertReportedOnce(IllegalStateException::class.java)
+        }
+
+    @Test
+    fun `retries other failures, then dead-letters and reports them once`() =
+        withListener {
+            coEvery { dataStreamService.appendToDataStreams(any(), any()) } throws
+                DataAccessResourceFailureException("database unavailable")
+
+            publish(GARDENER_PAYLOAD)
+
+            assertDeadLettered(GARDENER_PAYLOAD)
+            coVerify(exactly = 1 + MAX_RETRIES.toInt()) { dataStreamService.appendToDataStreams(any(), any()) }
+            assertReportedOnce(DataAccessResourceFailureException::class.java)
+        }
+
+    /** Runs [block] with the listener consuming the queue through the application's container factory. */
+    private fun withListener(block: () -> Unit) {
+        contextRunner.run { context ->
+            val factory =
+                context.getBean(
+                    ThirdPartyListenerConfig.CONTAINER_FACTORY,
+                    SimpleRabbitListenerContainerFactory::class.java,
+                )
+            val endpoint =
+                SimpleRabbitListenerEndpoint().apply {
+                    setId("third-party-test")
+                    setQueueNames(QUEUE)
+                    setMessageListener(MessageListener { ThirdPartyDataStreamListener(dataStreamService).receive(it) })
+                }
+            val container = factory.createListenerContainer(endpoint)
+            container.afterPropertiesSet()
+            container.start()
+            try {
+                block()
+            } finally {
+                container.stop()
+            }
+        }
     }
 
     /** Mirrors RabbitMqTopology in carp-gardener, which may run before CAWS on a fresh broker. */
@@ -171,21 +218,6 @@ class ThirdPartyQueueRabbitTest {
         }
     }
 
-    /** What Spring Boot builds from `spring.rabbitmq.listener.simple.retry`, with short delays. */
-    private fun bootLikeRetry() =
-        RetryInterceptorBuilder.stateless()
-            .retryPolicy(
-                RetryPolicySettings()
-                    .apply {
-                        maxRetries = MAX_RETRIES
-                        delay = Duration.ofMillis(10)
-                    }
-                    .also { ListenerRetryConfig().skipRetryOnRejectCustomizer().customize(it) }
-                    .createRetryPolicy(),
-            )
-            .recoverer(RejectAndDontRequeueRecoverer())
-            .build()
-
     /** Publishes like Gardener: to the direct exchange, routed by the queue name, without message properties. */
     private fun publish(body: String) = template.send(EXCHANGE, QUEUE, Message(body.toByteArray(), MessageProperties()))
 
@@ -193,5 +225,14 @@ class ThirdPartyQueueRabbitTest {
         val deadLetter = assertNotNull(template.receive(DLQ, RECEIVE_TIMEOUT_MS), "Expected a message in $DLQ.")
         assertEquals(body, deadLetter.body.decodeToString())
         assertNotNull(deadLetter.messageProperties.headers["x-death"], "Expected the broker to have dead-lettered it.")
+    }
+
+    private fun assertReportedOnce(exception: Class<out Throwable>) {
+        val reported = slot<CarpErrorResponse>()
+        verify(exactly = 1, timeout = RECEIVE_TIMEOUT_MS) {
+            notificationService.sendExceptionNotification(capture(reported), any())
+        }
+        assertTrue(exception.isAssignableFrom(Class.forName(reported.captured.exception)), reported.captured.exception)
+        assertEquals("AMQP $QUEUE", reported.captured.path)
     }
 }

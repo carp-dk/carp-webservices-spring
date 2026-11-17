@@ -23,7 +23,8 @@ import org.springframework.stereotype.Component
  *
  * Messages that can never be stored (malformed, unknown or closed deployment, unconfigured data stream) are rejected
  * at once and go to the dead-letter queue. Other failures, e.g. the database being unreachable, are retried as
- * configured under `spring.rabbitmq.listener.simple.retry` and then dead-lettered too.
+ * configured under `spring.rabbitmq.listener.simple.retry` and then dead-lettered too. Either way
+ * [ThirdPartyDeadLetterAlert] logs it and posts it to Teams.
  */
 @Component
 class ThirdPartyDataStreamListener(
@@ -33,7 +34,10 @@ class ThirdPartyDataStreamListener(
         private val LOGGER: Logger = LogManager.getLogger()
     }
 
-    @RabbitListener(queues = ["\${rabbit.third-party.processing.queue}"])
+    @RabbitListener(
+        queues = ["\${rabbit.third-party.processing.queue}"],
+        containerFactory = ThirdPartyListenerConfig.CONTAINER_FACTORY,
+    )
     fun receive(message: Message) {
         val request = decode(message)
         val deploymentId = request.studyDeploymentId
@@ -63,11 +67,9 @@ class ThirdPartyDataStreamListener(
             throw reject("Rejected malformed third-party message: ${ex.message}", ex)
         }
 
+    /** Skips the retries for a message that can never be stored; [ThirdPartyDeadLetterAlert] reports it. */
     private fun reject(
         reason: String,
         cause: Exception,
-    ): AmqpRejectAndDontRequeueException {
-        LOGGER.warn(reason)
-        return AmqpRejectAndDontRequeueException(reason, cause)
-    }
+    ) = AmqpRejectAndDontRequeueException(reason, cause)
 }
