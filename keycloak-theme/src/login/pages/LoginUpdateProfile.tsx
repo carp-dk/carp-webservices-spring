@@ -1,6 +1,6 @@
 import { useConstCallback } from "keycloakify/tools/useConstCallback";
 import { useState, type FormEventHandler } from "react";
-import { getKcClsx } from "keycloakify/login/lib/KcClsx";
+import { getKcClsx } from "keycloakify/login/lib/kcClsx";
 import type { PageProps } from "keycloakify/login/pages/PageProps";
 import { clsx } from "keycloakify/tools/clsx";
 import * as yup from "yup";
@@ -48,12 +48,24 @@ const LoginUpdateProfile = (
   });
 
   const formik = useFormik({
-    initialValues : {
-      username: typeof kcContext.profile.attributesByName.username === "string" ? kcContext.profile.attributesByName.username: "",
-      firstName: typeof kcContext.profile.attributesByName.firstName === "string" ? kcContext.profile.attributesByName.firstName : "",
-      lastName: typeof kcContext.profile.attributesByName.lastName === "string" ? kcContext.profile.attributesByName.lastName : "",
-      email: typeof kcContext.profile.attributesByName.email === "string" ? kcContext.profile.attributesByName.email : "",
-  },
+    initialValues: {
+      username:
+        typeof kcContext.profile.attributesByName.username === "string"
+          ? kcContext.profile.attributesByName.username
+          : "",
+      firstName:
+        typeof kcContext.profile.attributesByName.firstName === "string"
+          ? kcContext.profile.attributesByName.firstName
+          : "",
+      lastName:
+        typeof kcContext.profile.attributesByName.lastName === "string"
+          ? kcContext.profile.attributesByName.lastName
+          : "",
+      email:
+        typeof kcContext.profile.attributesByName.email === "string"
+          ? kcContext.profile.attributesByName.email
+          : "",
+    },
     validationSchema: profile.attributesByName.editUsernameAllowed
       ? validationSchemaUsername
       : validationSchemaNoUsername,
@@ -119,17 +131,11 @@ const LoginUpdateProfile = (
         />
 
         <div className={kcClsx("kcFormGroupClass")}>
-          <div
-            id="kc-form-options"
-            className={kcClsx("kcFormOptionsClass")}
-          >
+          <div id="kc-form-options" className={kcClsx("kcFormOptionsClass")}>
             <div className={kcClsx("kcFormOptionsWrapperClass")} />
           </div>
 
-          <div
-            id="kc-form-buttons"
-            className={kcClsx("kcFormButtonsClass")}
-          >
+          <div id="kc-form-buttons" className={kcClsx("kcFormButtonsClass")}>
             {isAppInitiatedAction ? (
               <>
                 <input

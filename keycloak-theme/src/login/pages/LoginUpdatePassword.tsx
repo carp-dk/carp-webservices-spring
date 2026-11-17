@@ -1,7 +1,7 @@
 import { useState, type FormEventHandler } from "react";
 import { useConstCallback } from "keycloakify/tools/useConstCallback";
 import { useFormik } from "formik";
-import { getKcClsx } from "keycloakify/login/lib/KcClsx";
+import { getKcClsx } from "keycloakify/login/lib/kcClsx";
 import type { PageProps } from "keycloakify/login/pages/PageProps";
 import * as yup from "yup";
 import BannerLogin from "../../components/Layout/PublicPageLayout/BannerLogin";
@@ -94,10 +94,7 @@ const LoginUpdatePassword = (
         />
 
         <div className={kcClsx("kcFormGroupClass")}>
-          <div
-            id="kc-form-options"
-            className={kcClsx("kcFormOptionsClass")}
-          >
+          <div id="kc-form-options" className={kcClsx("kcFormOptionsClass")}>
             <div className={kcClsx("kcFormOptionsWrapperClass")}>
               {isAppInitiatedAction && (
                 <div className="checkbox">
@@ -114,10 +111,7 @@ const LoginUpdatePassword = (
             </div>
           </div>
 
-          <div
-            id="kc-form-buttons"
-            className={kcClsx("kcFormButtonsClass")}
-          >
+          <div id="kc-form-buttons" className={kcClsx("kcFormButtonsClass")}>
             <AuthActionButton text={msgStr("doSubmit")} loading={isLoading} />
           </div>
         </div>

@@ -47,7 +47,7 @@ export const SnackbarProvider = ({ children }: ProviderProps) => {
       setSnackbarSuccess,
       setSnackbarError,
     }),
-    [snackbarState]
+    [snackbarState],
   );
 
   return (

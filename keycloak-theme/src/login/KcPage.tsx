@@ -18,7 +18,7 @@ import LoginUpdatePassword from "./pages/LoginUpdatePassword";
 import LoginResetPassword from "./pages/LoginResetPassword";
 import Info from "./pages/Info";
 const UserProfileFormFields = lazy(
-  () => import("keycloakify/login/UserProfileFormFields")
+  () => import("keycloakify/login/UserProfileFormFields"),
 );
 
 const doMakeUserConfirmPassword = true;

@@ -1,29 +1,32 @@
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap"
+  rel="stylesheet"
+/>
 
 <style>
-    body.sb-show-main.sb-main-padded {
-        padding: 0;
+  body.sb-show-main.sb-main-padded {
+    padding: 0;
+  }
+
+  /* Following styles are just meant to avoid white flash when switching from one story to another */
+  @keyframes fadeToTransparent {
+    from {
+      background-color: #393939;
     }
 
-    /* Following styles are just meant to avoid white flash when switching from one story to another */
-    @keyframes fadeToTransparent {
-        from {
-            background-color: #393939;
-        }
-
-        to {
-            background-color: transparent;
-        }
+    to {
+      background-color: transparent;
     }
-    html {
-        animation: fadeToTransparent 500ms forwards ease-in;
-    }
-    body > .sb-preparing-docs {
-        visibility: hidden;
-    }
-    body > .sb-preparing-story {
-        visibility: hidden;
-    }
+  }
+  html {
+    animation: fadeToTransparent 500ms forwards ease-in;
+  }
+  body > .sb-preparing-docs {
+    visibility: hidden;
+  }
+  body > .sb-preparing-story {
+    visibility: hidden;
+  }
 </style>

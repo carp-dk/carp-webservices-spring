@@ -2,7 +2,7 @@
 
 import { clsx } from "keycloakify/tools/clsx";
 import { type TemplateProps } from "keycloakify/login/TemplateProps";
-import { getKcClsx } from "keycloakify/login/lib/KcClsx";
+import { getKcClsx } from "keycloakify/login/lib/kcClsx";
 import { useSetClassName } from "keycloakify/tools/useSetClassName";
 
 import {
@@ -90,9 +90,7 @@ export const Template = (props: TemplateProps<KcContext, I18n>) => {
                       }}
                     >
                       <LanguageIcon sx={{ strokeWidth: 0.8, stroke: "#fff" }} />
-                      <Typography>
-                        {getLanguageLabel(selected)}
-                      </Typography>
+                      <Typography>{getLanguageLabel(selected)}</Typography>
                     </div>
                   );
                 }}
@@ -186,32 +184,31 @@ export const Template = (props: TemplateProps<KcContext, I18n>) => {
             </Alert>
           )}
         {children}
-        {auth !== undefined &&
-          auth.showTryAnotherWayLink && (
-            <form
-              id="kc-select-try-another-way-form"
-              action={url.loginAction}
-              method="post"
-              className={clsx(kcClsx("kcContentWrapperClass"))}
-            >
-              <div className={kcClsx("kcFormGroupClass")}>
-                <input type="hidden" name="tryAnotherWay" value="on" />
-                {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
-                <a
-                  href="#"
-                  id="try-another-way"
-                  onClick={() => {
-                    document.forms[
-                      "kc-select-try-another-way-form" as never
-                    ].submit();
-                    return false;
-                  }}
-                >
-                  {msg("doTryAnotherWay")}
-                </a>
-              </div>
-            </form>
-          )}
+        {auth !== undefined && auth.showTryAnotherWayLink && (
+          <form
+            id="kc-select-try-another-way-form"
+            action={url.loginAction}
+            method="post"
+            className={clsx(kcClsx("kcContentWrapperClass"))}
+          >
+            <div className={kcClsx("kcFormGroupClass")}>
+              <input type="hidden" name="tryAnotherWay" value="on" />
+              {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
+              <a
+                href="#"
+                id="try-another-way"
+                onClick={() => {
+                  document.forms[
+                    "kc-select-try-another-way-form" as never
+                  ].submit();
+                  return false;
+                }}
+              >
+                {msg("doTryAnotherWay")}
+              </a>
+            </div>
+          </form>
+        )}
       </AuthPageLayout>
     </PublicPageLayout>
   );

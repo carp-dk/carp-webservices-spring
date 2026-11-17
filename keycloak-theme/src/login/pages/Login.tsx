@@ -33,7 +33,7 @@ import { QrCodeScannerOutlined } from "@mui/icons-material";
 import QRScannerModal from "../../components/QRScannerModal";
 
 const Login = (
-  props: PageProps<Extract<KcContext, { pageId: "login.ftl" }>, I18n>
+  props: PageProps<Extract<KcContext, { pageId: "login.ftl" }>, I18n>,
 ) => {
   const { kcContext, i18n, doUseDefaultCss, Template, classes } = props;
 
@@ -71,7 +71,7 @@ const Login = (
       .required(
         realm.loginWithEmailAllowed
           ? msgStr("emailOrUsernameRequired")
-          : msgStr("usernameRequired")
+          : msgStr("usernameRequired"),
       ),
     password: yup.string().required(msgStr("passwordRequired")),
   });

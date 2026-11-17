@@ -1,0 +1,13 @@
+[run]
+# Run package.json scripts and their binaries with Bun instead of Node.
+bun = true
+
+[lint]
+ignorePatterns = ["src/kc.gen.tsx", "public/"]
+
+[lint.rules]
+# Carried over from the previous ESLint config.
+"react-hooks/exhaustive-deps" = "off"
+
+[fmt]
+ignorePatterns = ["public/", "src/email/", "src/kc.gen.tsx", "bun.lock"]
