@@ -2,7 +2,7 @@
 import { useState, type FormEventHandler } from "react";
 import { useConstCallback } from "keycloakify/tools/useConstCallback";
 import { useFormik } from "formik";
-import { getKcClsx } from "keycloakify/login/lib/KcClsx";
+import { getKcClsx } from "keycloakify/login/lib/kcClsx";
 import type { PageProps } from "keycloakify/login/pages/PageProps";
 import * as yup from "yup";
 import AuthActionButton from "../../components/Buttons/AuthActionButton";
@@ -14,7 +14,7 @@ import type { I18n } from "../i18n";
 import type { KcContext } from "../KcContext";
 
 const Register = (
-  props: PageProps<Extract<KcContext, { pageId: "register.ftl" }>, I18n>
+  props: PageProps<Extract<KcContext, { pageId: "register.ftl" }>, I18n>,
 ) => {
   const { kcContext, i18n, doUseDefaultCss, Template, classes } = props;
 
