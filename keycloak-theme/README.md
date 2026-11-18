@@ -11,6 +11,7 @@ bun install                   # Install dependencies
 bun run storybook             # Develop pages in isolation (http://localhost:6006)
 bun run dev                   # Start the Vite dev server
 bun run build-keycloak-theme  # Build the theme jars into dist_keycloak/
+bun test                      # Run unit tests (*.test.ts)
 bun lint                      # Lint (configured in bunfig.toml)
 bun fmt                       # Format (configured in bunfig.toml)
 bun fmt --check               # Check formatting without writing

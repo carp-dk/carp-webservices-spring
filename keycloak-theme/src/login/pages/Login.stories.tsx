@@ -233,3 +233,16 @@ export const WithErrorMessage: Story = {
     />
   ),
 };
+
+// Uses Cloudflare's public always-pass test site key, since the real key only works on its configured domains.
+export const WithTurnstile: Story = {
+  render: () => (
+    <KcPageStory
+      kcContext={{
+        turnstileRequired: true,
+        turnstileSiteKey: "1x00000000000000000000AA",
+        turnstileAction: "login",
+      }}
+    />
+  ),
+};

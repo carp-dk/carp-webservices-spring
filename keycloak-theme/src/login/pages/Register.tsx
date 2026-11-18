@@ -12,6 +12,7 @@ import BannerLogin from "../../components/Layout/PublicPageLayout/BannerLogin";
 import StyledLink from "../../components/StyledLink";
 import type { I18n } from "../i18n";
 import type { KcContext } from "../KcContext";
+import { getPasswordSchema } from "../passwordSchema";
 
 const Register = (
   props: PageProps<Extract<KcContext, { pageId: "register.ftl" }>, I18n>,
@@ -32,8 +33,14 @@ const Register = (
     formElement.submit();
   });
 
-  const { url, passwordRequired, recaptchaRequired, recaptchaSiteKey, realm } =
-    kcContext;
+  const {
+    url,
+    passwordRequired,
+    recaptchaRequired,
+    recaptchaSiteKey,
+    realm,
+    passwordPolicies,
+  } = kcContext;
 
   const { msg, msgStr } = i18n;
 
@@ -44,13 +51,9 @@ const Register = (
       .string()
       .email(msgStr("invalidEmailMessage"))
       .required(msgStr("emailRequired")),
-    password: yup
-      .string()
-      .min(8, msgStr("passwordMinLength"))
-      .required(msgStr("passwordRequired")),
+    password: getPasswordSchema(passwordPolicies, msgStr),
     "password-confirm": yup
       .string()
-      .min(8, msgStr("passwordMinLength"))
       .required(msgStr("passwordRequired"))
       .oneOf([yup.ref("password"), null], msgStr("passwordsDontMatch")),
   });
@@ -63,13 +66,9 @@ const Register = (
       .string()
       .email(msgStr("invalidEmailMessage"))
       .required(msgStr("emailRequired")),
-    password: yup
-      .string()
-      .min(8, msgStr("passwordMinLength"))
-      .required(msgStr("passwordRequired")),
+    password: getPasswordSchema(passwordPolicies, msgStr),
     "password-confirm": yup
       .string()
-      .min(8, msgStr("passwordMinLength"))
       .required(msgStr("passwordRequired"))
       .oneOf([yup.ref("password"), null], msgStr("passwordsDontMatch")),
   });
