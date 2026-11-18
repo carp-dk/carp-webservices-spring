@@ -1521,7 +1521,7 @@
     "xContentTypeOptions": "nosniff",
     "xRobotsTag": "none",
     "xFrameOptions": "SAMEORIGIN",
-    "contentSecurityPolicy": "frame-src 'self'; frame-ancestors 'self'; object-src 'none';",
+    "contentSecurityPolicy": "frame-src 'self' https://challenges.cloudflare.com; frame-ancestors 'self'; object-src 'none';",
     "xXSSProtection": "1; mode=block",
     "strictTransportSecurity": "max-age=31536000; includeSubDomains"
   },
@@ -2285,6 +2285,178 @@
           "userSetupAllowed": false
         }
       ]
+    },
+    {
+      "id": "25a78cdf-f8e7-4a7b-8dde-c487f832d856",
+      "alias": "browser turnstile",
+      "description": "Browser flow with Cloudflare Turnstile on the username/password form",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "auth-cookie",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "auth-spnego",
+          "authenticatorFlow": false,
+          "requirement": "DISABLED",
+          "priority": 20,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "identity-provider-redirector",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 25,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "ALTERNATIVE",
+          "priority": 30,
+          "autheticatorFlow": true,
+          "flowAlias": "browser turnstile forms",
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "id": "97df6d1d-f531-4250-8baf-2583e1b36f64",
+      "alias": "browser turnstile forms",
+      "description": "Username, password and OTP, with Cloudflare Turnstile",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "ext-auth-turnstile-username-password",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false,
+          "authenticatorConfig": "turnstile login"
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 20,
+          "autheticatorFlow": true,
+          "flowAlias": "browser turnstile - Conditional OTP",
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "id": "75bf5cca-010a-4498-a4f8-918f4c35ea1d",
+      "alias": "browser turnstile - Conditional OTP",
+      "description": "Flow to determine if the OTP is required for the authentication",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-user-configured",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "auth-otp-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "id": "cc4d5413-5425-4d85-9a6c-11d50b3d3c65",
+      "alias": "reset credentials turnstile",
+      "description": "Reset credentials flow with a Cloudflare Turnstile challenge first",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorConfig": "turnstile reset password",
+          "authenticator": "ext-auth-cloudflare-turnstile",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 5,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "reset-credentials-choose-user",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "reset-credential-email",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "reset-password",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 30,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 40,
+          "autheticatorFlow": true,
+          "flowAlias": "reset credentials turnstile - Conditional OTP",
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "id": "bebeca80-eed5-4236-817a-67907bd46421",
+      "alias": "reset credentials turnstile - Conditional OTP",
+      "description": "Flow to determine if the OTP should be reset or not. Set to REQUIRED to force.",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-user-configured",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "reset-otp",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
     }
   ],
   "authenticatorConfig": [
@@ -2300,6 +2472,27 @@
       "alias": "review profile config",
       "config": {
         "update.profile.on.first.login": "missing"
+      }
+    },
+    {
+      "id": "ec263272-f465-4da8-897c-9188ad94d0f6",
+      "alias": "turnstile login",
+      "config": {
+        "cloudflare_site_key": "${TURNSTILE_SITE_KEY}",
+        "cloudflare_secret": "${TURNSTILE_SECRET}",
+        "cloudflare_action": "login",
+        "cloudflare_siteverify_url": "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+        "verify_email_on_captcha_fail": "false"
+      }
+    },
+    {
+      "id": "161ba1ca-efc8-4dae-ad04-17e4ca86ac9e",
+      "alias": "turnstile reset password",
+      "config": {
+        "cloudflare_site_key": "${TURNSTILE_SITE_KEY}",
+        "cloudflare_secret": "${TURNSTILE_SECRET}",
+        "cloudflare_action": "reset-password",
+        "cloudflare_siteverify_url": "https://challenges.cloudflare.com/turnstile/v0/siteverify"
       }
     }
   ],
@@ -2386,10 +2579,11 @@
       "config": {}
     }
   ],
-  "browserFlow": "browser",
+  "loginTheme": "carp-custom-theme",
+  "browserFlow": "browser turnstile",
   "registrationFlow": "registration",
   "directGrantFlow": "direct grant",
-  "resetCredentialsFlow": "reset credentials",
+  "resetCredentialsFlow": "reset credentials turnstile",
   "clientAuthenticationFlow": "clients",
   "dockerAuthenticationFlow": "docker auth",
   "attributes": {

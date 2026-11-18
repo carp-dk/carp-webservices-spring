@@ -29,9 +29,14 @@ export const { useI18n, ofTypeI18n } = i18nBuilder
       lastNameRequired: "Last name is required",
       forgotPasswordInfo:
         "Enter your email address. If an account is found, a password reset link will be sent to your email.",
-      passwordMinLength: "Password must be at least 8 characters long",
       passwordRequired: "Password is required",
       passwordsDontMatch: "Passwords don't match",
+      securityCheckTitle: "Security check",
+      // Same wording as Phase Two's magic-links extension, which only ships non-Danish translations.
+      captchaFailed:
+        "Verification failed. Please complete the challenge and try again.",
+      captchaNotConfigured:
+        "Verification is required but has not been configured. Please contact your administrator.",
     },
     da: {
       agreeToPrivacyPolicy: "Når du logger ind, accepterer du",
@@ -56,9 +61,13 @@ export const { useI18n, ofTypeI18n } = i18nBuilder
       lastNameRequired: "Efternavn er påkrævet",
       forgotPasswordInfo:
         "Indtast din e-mailadresse. Hvis en konto findes, sendes et link til nulstilling af adgangskode til din e-mail.",
-      passwordMinLength: "Adgangskoden skal være mindst 8 tegn lang",
       passwordRequired: "Adgangskode er påkrævet",
       passwordsDontMatch: "Adgangskoderne matcher ikke",
+      securityCheckTitle: "Sikkerhedstjek",
+      captchaFailed:
+        "Bekræftelsen mislykkedes. Gennemfør udfordringen, og prøv igen.",
+      captchaNotConfigured:
+        "Bekræftelse er påkrævet, men er ikke konfigureret. Kontakt din administrator.",
     },
   })
   .build();

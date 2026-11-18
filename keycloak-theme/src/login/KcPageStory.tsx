@@ -15,7 +15,11 @@ const kcContextExtension: KcContextExtension = {
   },
   message: "Welcome to CARP",
 };
-const kcContextExtensionPerPage: KcContextExtensionPerPage = {};
+const kcContextExtensionPerPage: KcContextExtensionPerPage = {
+  "login.ftl": {},
+  "cf-captcha.ftl": {},
+  "login-update-password.ftl": {},
+};
 
 export const { getKcContextMock } = createGetKcContextMock({
   kcContextExtension,

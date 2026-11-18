@@ -9,6 +9,7 @@ import AuthActionButton from "../../components/Buttons/AuthActionButton";
 import type { I18n } from "../i18n";
 import type { KcContext } from "../KcContext";
 import CarpInput from "../../components/CarpInput";
+import { getPasswordSchema } from "../passwordSchema";
 
 const LoginUpdatePassword = (
   props: PageProps<
@@ -25,16 +26,12 @@ const LoginUpdatePassword = (
 
   const { msg, msgStr } = i18n;
 
-  const { url, isAppInitiatedAction } = kcContext;
+  const { url, isAppInitiatedAction, passwordPolicies } = kcContext;
 
   const validationSchema = yup.object({
-    "password-new": yup
-      .string()
-      .min(8, msgStr("passwordMinLength"))
-      .required(msgStr("passwordRequired")),
+    "password-new": getPasswordSchema(passwordPolicies, msgStr),
     "password-confirm": yup
       .string()
-      .min(8, msgStr("passwordMinLength"))
       .required(msgStr("passwordRequired"))
       .oneOf([yup.ref("password-new"), null], msgStr("passwordsDontMatch")),
   });
