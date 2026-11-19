@@ -7,6 +7,11 @@ import dk.cachet.carp.deployments.domain.users.ParticipationRepository
 import dk.cachet.carp.webservices.common.services.CoreServiceContainer
 import dk.cachet.carp.webservices.deployment.service.ParticipationService
 import dk.cachet.carp.webservices.export.service.ResourceExporter
+import dk.cachet.carp.webservices.export.service.ResourceExporter.Companion.EXPORT_BATCH_SIZE
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.toList
 import org.springframework.stereotype.Service
 import java.nio.file.Path
 
@@ -29,8 +34,25 @@ class ParticipationServiceWrapper(
         studyId: UUID,
         deploymentIds: Set<UUID>,
         target: Path,
-    ) = deploymentIds.map {
-        val group = repository.getParticipantGroupOrThrowBy(it)
-        ParticipantData(group.studyDeploymentId, group.commonData, group.roleData)
-    }
+    ) = exportBatchesOrThrow(studyId, deploymentIds, target).toList().flatten()
+
+    /**
+     * Loads the participant groups [EXPORT_BATCH_SIZE] at a time, in [deploymentIds] order.
+     * Like the single-group lookup this replaces, fails when a deployment has no participant group.
+     */
+    override fun exportBatchesOrThrow(
+        studyId: UUID,
+        deploymentIds: Set<UUID>,
+        target: Path,
+    ): Flow<List<ParticipantData>> =
+        deploymentIds
+            .chunked(EXPORT_BATCH_SIZE)
+            .asFlow()
+            .map { batch ->
+                val groups = repository.getParticipantGroupList(batch.toSet()).associateBy { it.studyDeploymentId }
+                batch.map { id ->
+                    val group = requireNotNull(groups[id]) { "No participant group found for deployment $id." }
+                    ParticipantData(group.studyDeploymentId, group.commonData, group.roleData)
+                }
+            }
 }
