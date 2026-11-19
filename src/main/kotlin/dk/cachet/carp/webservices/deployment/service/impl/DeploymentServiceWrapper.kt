@@ -21,6 +21,8 @@ class DeploymentServiceWrapper(
 
     final override val dataFileName = "deployments.json"
 
+    final override val exportSerializer = StudyDeploymentSnapshot.serializer()
+
     override suspend fun exportDataOrThrow(
         studyId: UUID,
         deploymentIds: Set<UUID>,

@@ -72,6 +72,8 @@ class StudyServiceWrapper(
 
     final override val dataFileName = "study.json"
 
+    final override val exportSerializer = StudySnapshot.serializer()
+
     override suspend fun exportDataOrThrow(
         studyId: UUID,
         deploymentIds: Set<UUID>,
