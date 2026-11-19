@@ -23,6 +23,8 @@ class ParticipationServiceWrapper(
 
     final override val dataFileName = "participant-data.json"
 
+    final override val exportSerializer = ParticipantData.serializer()
+
     override suspend fun exportDataOrThrow(
         studyId: UUID,
         deploymentIds: Set<UUID>,

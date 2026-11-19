@@ -1,6 +1,7 @@
 package dk.cachet.carp.webservices.export.service
 
 import dk.cachet.carp.common.application.UUID
+import kotlinx.serialization.KSerializer
 import java.nio.file.Path
 
 /**
@@ -11,6 +12,12 @@ import java.nio.file.Path
  */
 interface ResourceExporter<out TExport> {
     val dataFileName: String
+
+    /**
+     * The kotlinx serializer for [TExport], set by exporters of CARP Core types, whose JSON format is defined by
+     * kotlinx.serialization and which Jackson cannot reproduce. When null, the export is written with Jackson.
+     */
+    val exportSerializer: KSerializer<@UnsafeVariance TExport>? get() = null
 
     suspend fun exportDataOrThrow(
         studyId: UUID,

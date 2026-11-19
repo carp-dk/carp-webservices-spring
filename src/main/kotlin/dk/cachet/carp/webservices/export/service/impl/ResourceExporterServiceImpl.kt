@@ -2,11 +2,16 @@ package dk.cachet.carp.webservices.export.service.impl
 
 import dk.cachet.carp.common.application.UUID
 import dk.cachet.carp.deployments.domain.DeploymentRepository
+import dk.cachet.carp.webservices.common.input.WS_JSON
 import dk.cachet.carp.webservices.datastream.service.impl.DataStreamService
 import dk.cachet.carp.webservices.export.domain.ExportLog
 import dk.cachet.carp.webservices.export.service.ResourceExporter
 import dk.cachet.carp.webservices.export.service.ResourceExporterService
 import dk.cachet.carp.webservices.study.repository.CoreStudyRepository
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.encodeToStream
 import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.stereotype.Service
 import tools.jackson.databind.ObjectMapper
@@ -58,7 +63,12 @@ class ResourceExporterServiceImpl(
             }
 
             val path = targetDir.resolve(it.dataFileName)
-            writeResourceAsJson(path, exports, log)
+            val serializer = it.exportSerializer
+            if (serializer == null) {
+                writeResourceAsJson(path, exports, log)
+            } else {
+                writeCoreResourceAsJson(path, serializer, exports, log)
+            }
         }
 
         dataStreamService.exportDataOrThrow(studyDeploymentIds, targetDir)
@@ -104,7 +114,32 @@ class ResourceExporterServiceImpl(
         }
     }
 
-    // TODO: This will not work after change serialization to JSON
+    /**
+     * Writes CARP Core types with [WS_JSON], the same serializer used to store them and to serve the API, streaming
+     * straight to the file. Jackson cannot reproduce their format (polymorphic `__type`, `Instant`, `ApplicationData`).
+     */
+    @OptIn(ExperimentalSerializationApi::class)
+    private fun writeCoreResourceAsJson(
+        path: Path,
+        serializer: KSerializer<*>,
+        resources: Collection<*>,
+        log: ExportLog,
+    ) {
+        @Suppress("UNCHECKED_CAST")
+        val listSerializer = ListSerializer(serializer as KSerializer<Any?>)
+
+        try {
+            Files.newOutputStream(path).buffered().use {
+                WS_JSON.encodeToStream(listSerializer, resources.toList(), it)
+            }
+
+            log.info("A new file is created for zipping with name ${path.fileName}.")
+        } catch (e: Throwable) {
+            log.error("An error occurred while storing the file ${path.fileName}", e)
+        }
+    }
+
+    /** Writes web-services domain types (Jackson-annotated entities) with Jackson. */
     private fun writeResourceAsJson(
         path: Path,
         resource: Any,
