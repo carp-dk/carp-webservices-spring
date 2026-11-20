@@ -22,7 +22,6 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.ObjectMapper
 import java.nio.file.Path
 import kotlin.test.assertEquals
@@ -78,17 +77,18 @@ class DeploymentExportBatchingTest {
             }
 
         @Test
-        fun `a deployment without a participant group fails the export`() =
+        fun `a deployment without a participant group is skipped`() =
             runTest {
+                val missing = deploymentIds.first()
                 val repository = mockk<ParticipationRepository>()
                 coEvery { repository.getParticipantGroupList(any()) } answers {
-                    firstArg<Set<UUID>>().drop(1).map { participantGroup(it) }
+                    firstArg<Set<UUID>>().filter { it != missing }.map { participantGroup(it) }
                 }
                 val sut = ParticipationServiceWrapper(repository, mockk(relaxed = true))
 
-                assertThrows<IllegalArgumentException> {
-                    sut.exportBatchesOrThrow(studyId, deploymentIds, target).toList()
-                }
+                val exported = sut.exportBatchesOrThrow(studyId, deploymentIds, target).toList().flatten()
+
+                assertEquals((deploymentIds - missing).toList(), exported.map { it.studyDeploymentId })
             }
     }
 
