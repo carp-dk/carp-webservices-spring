@@ -2,7 +2,7 @@
 
 import { clsx } from "keycloakify/tools/clsx";
 import { type TemplateProps } from "keycloakify/login/TemplateProps";
-import { getKcClsx } from "keycloakify/login/lib/KcClsx";
+import { getKcClsx } from "keycloakify/login/lib/kcClsx";
 import { useSetClassName } from "keycloakify/tools/useSetClassName";
 
 import {
@@ -19,12 +19,11 @@ import type { I18n } from "./i18n";
 import PublicPageLayout from "../components/Layout/PublicPageLayout";
 import BootstrapInput from "../components/BootstrapInput";
 import { useEffect } from "react";
-import { useStylesAndScripts } from "keycloakify/login/Template.useStylesAndScripts";
+import { useInitialize } from "keycloakify/login/Template.useInitialize";
 
 export const Template = (props: TemplateProps<KcContext, I18n>) => {
   const {
     displayMessage = true,
-    showAnotherWayIfPresent = true,
     headerNode,
     infoNode = null,
     documentTitle,
@@ -39,9 +38,9 @@ export const Template = (props: TemplateProps<KcContext, I18n>) => {
 
   const { kcClsx } = getKcClsx({ doUseDefaultCss, classes });
 
-  const { msg, msgStr, getChangeLocaleUrl, labelBySupportedLanguageTag } = i18n;
+  const { msg, msgStr, currentLanguage, enabledLanguages } = i18n;
 
-  const { auth, url, message, isAppInitiatedAction, realm, locale } = kcContext;
+  const { auth, url, message, isAppInitiatedAction } = kcContext;
 
   useEffect(() => {
     document.title =
@@ -58,7 +57,7 @@ export const Template = (props: TemplateProps<KcContext, I18n>) => {
     className: bodyClassName ?? kcClsx("kcBodyClass"),
   });
 
-  const { isReadyToRender } = useStylesAndScripts({
+  const { isReadyToRender } = useInitialize({
     kcContext,
     doUseDefaultCss,
   });
@@ -68,17 +67,17 @@ export const Template = (props: TemplateProps<KcContext, I18n>) => {
   }
 
   const getLanguageLabel = (languageTag: string) => {
-    return labelBySupportedLanguageTag[languageTag];
+    return enabledLanguages.find((l) => l.languageTag === languageTag)?.label;
   };
 
   return (
     <PublicPageLayout
       infoNode={
         <>
-          {realm.internationalizationEnabled && locale.supported.length > 1 && (
+          {enabledLanguages.length > 1 && (
             <FormControl variant="standard">
               <Select
-                value={locale.currentLanguageTag}
+                value={currentLanguage.languageTag}
                 input={<BootstrapInput />}
                 renderValue={(selected) => {
                   return (
@@ -91,16 +90,14 @@ export const Template = (props: TemplateProps<KcContext, I18n>) => {
                       }}
                     >
                       <LanguageIcon sx={{ strokeWidth: 0.8, stroke: "#fff" }} />
-                      <Typography>
-                        {getLanguageLabel(selected)}
-                      </Typography>
+                      <Typography>{getLanguageLabel(selected)}</Typography>
                     </div>
                   );
                 }}
               >
-                {locale.supported.map(({ languageTag }) => (
+                {enabledLanguages.map(({ languageTag, href }) => (
                   <a
-                    href={getChangeLocaleUrl(languageTag)}
+                    href={href}
                     style={{ textDecoration: "none", color: "inherit" }}
                     key={languageTag}
                   >
@@ -187,33 +184,31 @@ export const Template = (props: TemplateProps<KcContext, I18n>) => {
             </Alert>
           )}
         {children}
-        {auth !== undefined &&
-          auth.showTryAnotherWayLink &&
-          showAnotherWayIfPresent && (
-            <form
-              id="kc-select-try-another-way-form"
-              action={url.loginAction}
-              method="post"
-              className={clsx(kcClsx("kcContentWrapperClass"))}
-            >
-              <div className={kcClsx("kcFormGroupClass")}>
-                <input type="hidden" name="tryAnotherWay" value="on" />
-                {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
-                <a
-                  href="#"
-                  id="try-another-way"
-                  onClick={() => {
-                    document.forms[
-                      "kc-select-try-another-way-form" as never
-                    ].submit();
-                    return false;
-                  }}
-                >
-                  {msg("doTryAnotherWay")}
-                </a>
-              </div>
-            </form>
-          )}
+        {auth !== undefined && auth.showTryAnotherWayLink && (
+          <form
+            id="kc-select-try-another-way-form"
+            action={url.loginAction}
+            method="post"
+            className={clsx(kcClsx("kcContentWrapperClass"))}
+          >
+            <div className={kcClsx("kcFormGroupClass")}>
+              <input type="hidden" name="tryAnotherWay" value="on" />
+              {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
+              <a
+                href="#"
+                id="try-another-way"
+                onClick={() => {
+                  document.forms[
+                    "kc-select-try-another-way-form" as never
+                  ].submit();
+                  return false;
+                }}
+              >
+                {msg("doTryAnotherWay")}
+              </a>
+            </div>
+          </form>
+        )}
       </AuthPageLayout>
     </PublicPageLayout>
   );

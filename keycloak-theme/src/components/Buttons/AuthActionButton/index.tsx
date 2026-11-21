@@ -4,14 +4,15 @@ import CarpButton from "./styles";
 type Props = {
   text: string;
   loading: boolean;
+  disabled?: boolean;
 };
 
-const AuthActionButton = ({ text, loading }: Props) => {
+const AuthActionButton = ({ text, loading, disabled = false }: Props) => {
   return (
     <CarpButton
       disableElevation
       variant="contained"
-      disabled={loading}
+      disabled={loading || disabled}
       type="submit"
     >
       {loading ? <CircularProgress size={24} /> : text}
