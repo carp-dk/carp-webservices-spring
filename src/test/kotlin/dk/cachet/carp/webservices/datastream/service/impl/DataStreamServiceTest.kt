@@ -30,6 +30,7 @@ import io.mockk.mockkStatic
 import io.mockk.unmockkAll
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.AfterEach
@@ -38,6 +39,9 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
+import org.springframework.security.authentication.TestingAuthenticationToken
+import org.springframework.security.core.Authentication
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.multipart.MultipartFile
 import tools.jackson.databind.ObjectMapper
 import java.io.ByteArrayOutputStream
@@ -52,6 +56,7 @@ import kotlin.io.path.createTempDirectory
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlin.time.Instant
 import kotlin.time.toJavaInstant
@@ -745,6 +750,46 @@ class DataStreamServiceTest {
                 assertEquals(result.from, from)
                 assertEquals(result.to, to)
             }
+        }
+
+        @Test
+        fun `study lookup is authorized as the caller after the deployment check`() {
+            // Spring MVC runs suspend handlers on Dispatchers.Unconfined, so after the deployment check's hop to
+            // Dispatchers.IO the rest of the summary resumes on an IO thread. getStudyDetails goes through
+            // StudyServiceAuthorizer, which reads the caller from SecurityContextHolder: if the caller didn't follow
+            // the coroutine, the check runs against an empty (or another request's stale) context and returns 403.
+            // runTest would hide this, as its dispatcher always resumes on the test thread.
+            val deploymentId = UUID.randomUUID()
+            val studyId = UUID.randomUUID()
+            every { participantRepository.getStudyIdByDeploymentId(deploymentId) } returns studyId
+            every { dataStreamIdRepository.getAllByDeploymentId(deploymentId.toString()) } returns emptyList()
+
+            val studyDetails = mockk<StudyDetails> { every { protocolSnapshot } returns null }
+            var callerAtStudyLookup: Authentication? = null
+            coEvery { studyService.getStudyDetails(studyId) } answers {
+                callerAtStudyLookup = SecurityContextHolder.getContext().authentication
+                studyDetails
+            }
+
+            val caller = TestingAuthenticationToken("researcher", null)
+            SecurityContextHolder.getContext().authentication = caller
+            try {
+                runBlocking(Dispatchers.Unconfined) {
+                    sut.getDataStreamsSummary(
+                        studyId = studyId,
+                        deploymentId = deploymentId,
+                        participantId = null,
+                        scope = "deployment",
+                        type = "survey",
+                        from = Instant.fromEpochMilliseconds(0),
+                        to = Instant.fromEpochMilliseconds(1000),
+                    )
+                }
+            } finally {
+                SecurityContextHolder.clearContext()
+            }
+
+            assertSame(caller, callerAtStudyLookup)
         }
 
         @Test

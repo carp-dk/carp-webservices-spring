@@ -17,6 +17,7 @@ import dk.cachet.carp.webservices.datastream.service.createSequence
 import dk.cachet.carp.webservices.datastream.service.fetchValidatedDataStreamId
 import dk.cachet.carp.webservices.datastream.service.validateConfig
 import dk.cachet.carp.webservices.deployment.service.ParticipationService
+import dk.cachet.carp.webservices.security.config.SecurityCoroutineContext
 import dk.cachet.carp.webservices.study.repository.CoreParticipantRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -145,7 +146,9 @@ class DataStreamService(
         // a deployment of another study. An unknown deployment fails the same way, so this reveals nothing.
         if (deploymentId != null && (scope == "deployment" || scope == "participant")) {
             val deploymentStudyId =
-                withContext(Dispatchers.IO) { participantRepository.getStudyIdByDeploymentId(deploymentId) }
+                withContext(Dispatchers.IO + SecurityCoroutineContext()) {
+                    participantRepository.getStudyIdByDeploymentId(deploymentId)
+                }
             require(deploymentStudyId == studyId) { "Deployment $deploymentId does not belong to study $studyId." }
         }
 
