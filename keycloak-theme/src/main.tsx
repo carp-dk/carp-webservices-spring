@@ -22,5 +22,5 @@ createRoot(document.getElementById("root")!).render(
         )}
       </ThemeProvider>
     </StyledEngineProvider>
-  </Suspense>
+  </Suspense>,
 );

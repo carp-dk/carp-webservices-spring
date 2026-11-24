@@ -8,7 +8,7 @@ import {
   opensans900,
 } from "../assets/fonts";
 
-declare module "@mui/material/styles/createPalette" {
+declare module "@mui/material/styles" {
   interface TypeText {
     primary: string;
     secondary: string;

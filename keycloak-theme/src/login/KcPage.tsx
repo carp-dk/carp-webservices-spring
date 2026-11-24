@@ -17,8 +17,9 @@ import LoginUpdateProfile from "./pages/LoginUpdateProfile";
 import LoginUpdatePassword from "./pages/LoginUpdatePassword";
 import LoginResetPassword from "./pages/LoginResetPassword";
 import Info from "./pages/Info";
+import CfCaptcha from "./pages/CfCaptcha";
 const UserProfileFormFields = lazy(
-  () => import("keycloakify/login/UserProfileFormFields")
+  () => import("keycloakify/login/UserProfileFormFields"),
 );
 
 const doMakeUserConfirmPassword = true;
@@ -88,6 +89,16 @@ export default function KcPage(props: Readonly<{ kcContext: KcContext }>) {
               case "info.ftl":
                 return (
                   <Info
+                    kcContext={kcContext}
+                    i18n={i18n}
+                    classes={classes}
+                    Template={Template}
+                    doUseDefaultCss={false}
+                  />
+                );
+              case "cf-captcha.ftl":
+                return (
+                  <CfCaptcha
                     kcContext={kcContext}
                     i18n={i18n}
                     classes={classes}

@@ -2,7 +2,7 @@
 import { useState, type FormEventHandler } from "react";
 import { useConstCallback } from "keycloakify/tools/useConstCallback";
 import { useFormik } from "formik";
-import { getKcClsx } from "keycloakify/login/lib/KcClsx";
+import { getKcClsx } from "keycloakify/login/lib/kcClsx";
 import type { PageProps } from "keycloakify/login/pages/PageProps";
 import * as yup from "yup";
 import AuthActionButton from "../../components/Buttons/AuthActionButton";
@@ -12,9 +12,10 @@ import BannerLogin from "../../components/Layout/PublicPageLayout/BannerLogin";
 import StyledLink from "../../components/StyledLink";
 import type { I18n } from "../i18n";
 import type { KcContext } from "../KcContext";
+import { getPasswordSchema } from "../passwordSchema";
 
 const Register = (
-  props: PageProps<Extract<KcContext, { pageId: "register.ftl" }>, I18n>
+  props: PageProps<Extract<KcContext, { pageId: "register.ftl" }>, I18n>,
 ) => {
   const { kcContext, i18n, doUseDefaultCss, Template, classes } = props;
 
@@ -32,8 +33,14 @@ const Register = (
     formElement.submit();
   });
 
-  const { url, passwordRequired, recaptchaRequired, recaptchaSiteKey, realm } =
-    kcContext;
+  const {
+    url,
+    passwordRequired,
+    recaptchaRequired,
+    recaptchaSiteKey,
+    realm,
+    passwordPolicies,
+  } = kcContext;
 
   const { msg, msgStr } = i18n;
 
@@ -44,13 +51,9 @@ const Register = (
       .string()
       .email(msgStr("invalidEmailMessage"))
       .required(msgStr("emailRequired")),
-    password: yup
-      .string()
-      .min(8, msgStr("passwordMinLength"))
-      .required(msgStr("passwordRequired")),
+    password: getPasswordSchema(passwordPolicies, msgStr),
     "password-confirm": yup
       .string()
-      .min(8, msgStr("passwordMinLength"))
       .required(msgStr("passwordRequired"))
       .oneOf([yup.ref("password"), null], msgStr("passwordsDontMatch")),
   });
@@ -63,13 +66,9 @@ const Register = (
       .string()
       .email(msgStr("invalidEmailMessage"))
       .required(msgStr("emailRequired")),
-    password: yup
-      .string()
-      .min(8, msgStr("passwordMinLength"))
-      .required(msgStr("passwordRequired")),
+    password: getPasswordSchema(passwordPolicies, msgStr),
     "password-confirm": yup
       .string()
-      .min(8, msgStr("passwordMinLength"))
       .required(msgStr("passwordRequired"))
       .oneOf([yup.ref("password"), null], msgStr("passwordsDontMatch")),
   });

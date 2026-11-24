@@ -7,7 +7,7 @@ import type { KcContext } from "../KcContext";
 import CarpButton from "../../components/Buttons/AuthActionButton/styles";
 
 const Info = (
-  props: PageProps<Extract<KcContext, { pageId: "info.ftl" }>, I18n>
+  props: PageProps<Extract<KcContext, { pageId: "info.ftl" }>, I18n>,
 ) => {
   const { kcContext, i18n, doUseDefaultCss, Template, classes } = props;
 
@@ -15,7 +15,7 @@ const Info = (
 
   assert(
     kcContext.message !== undefined,
-    "No message in kcContext.message, there will always be a message in production context, add it in your mock"
+    "No message in kcContext.message, there will always be a message in production context, add it in your mock",
   );
 
   const {
@@ -60,7 +60,7 @@ const Info = (
             <b>
               {requiredActions
                 .map((requiredAction) =>
-                  advancedMsgStr(`requiredAction.${requiredAction}` as const)
+                  advancedMsgStr(`requiredAction.${requiredAction}` as const),
                 )
                 .join(", ")}
             </b>
@@ -69,7 +69,7 @@ const Info = (
         {(() => {
           if (!skipLink && pageRedirectUri !== undefined) {
             return (
-              <Box display="flex" justifyContent="center" mt={4}>
+              <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
                 <CarpButton href={pageRedirectUri} variant="contained">
                   {msgStr("backToApplication")}
                 </CarpButton>
@@ -78,7 +78,7 @@ const Info = (
           }
           if (actionUri !== undefined) {
             return (
-              <Box display="flex" justifyContent="center" mt={4}>
+              <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
                 <CarpButton href={actionUri} variant="contained">
                   {msgStr("proceedWithAction")}
                 </CarpButton>
@@ -87,7 +87,7 @@ const Info = (
           }
           if (client.baseUrl !== undefined) {
             return (
-              <Box display="flex" justifyContent="center" mt={4}>
+              <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
                 <CarpButton href={client.baseUrl} variant="contained">
                   {msgStr("backToApplication")}
                 </CarpButton>

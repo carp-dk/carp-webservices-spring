@@ -31,18 +31,34 @@ import {
 } from "./styles";
 import { QrCodeScannerOutlined } from "@mui/icons-material";
 import QRScannerModal from "../../components/QRScannerModal";
+import TurnstileWidget from "../../components/TurnstileWidget";
+
+// The "Or log in with" section (QR code, Apple, Passkey, Google) is hidden until those
+// options work. Set to true to show it again.
+const SHOW_OTHER_LOGIN_OPTIONS = false;
 
 const Login = (
-  props: PageProps<Extract<KcContext, { pageId: "login.ftl" }>, I18n>
+  props: PageProps<Extract<KcContext, { pageId: "login.ftl" }>, I18n>,
 ) => {
   const { kcContext, i18n, doUseDefaultCss, Template, classes } = props;
 
-  const { social, realm, url, usernameHidden, login, registrationDisabled } =
-    kcContext;
+  const {
+    social,
+    realm,
+    url,
+    usernameHidden,
+    login,
+    registrationDisabled,
+    messagesPerField,
+    turnstileRequired,
+    turnstileSiteKey,
+    turnstileAction,
+  } = kcContext;
 
   const { msgStr } = i18n;
 
   const [isLoading, setIsLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   const onSubmit = useConstCallback<FormEventHandler<HTMLFormElement>>((e) => {
     e.preventDefault();
@@ -71,7 +87,7 @@ const Login = (
       .required(
         realm.loginWithEmailAllowed
           ? msgStr("emailOrUsernameRequired")
-          : msgStr("usernameRequired")
+          : msgStr("usernameRequired"),
       ),
     password: yup.string().required(msgStr("passwordRequired")),
   });
@@ -182,7 +198,7 @@ const Login = (
                         : {})}
                       onChange={toggleSignedIn}
                       name="rememberMe"
-                      inputProps={{ "aria-label": "controlled" }}
+                      slotProps={{ input: { "aria-label": "controlled" } }}
                     />
                   }
                   label={msgStr("rememberMe")}
@@ -197,7 +213,23 @@ const Login = (
               </AuthInfoText>
             )}
           </LoginAdditionalActions>
-          <AuthActionButton loading={isLoading} text={msgStr("doLogIn")} />
+          {turnstileRequired && turnstileSiteKey && (
+            <TurnstileWidget
+              siteKey={turnstileSiteKey}
+              action={turnstileAction}
+              error={
+                messagesPerField.existsError("cf-turnstile-response")
+                  ? messagesPerField.get("cf-turnstile-response")
+                  : undefined
+              }
+              onVerify={setCaptchaToken}
+            />
+          )}
+          <AuthActionButton
+            loading={isLoading}
+            disabled={turnstileRequired && !captchaToken}
+            text={msgStr("doLogIn")}
+          />
           <AuthInfoText variant="h4_web" hideOnMobile>
             {msgStr("agreeToPrivacyPolicy")}{" "}
             <StyledLink to="https://carp.dk/privacy-policy-service/">
@@ -207,27 +239,31 @@ const Login = (
           </AuthInfoText>
         </form>
       )}
-      <LoginSeparator>
-        <LoginSeparatorText variant="h4_web" component="span">
-          Or log in with
-        </LoginSeparatorText>
-      </LoginSeparator>
-      <LoginOauthOptions>
-        <LoginOauthOption
-          logoComponent={QrCodeScannerOutlined}
-          name="QR Code"
-          onClick={() => {
-            setOpen(true);
-          }}
-        />
-        {social.providers !== undefined && (
-          <>
-            <LoginOauthOption logoSrc={AppleLogo} name="Apple" />
-            <LoginOauthOption logoSrc={PasskeyLogo} name="Passkey" />
-            <LoginOauthOption logoSrc={GoogleLogo} name="Google" />
-          </>
-        )}
-      </LoginOauthOptions>
+      {SHOW_OTHER_LOGIN_OPTIONS && (
+        <>
+          <LoginSeparator>
+            <LoginSeparatorText variant="h4_web" component="span">
+              Or log in with
+            </LoginSeparatorText>
+          </LoginSeparator>
+          <LoginOauthOptions>
+            <LoginOauthOption
+              logoComponent={QrCodeScannerOutlined}
+              name="QR Code"
+              onClick={() => {
+                setOpen(true);
+              }}
+            />
+            {social.providers !== undefined && (
+              <>
+                <LoginOauthOption logoSrc={AppleLogo} name="Apple" />
+                <LoginOauthOption logoSrc={PasskeyLogo} name="Passkey" />
+                <LoginOauthOption logoSrc={GoogleLogo} name="Google" />
+              </>
+            )}
+          </LoginOauthOptions>
+        </>
+      )}
     </Template>
   );
 };
